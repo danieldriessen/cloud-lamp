@@ -166,6 +166,12 @@ mqtt:
               id(publish_full_state).execute();
               return;
             }
+            if (val < ${brightness_min}) {
+              // Below the visible floor: clamp instead of turning the lamp
+              // near-dark — off is only ever an explicit Set/On false.
+              ESP_LOGW("lamp", "MQTT Set/Brightness: %d%% below minimum — clamping to ${brightness_min}%%", val);
+              val = ${brightness_min};
+            }
             id(brightness_pct) = val;
             ESP_LOGI("lamp", "MQTT Set/Brightness: %d%%", val);
             if (id(led_rings).remote_values.is_on()) {

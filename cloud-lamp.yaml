@@ -57,9 +57,14 @@ substitutions:
   led_count:  "24"  # used in firmware
 
   # --- Brightness ---
-  brightness_default: "70"   # Default brightness in % (5–100). Used on first boot /
+  brightness_default: "70"   # Default brightness in % (10–100). Used on first boot /
                              # after factory reset; afterwards the last-set brightness
                              # is always remembered (survives reboots and power cuts).
+  brightness_min:     "10"   # Lower brightness limit in % for ALL control paths
+                             # (hold-to-dim, web app, MQTT). Prevents dimming so low
+                             # that the lamp looks off — off is only ever an explicit
+                             # toggle. Keep in sync with the web app slider
+                             # (web/app.html, BRI_MIN constant).
 
   # --- Wi-Fi setup hotspot (captive portal) ---
   # SSID is generated at runtime as "Cloud-Lamp-XXXX" (XXXX = last 4 hex digits
@@ -234,8 +239,8 @@ script:
           if (idx < 0 || idx >= (int) effects.size())
             idx = 0;
           id(last_effect_index) = idx;
-          if (id(brightness_pct) < 5)
-            id(brightness_pct) = 5;
+          if (id(brightness_pct) < ${brightness_min})
+            id(brightness_pct) = ${brightness_min};
           auto call = id(led_rings).turn_on();
           call.set_brightness(id(brightness_pct) / 100.0f);
           if (!effects.empty())
@@ -279,24 +284,28 @@ script:
   # Hold-to-dim. Direction alternates per hold; near the limits it always
   # moves away from the limit so a hold never appears to "do nothing".
   # Full range takes ~3 s. No wrap-around: the ramp stops at the limit.
+  # The ramp never goes below ${brightness_min}% — the lamp must always stay
+  # visibly on; off is only ever an explicit single-click toggle.
   - id: dim_hold
     mode: restart
     then:
       - lambda: |-
+          const float bri_min = ${brightness_min} / 100.0f;
           float b = id(led_rings).remote_values.get_brightness();
-          if (b >= 0.93f)      id(dim_up) = false;
-          else if (b <= 0.12f) id(dim_up) = true;
-          else                 id(dim_up) = !id(dim_up);
+          if (b >= 0.93f)                id(dim_up) = false;
+          else if (b <= bri_min + 0.07f) id(dim_up) = true;
+          else                           id(dim_up) = !id(dim_up);
           ESP_LOGI("button", "Hold-to-dim started (%s)", id(dim_up) ? "up" : "down");
       - while:
           condition:
             lambda: 'return id(push_button).state && id(led_rings).remote_values.is_on();'
           then:
             - lambda: |-
+                const float bri_min = ${brightness_min} / 100.0f;
                 float b = id(led_rings).remote_values.get_brightness();
                 float nb = b + (id(dim_up) ? 0.02f : -0.02f);
                 if (nb > 1.0f) nb = 1.0f;
-                if (nb < 0.05f) nb = 0.05f;
+                if (nb < bri_min) nb = bri_min;
                 if (nb != b) {
                   auto call = id(led_rings).turn_on();
                   call.set_brightness(nb);
@@ -390,7 +399,7 @@ light:
           if (on) {
             int b = (int) roundf(id(led_rings).remote_values.get_brightness() * 100.0f);
             if (b >= 1)
-              id(brightness_pct) = b;
+              id(brightness_pct) = b < ${brightness_min} ? ${brightness_min} : b;
             std::string fx = id(led_rings).get_effect_name();
             if (fx != "None") {
               const auto &effects = id(led_rings).get_effects();

@@ -294,7 +294,7 @@
       <div class="sec-label" data-i18n="brightness">Brightness</div>
       <div class="bri-row">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 4v1"/><path d="M12 19v1"/><path d="M4 12h1"/><path d="M19 12h1"/></svg>
-        <input type="range" id="briSlider" min="5" max="100" value="70">
+        <input type="range" id="briSlider" min="10" max="100" value="70">
         <div class="bri-val" id="briVal">—</div>
       </div>
     </div>
@@ -534,6 +534,9 @@
 
   /* ---------------- State ---------------- */
   const LIGHT_ID = "cloud_light";
+  // Lower brightness limit in % — keep in sync with the firmware's
+  // brightness_min substitution (cloud-lamp.yaml) and the slider's min above.
+  const BRI_MIN = 10;
   const st = {
     connected:false, on:false, brightness:70, effect:"None", effects:[],
     ssid:"—", rssi:null, ip:"—", uptime:null,
@@ -558,7 +561,7 @@
     if (briDragging) return;
     const s = $("briSlider");
     s.value = st.brightness;
-    s.style.setProperty("--fill", ((st.brightness - 5) / 95 * 100) + "%");
+    s.style.setProperty("--fill", ((st.brightness - BRI_MIN) / (100 - BRI_MIN) * 100) + "%");
     $("briVal").textContent = st.brightness + " %";
   }
   function renderEffects(){
@@ -644,7 +647,7 @@
       case `light-${LIGHT_ID}`:
         st.on = data.state === "ON";
         if (typeof data.brightness === "number")
-          st.brightness = Math.max(5, Math.min(100, Math.round(data.brightness*100/255)));
+          st.brightness = Math.max(BRI_MIN, Math.min(100, Math.round(data.brightness*100/255)));
         st.effect = data.effect || "None";
         renderPower(); renderBrightness(); renderEffects();
         break;
@@ -743,7 +746,7 @@
   briSlider.addEventListener("input", () => {
     briDragging = true;
     const v = parseInt(briSlider.value, 10);
-    briSlider.style.setProperty("--fill", ((v-5)/95*100) + "%");
+    briSlider.style.setProperty("--fill", ((v - BRI_MIN) / (100 - BRI_MIN) * 100) + "%");
     $("briVal").textContent = v + " %";
   });
   briSlider.addEventListener("change", () => {

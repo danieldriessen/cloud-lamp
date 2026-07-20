@@ -97,8 +97,11 @@ active. Per-build values (device name, LED count, version, manifest URL, …) al
 | Hold while plugging in power, keep holding ~10 s | — | Factory reset (see below) |
 | Anything during boot | — | Ignored (`boot_completed` guard) |
 
-Notes on the hold-to-dim ramp: full range takes ~3 s; brightness is clamped to 5–100 %;
-near a limit the direction is forced away from the limit so a hold never appears dead.
+Notes on the hold-to-dim ramp: full range takes ~3 s; brightness is clamped to
+`brightness_min`–100 % (default 10–100 %) so the lamp always stays visibly on — off is
+only ever the explicit single-click toggle, never the end of a dim ramp. The same floor
+applies to the web app slider and MQTT `Set/Brightness` (values below it are clamped).
+Near a limit the direction is forced away from the limit so a hold never appears dead.
 Single-click actions fire ~350 ms after release (double-click disambiguation window).
 
 ### Factory reset
