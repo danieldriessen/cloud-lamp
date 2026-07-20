@@ -1,0 +1,235 @@
+# ==============================================================================
+#  effects.yaml — Light effects package
+#
+#  The effect list below is the SINGLE source of truth. The firmware reads the
+#  registered effects directly from the light component at runtime
+#  (id(led_rings).get_effects()) — there is no separate name list to keep in
+#  sync anymore. Cycling order (button double-click) = order in this file.
+#
+#  TUNING: every magic number lives in the substitutions block below.
+#  Edit a value, reflash, done. Colours are raw pixel values BEFORE the
+#  light's color_correct is applied.
+# ==============================================================================
+
+substitutions:
+  # --- Twinkle ("starfield") ---
+  twinkle_ignite_chance: "40"   # 1-in-N chance per pixel per frame to ignite (higher = calmer)
+  twinkle_fade_step:     "10"   # Fade-out per frame (255 / step * interval ≈ fade time)
+  twinkle_interval:      "80ms"
+
+  # --- Pulse ("breathing") ---
+  pulse_min_brightness: "20%"   # Never fully dark — 0% looks like a fault
+  pulse_max_brightness: "85%"
+  pulse_transition:     "4s"    # One direction; full cycle = 2× this
+
+  # --- Rainbow ---
+  rainbow_speed: "4"            # Was 20 — clearly visible motion; 4 = slow ambient drift
+  rainbow_width: "24"           # One full spectrum across all 3 rings
+
+  # --- Color Wipe (soft sky colours) ---
+  wipe_led_interval: "400ms"    # Per-LED step; 24 LEDs ≈ 9.6 s per colour
+
+  # --- Sky Breathing (slow crossfade between two sky tones) ---
+  sky_breath_period_s: "14"     # Seconds for a full there-and-back crossfade
+
+  # --- Aurora Drift (moving pastel gradient, per-ring depth) ---
+  aurora_period_s: "22"         # Seconds for one full drift cycle
+
+  # --- Candlelight ---
+  candle_interval: "90ms"       # Flicker update rate
+  candle_depth:    "28"         # Max flicker dip (0-255); higher = more nervous flame
+
+  # --- Night Light ---
+  night_light_level: "26"       # Pixel value ceiling (0-255); very dim warm glow
+
+  # --- Thunderstorm ---
+  storm_min_gap_s: "6"          # Minimum seconds between lightning strikes
+  storm_max_gap_s: "18"         # Maximum seconds between lightning strikes
+
+light:
+  - id: !extend led_rings
+    effects:
+      # ------------------------------------------------------------
+      # Solid colours (slow refresh; brightness/colour-correction is
+      # applied by the light component at output time, so no fast
+      # redraw is needed).
+      # ------------------------------------------------------------
+      - addressable_lambda:
+          name: "Warm White"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(255, 180, 107);'
+      - addressable_lambda:
+          name: "White"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(255, 255, 255);'
+      - addressable_lambda:
+          name: "Sky Blue"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(90, 170, 255);'
+      - addressable_lambda:
+          name: "Cyan"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0, 255, 255);'
+      - addressable_lambda:
+          name: "Blue"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0, 0, 255);'
+      - addressable_lambda:
+          name: "Indigo"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(75, 0, 130);'
+      - addressable_lambda:
+          name: "Violet"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(138, 43, 226);'
+
+      # ------------------------------------------------------------
+      # Calm animated effects (the "cloud character" set)
+      # ------------------------------------------------------------
+
+      # Sky Breathing: very slow sinusoidal crossfade between a daylight blue
+      # and a soft cyan. The signature calm-cloud effect.
+      - addressable_lambda:
+          name: "Sky Breathing"
+          update_interval: 50ms
+          lambda: |-
+            const Color a(70, 150, 255);   // daylight blue
+            const Color b(10, 210, 235);   // soft cyan
+            float t = (millis() % (uint32_t)(${sky_breath_period_s} * 1000.0f)) /
+                      (${sky_breath_period_s} * 1000.0f);
+            float m = 0.5f - 0.5f * cosf(t * 2.0f * (float) M_PI);  // 0..1..0
+            it.all() = Color(
+              (uint8_t)(a.r + (b.r - a.r) * m),
+              (uint8_t)(a.g + (b.g - a.g) * m),
+              (uint8_t)(a.b + (b.b - a.b) * m));
+
+      # Aurora Drift: a slow-moving pastel gradient (cyan → violet). Each pixel
+      # gets a phase offset, so the three rings show slightly different hues —
+      # the cloud appears to have depth.
+      - addressable_lambda:
+          name: "Aurora Drift"
+          update_interval: 60ms
+          lambda: |-
+            const Color a(40, 200, 220);    // pastel cyan
+            const Color b(140, 90, 235);    // pastel violet
+            uint32_t period = (uint32_t)(${aurora_period_s} * 1000.0f);
+            float t = (millis() % period) / (float) period;
+            for (int i = 0; i < it.size(); i++) {
+              float phase = t * 2.0f * (float) M_PI + (i * 2.0f * (float) M_PI / it.size());
+              float m = 0.5f + 0.5f * sinf(phase);
+              it[i] = Color(
+                (uint8_t)(a.r + (b.r - a.r) * m),
+                (uint8_t)(a.g + (b.g - a.g) * m),
+                (uint8_t)(a.b + (b.b - a.b) * m));
+            }
+
+      # Candlelight: warm white with a gentle random-walk flicker per ring
+      # (8 LEDs each), like a flame behind frosted glass.
+      - addressable_lambda:
+          name: "Candlelight"
+          update_interval: ${candle_interval}
+          lambda: |-
+            static uint8_t dip[3] = {0, 0, 0};
+            const Color base(255, 147, 41);   // classic candle colour
+            for (int r = 0; r < 3; r++) {
+              // Random walk towards a new dip value; small steps = soft flicker
+              uint8_t target = random_uint32() % ${candle_depth};
+              dip[r] = (dip[r] * 3 + target) / 4;
+              uint8_t scale = 255 - dip[r];
+              Color c((base.r * scale) >> 8, (base.g * scale) >> 8, (base.b * scale) >> 8);
+              for (int i = r * 8; i < (r + 1) * 8 && i < it.size(); i++)
+                it[i] = c;
+            }
+
+      # Night Light: fixed very dim warm glow — "leave it on all night".
+      # Intentionally ignores the global brightness headroom by using low
+      # pixel values, so even at 100% brightness it stays gentle.
+      - addressable_lambda:
+          name: "Night Light"
+          update_interval: 250ms
+          lambda: |-
+            it.all() = Color(${night_light_level},
+                             (uint8_t)(${night_light_level} * 0.55f),
+                             (uint8_t)(${night_light_level} * 0.25f));
+
+      # Twinkle: sparse white sparks igniting and fading slowly — a starfield
+      # behind the cloud. Tuned much calmer than v1 (fewer, slower stars).
+      - addressable_lambda:
+          name: "Twinkle"
+          update_interval: ${twinkle_interval}
+          lambda: |-
+            static uint8_t state[${led_count}] = {};
+            for (int i = 0; i < it.size(); i++) {
+              if (state[i] == 0 && (random_uint32() % ${twinkle_ignite_chance}) == 0) {
+                state[i] = 255;
+              } else if (state[i] > 0) {
+                state[i] = state[i] > ${twinkle_fade_step} ? state[i] - ${twinkle_fade_step} : 0;
+              }
+              uint8_t v = state[i];
+              // Faint blue floor so the cloud never goes fully dark between stars
+              it[i] = Color(v > 8 ? v : 8, v > 8 ? v : 8, v > 24 ? v : 24);
+            }
+
+      # Color Wipe: soft cloud colours, very slow sweep. Each colour fills the
+      # whole strip before the next one wipes across.
+      - addressable_color_wipe:
+          name: "Color Wipe"
+          colors:
+            - red: 0%
+              green: 55%
+              blue: 100%
+              num_leds: 24
+            - red: 35%
+              green: 25%
+              blue: 100%
+              num_leds: 24
+            - red: 0%
+              green: 75%
+              blue: 90%
+              num_leds: 24
+          add_led_interval: ${wipe_led_interval}
+          reverse: false
+
+      # Rainbow: full spectrum across the three rings, drifting slowly.
+      - addressable_rainbow:
+          name: "Rainbow"
+          speed: ${rainbow_speed}
+          width: ${rainbow_width}
+
+      # Pulse: gentle breathing between two comfortable levels. Never fully
+      # dark (0% reads as a fault) and never harsh full power.
+      - pulse:
+          name: "Pulse"
+          transition_length: ${pulse_transition}
+          update_interval: 0.5s
+          min_brightness: ${pulse_min_brightness}
+          max_brightness: ${pulse_max_brightness}
+
+      # Thunderstorm: dim blue-grey cloud with an occasional soft lightning
+      # flicker inside one ring. On-theme showpiece; not a sleep effect.
+      - addressable_lambda:
+          name: "Thunderstorm"
+          update_interval: 40ms
+          lambda: |-
+            static uint32_t next_strike = 0;
+            static uint8_t flash_step = 0;
+            static int flash_ring = 0;
+            const Color base(28, 38, 60);      // dim stormy blue-grey
+            uint32_t now = millis();
+            if (next_strike == 0)
+              next_strike = now + 2000;
+            it.all() = base;
+            if (flash_step > 0) {
+              // Flash decays over a few frames, confined to one ring
+              uint8_t v = flash_step * 36 > 255 ? 255 : flash_step * 36;
+              Color flash(v, v, (uint8_t) std::min(255, v + 30));
+              for (int i = flash_ring * 8; i < (flash_ring + 1) * 8 && i < it.size(); i++)
+                it[i] = flash;
+              flash_step--;
+            } else if (now >= next_strike) {
+              flash_ring = random_uint32() % 3;
+              flash_step = 4 + (random_uint32() % 4);   // 4-7 decay frames
+              uint32_t gap = (${storm_min_gap_s} +
+                (random_uint32() % (${storm_max_gap_s} - ${storm_min_gap_s} + 1))) * 1000;
+              next_strike = now + gap;
+            }

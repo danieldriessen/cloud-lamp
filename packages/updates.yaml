@@ -1,0 +1,43 @@
+# ==============================================================================
+#  packages/updates.yaml — Online firmware updates (pull, user-triggered)
+#
+#  How it works:
+#    1. The device periodically downloads ${update_manifest_url} (a small
+#       JSON manifest in the GitHub repo, served via raw.githubusercontent.com,
+#       listing the newest firmware version, download path and MD5 checksum —
+#       see tools/release.sh).
+#    2. If the manifest version differs from ${project_version}, the web app
+#       shows "Update available" with an Install button.
+#    3. On install, the firmware is downloaded, MD5-verified and written to
+#       the inactive flash area. The running firmware keeps working during
+#       the whole download. Only a fully verified image is booted.
+#
+#  Safety net (why an update can't brick the lamp):
+#    - Download/power failure mid-update  -> old firmware still boots.
+#    - Corrupted file                     -> MD5 mismatch, update discarded.
+#    - New firmware boot-loops            -> safe_mode (cloud-lamp.yaml)
+#      catches it after 5 attempts and keeps Wi-Fi + OTA alive for a fix.
+#    - Settings live in the preferences area, not the firmware image, and
+#      survive every update.
+#
+#  An unreachable manifest URL is harmless: the check fails silently and the
+#  lamp keeps running. Manual browser-upload OTA (web-remote.yaml) always
+#  remains available as a fallback.
+# ==============================================================================
+
+http_request:
+  timeout: 15s
+  # BearSSL on the ESP8266 has no CA certificate store; transport is still
+  # TLS-encrypted, and firmware integrity is enforced by the manifest MD5.
+  verify_ssl: false
+
+ota:
+  - platform: http_request
+    id: ota_via_http
+
+update:
+  - platform: http_request
+    id: firmware_update
+    name: "Firmware"             # REST object_id: firmware
+    source: ${update_manifest_url}
+    update_interval: 6h

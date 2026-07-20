@@ -1,0 +1,20 @@
+# ESPHome build cache
+.esphome/
+
+# NOTE: firmware-dist/ is intentionally TRACKED — it is the update channel.
+# Devices download manifest + firmware from this repo via raw.githubusercontent.com.
+
+# macOS
+.DS_Store
+
+# Python bytecode (generated when ESPHome loads the custom component)
+__pycache__/
+
+# ioBroker VS Code extension cache (auto-downloaded type stubs)
+.iobroker/
+
+# Per-device credentials — never commit
+secrets.yaml
+
+# ioBroker VS Code extension config (contains private network address and username)
+.iobroker-config.json

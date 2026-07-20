@@ -1,0 +1,88 @@
+# ==============================================================================
+#  packages/temperature-sensor.yaml — Optional case temperature sensor
+#
+#  Enable by uncommenting one line in cloud-lamp.yaml's packages block:
+#    temperature_sensor: !include packages/temperature-sensor.yaml
+#
+#  What this adds:
+#    - DS18B20 OneWire sensor on GPIO4 (D2)
+#    - Emergency shutdown when case temp exceeds ${temp_shutdown_threshold} °C
+#    - Automatic recovery threshold ${temp_recovery_threshold} °C (hysteresis)
+#    - When the MQTT package is also enabled:
+#        …/Temperatures/Case_Temperature  (retain: true, QoS 1)
+#        …/Info/Emergency_Shutdown        (retain: true, QoS 1)
+#
+#  Works standalone (without MQTT): the shutdown logic is purely local; the
+#  MQTT publishes are compiled in only when the MQTT package is present.
+#
+#  NOTE: This package does NOT lock out manual control (button / web / MQTT).
+#  If the user turns the light back on while the temperature is still high,
+#  no new shutdown fires until the temperature first drops below the recovery
+#  threshold and rises above the shutdown threshold again (hysteresis guard,
+#  not a hard lockout).
+# ==============================================================================
+
+globals:
+  - id: emergency_shutdown
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+one_wire:
+  - platform: gpio
+    pin: GPIO4   # D2
+
+sensor:
+  - platform: dallas_temp
+    name: "Case Temperature"     # REST object_id: case_temperature
+    id: case_temp
+    address: ${temp_sensor_address}
+    update_interval: 15s
+    accuracy_decimals: 1
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    entity_category: diagnostic
+    filters:
+      - sliding_window_moving_average:
+          window_size: 3
+          send_every: 2   # Effective update interval: 15 s × 2 = 30 s
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGD("case_temp", "Case temperature: %.1f °C", x);
+
+            #ifdef USE_MQTT
+            if (mqtt::global_mqtt_client->is_connected()) {
+              mqtt::global_mqtt_client->publish(
+                  "${mqtt_topic_root}${mqtt_topic_device}/Temperatures/Case_Temperature",
+                  esphome::to_string(x), 1, true);
+            }
+            #endif
+
+            // Trigger emergency shutdown if temperature exceeds threshold
+            if (x >= ${temp_shutdown_threshold} && !id(emergency_shutdown)) {
+              ESP_LOGW("case_temp", "EMERGENCY: %.1f °C >= ${temp_shutdown_threshold} °C — LEDs off", x);
+              id(emergency_shutdown) = true;
+              id(lamp_turn_off).execute();
+              #ifdef USE_MQTT
+              if (mqtt::global_mqtt_client->is_connected()) {
+                mqtt::global_mqtt_client->publish(
+                    "${mqtt_topic_root}${mqtt_topic_device}/Info/Emergency_Shutdown",
+                    std::string("true"), 1, true);
+              }
+              #endif
+            }
+
+            // Lift emergency shutdown when temperature drops below recovery threshold
+            if (id(emergency_shutdown) && x <= ${temp_recovery_threshold}) {
+              ESP_LOGI("case_temp", "Temperature safe (%.1f °C <= ${temp_recovery_threshold} °C) — shutdown lifted", x);
+              id(emergency_shutdown) = false;
+              #ifdef USE_MQTT
+              if (mqtt::global_mqtt_client->is_connected()) {
+                mqtt::global_mqtt_client->publish(
+                    "${mqtt_topic_root}${mqtt_topic_device}/Info/Emergency_Shutdown",
+                    std::string("false"), 1, true);
+              }
+              #endif
+            }

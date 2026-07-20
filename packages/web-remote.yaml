@@ -1,0 +1,59 @@
+# ==============================================================================
+#  packages/web-remote.yaml — Web server + iOS-style web app
+#
+#  Serves the Cloud-Lamp web app (web/app.html, gzipped into the firmware) at
+#  http://<lamp-ip>/ via the custom cloud_lamp_web component, on top of the
+#  standard ESPHome web_server REST API (/light/…, /select/…, /events, …).
+#
+#  The app is a PWA: recipients open it in Safari and use
+#  "Add to Home Screen" — it then launches full-screen like a native app.
+#  The home-screen icon is served from /icon.png (web/icon.png, optional:
+#  the build works without it until the final icon artwork exists).
+#
+#  Also provides browser-upload OTA as the always-available update fallback
+#  (drag a .bin onto the stock ESPHome page: http://<lamp-ip>/update).
+# ==============================================================================
+
+external_components:
+  - source:
+      type: local
+      path: components
+
+web_server:
+  port: 80
+  version: 3
+  log: false   # Log streaming over the event source costs RAM; the app doesn't use it
+
+# Browser-upload OTA (manual fallback; the online updater is in updates.yaml)
+ota:
+  - platform: web_server
+
+cloud_lamp_web:
+  html_file: web/app.html
+  # Home-screen icon. Kept square on purpose: iOS rounds home-screen icons
+  # itself, and apple-touch-icon does not support transparency (transparent
+  # corners would render black). In-app display rounds it via CSS.
+  icon_file: web/icon.png
+  # DD Productions logo (transparent PNG), shown in the app footer.
+  logo_file: web/logo.png
+
+# ---- Diagnostics shown in the web app's settings sheet ----
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"          # REST object_id: wifi_signal
+    update_interval: 30s
+    entity_category: diagnostic
+
+  - platform: uptime
+    name: "Uptime"               # REST object_id: uptime
+    update_interval: 60s
+    entity_category: diagnostic
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"         # REST object_id: ip_address
+      entity_category: diagnostic
+    ssid:
+      name: "Connected SSID"     # REST object_id: connected_ssid
+      entity_category: diagnostic

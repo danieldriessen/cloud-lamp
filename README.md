@@ -1,0 +1,121 @@
+# Cloud-Lamp
+
+ESPHome firmware for a small 3D-printed decorative cloud lamp, built around a Wemos D1
+Mini (ESP8266) driving three WS2812 LED rings. The lamp is designed as a personalised
+gift — for example with a child's name and birth details printed on the front — and is
+fully usable as a standalone lamp with a single push-button, with optional Wi-Fi control
+through a built-in web app.
+
+![Cloud-Lamp app icon](assets/cloud-lamp-icon.png)
+
+## Features
+
+- **Standalone-first** — on/off, effect cycling and dimming always work from the
+  push-button alone. Wi-Fi and MQTT are optional extras that can never block or reboot
+  the lamp.
+- **Multi-gesture button** — single press toggles the lamp, double press switches to the
+  next effect, press-and-hold dims up/down (alternating, Hue-style). Holding the button
+  while plugging the lamp in performs a factory reset (with a red countdown animation as
+  warning).
+- **16 light effects** — solid colours plus subtle animations (Sky Breathing, Aurora
+  Drift, Candlelight, Night Light, Thunderstorm, Rainbow, Twinkle, …), all tunable via
+  substitutions in `effects.yaml`.
+- **iOS-style web app** — served directly from the lamp, no cloud, no app store.
+  Progressive Web App: open the lamp's address in Safari, "Add to Home Screen", and it
+  behaves like a native app. Power, brightness, effect selection, settings and firmware
+  updates; localised in English, German, Spanish and French.
+- **Simple Wi-Fi onboarding** — if the lamp doesn't know the local Wi-Fi it opens its own
+  hotspot (`Cloud-Lamp-XXXX`) with a captive portal to enter credentials. No flashing or
+  tooling needed to move the lamp to a new home; credentials survive firmware updates.
+- **Safe over-the-air updates** — the lamp periodically checks this repository for new
+  firmware and offers updates in the web app. Downloads are MD5-verified and written to a
+  separate flash region; a failed or interrupted update leaves the running firmware
+  untouched, and a boot-loop triggers ESPHome safe mode.
+- **Optional MQTT integration** — for ioBroker / Home Assistant setups, as a separate
+  build that adds broker connectivity without affecting standalone behaviour.
+- **Optional thermal protection** — a DS18B20 sensor package that shuts the LEDs off if
+  the case overheats and re-enables them after cooling down.
+
+## Hardware
+
+| Component | Details |
+|---|---|
+| Microcontroller | Wemos D1 Mini (ESP8266) |
+| LEDs | 3× stacked WS2812 rings, 24 LEDs total (GRB) |
+| LED data | GPIO03 (RX) through a 330 Ω series resistor |
+| Capacitor | 470 µF electrolytic across the 5 V rail |
+| Button | Momentary push-button on GPIO12 (D6) to GND, internal pull-up |
+| Power | External 5 V / 2 A supply |
+| Optional | DS18B20 temperature sensor on GPIO4 (D2) |
+
+The LED count, pins and other build parameters are substitutions at the top of
+`cloud-lamp.yaml`, so the firmware adapts easily to different ring counts or boards.
+Wiring details and the power budget are documented in
+[docs/cloud-lamp-design.md](docs/cloud-lamp-design.md#hardware).
+
+**3D printing:** the lamp shell is a 3D-printed cloud (PLA) with the personalised text on
+the front. The print files are planned to be published here as well.
+
+## Getting started
+
+Requirements: [ESPHome](https://esphome.io) (CLI or Docker) and Python 3.
+
+```bash
+git clone https://github.com/danieldriessen/cloud-lamp.git
+cd cloud-lamp
+
+# Create your credentials file from the template and fill in your values
+cp secrets.example.yaml secrets.yaml
+
+# Build and flash (first flash via USB, afterwards OTA)
+esphome run cloud-lamp.yaml
+```
+
+After flashing:
+
+1. Power the lamp — it works immediately from the button.
+2. Connect a phone to the lamp's setup hotspot `Cloud-Lamp-XXXX` and enter your Wi-Fi
+   credentials in the captive portal that opens.
+3. Open `http://cloud-lamp.local/` (or the lamp's IP) for the web app, and optionally add
+   it to the home screen.
+
+Two build configurations exist:
+
+- **`cloud-lamp.yaml`** — the standard build. Wi-Fi is configured entirely through the
+  captive portal; nothing network-specific is compiled in.
+- **`cloud-lamp-dev.yaml`** — a development build that additionally compiles in Wi-Fi
+  networks and the MQTT integration from `secrets.yaml`, convenient for bench work and
+  home-automation setups.
+
+To iterate on the web app without hardware, run `python3 tools/mock-device.py` and open
+`http://127.0.0.1:8932/`.
+
+**Note on updates:** firmware built from this repository checks this repository's
+`firmware-dist/` folder for online updates. If you fork the project, point the
+`update_manifest_url` substitution in `cloud-lamp.yaml` at your own fork (or remove the
+`updates` package) so your lamps follow your releases.
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [docs/cloud-lamp-design.md](docs/cloud-lamp-design.md) | Architecture, behaviour reference (button/boot/web/MQTT), hardware, changelog |
+| [docs/device-credentials.md](docs/device-credentials.md) | Setup-hotspot naming, product sticker contents, credential handling |
+| [docs/firmware-updates.md](docs/firmware-updates.md) | Update paths, safety guarantees, release workflow |
+| [docs/hand-lamp-reference.md](docs/hand-lamp-reference.md) | Predecessor project reference (historical) |
+
+## Repository layout
+
+```
+cloud-lamp.yaml            main firmware configuration
+cloud-lamp-dev.yaml        development build (compiled-in Wi-Fi + MQTT)
+effects.yaml               light effects and tuning parameters
+secrets.example.yaml       template for the required secrets.yaml
+packages/                  feature modules: web app, updates, MQTT, temperature sensor
+components/cloud_lamp_web/ custom ESPHome component serving the web app
+web/                       web app source (embedded into the firmware at build time)
+assets/                    artwork sources
+firmware-dist/             published firmware releases (online update channel)
+docs/                      project documentation
+tools/                     development and release helpers
+```

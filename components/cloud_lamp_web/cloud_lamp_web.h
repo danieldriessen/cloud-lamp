@@ -1,0 +1,74 @@
+#pragma once
+
+#include "esphome/core/defines.h"
+#ifdef USE_NETWORK
+
+#include "esphome/core/component.h"
+#include "esphome/components/web_server_base/web_server_base.h"
+
+namespace esphome {
+namespace cloud_lamp_web {
+
+/**
+ * Serves the Cloud-Lamp web app and its PWA support files:
+ *
+ *   GET /              -> app HTML (gzip, PROGMEM)
+ *   GET /app           -> same as / (stable URL for bookmarks)
+ *   GET /esphome       -> 302 redirect hint to the stock ESPHome UI is NOT
+ *                         provided; the stock UI stays reachable because this
+ *                         handler only claims the routes listed here.
+ *   GET /manifest.json -> web app manifest (name from friendly_name)
+ *   GET /icon.png      -> home screen icon (if provided at compile time)
+ *   GET /logo.png      -> maker logo shown in the app (if provided)
+ *   GET /device.json   -> device metadata (name, serial, version, mac)
+ *
+ * Registered with setup priority just above the stock web_server component so
+ * this handler is matched first for "/", while every REST route (/light/...,
+ * /select/..., /update/..., /events) still falls through to web_server.
+ * While the captive portal is active, canHandle() returns false so Wi-Fi
+ * onboarding is never shadowed.
+ */
+class CloudLampWeb : public Component, public AsyncWebHandler {
+ public:
+  explicit CloudLampWeb(web_server_base::WebServerBase *base) : base_(base) {}
+
+  void setup() override;
+  void dump_config() override;
+  float get_setup_priority() const override;
+
+  void set_html(const uint8_t *data, size_t size) {
+    this->html_ = data;
+    this->html_size_ = size;
+  }
+  void set_icon(const uint8_t *data, size_t size) {
+    this->icon_ = data;
+    this->icon_size_ = size;
+  }
+  void set_logo(const uint8_t *data, size_t size) {
+    this->logo_ = data;
+    this->logo_size_ = size;
+  }
+
+  bool canHandle(AsyncWebServerRequest *request) const override;
+  void handleRequest(AsyncWebServerRequest *request) override;
+  bool isRequestHandlerTrivial() const override { return true; }
+
+ protected:
+  void handle_app_(AsyncWebServerRequest *request);
+  void handle_manifest_(AsyncWebServerRequest *request);
+  void handle_png_(AsyncWebServerRequest *request, const uint8_t *data, size_t size);
+  void handle_device_info_(AsyncWebServerRequest *request);
+
+  web_server_base::WebServerBase *base_;
+  const uint8_t *html_{nullptr};
+  size_t html_size_{0};
+  const uint8_t *icon_{nullptr};
+  size_t icon_size_{0};
+  const uint8_t *logo_{nullptr};
+  size_t logo_size_{0};
+};
+
+}  // namespace cloud_lamp_web
+}  // namespace esphome
+
+#endif  // USE_NETWORK

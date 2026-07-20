@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f18">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <title>Cloud Lamp</title>
+  <style>
+    :root{
+      --bg0:#070a10;
+      --bg1:#0b0f18;
+      --card:rgba(255,255,255,.06);
+      --text:#e9eefb;
+      --muted:rgba(233,238,251,.62);
+      --line:rgba(255,255,255,.09);
+      --accent:#6cb2ff;
+      --accent-soft:rgba(108,178,255,.16);
+      --good:#7cf0c9;
+      --warn:#ffcc66;
+      --danger:#ff5a7b;
+      --shadow:0 12px 40px rgba(0,0,0,.45);
+      --r:20px;
+      --tap:52px;
+      --font:ui-sans-serif,-apple-system,system-ui,"SF Pro Text",Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    [hidden]{display:none !important}
+    html,body{height:100%;margin:0}
+    body{
+      font-family:var(--font);color:var(--text);background:var(--bg0);
+      overscroll-behavior:none;-webkit-text-size-adjust:100%;
+    }
+    body::before{
+      content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+      background:
+        radial-gradient(1100px 650px at 15% -10%, rgba(108,178,255,.20), transparent 55%),
+        radial-gradient(850px 550px at 95% 5%, rgba(124,240,201,.08), transparent 60%),
+        radial-gradient(900px 900px at 45% 115%, rgba(140,90,235,.10), transparent 55%),
+        linear-gradient(180deg,var(--bg0),var(--bg1));
+    }
+    .wrap{
+      position:relative;z-index:1;max-width:520px;margin:0 auto;
+      min-height:100dvh;
+      padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 20px);
+    }
+
+    header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand .cloud{
+      position:relative;overflow:hidden;
+      width:38px;height:38px;border-radius:12px;flex:0 0 auto;
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(180deg,rgba(108,178,255,.25),rgba(108,178,255,.08));
+      border:1px solid rgba(108,178,255,.35);
+    }
+    .brand .cloud svg{width:22px;height:22px;fill:none;stroke:#cfe4ff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .brand .cloud img{
+      position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+      border-radius:inherit;
+    }
+    .brand h1{margin:0;font-size:18px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .brand .sub{font-size:11px;color:var(--muted);margin-top:1px}
+    .hdr-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+    .pill{
+      display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;
+      background:rgba(0,0,0,.25);border:1px solid var(--line);font-size:12px;color:var(--muted);
+      white-space:nowrap;
+    }
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--danger);flex:0 0 auto}
+    .dot.ok{background:var(--good)}
+    .iconbtn{
+      width:38px;height:38px;border-radius:12px;border:1px solid var(--line);
+      display:flex;align-items:center;justify-content:center;color:rgba(233,238,251,.85);
+      background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(0,0,0,.12));
+      cursor:pointer;user-select:none;
+    }
+    .iconbtn:active{transform:scale(.96)}
+    .iconbtn svg{width:19px;height:19px;fill:currentColor}
+
+    .card{
+      background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+      box-shadow:var(--shadow);padding:16px;margin:12px 0;backdrop-filter:blur(10px);
+    }
+    .sec-label{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:2px 2px 10px}
+
+    /* Power */
+    .power{
+      display:flex;align-items:center;justify-content:space-between;gap:14px;
+    }
+    .power .state{min-width:0}
+    .power .state .big{font-size:22px;font-weight:800;letter-spacing:.2px}
+    .power .state .fx{font-size:13px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pwr-toggle{
+      width:88px;height:52px;border-radius:999px;border:1px solid var(--line);
+      background:rgba(0,0,0,.30);position:relative;cursor:pointer;flex:0 0 auto;
+      transition:background .25s ease,border-color .25s ease;
+    }
+    .pwr-toggle .knob{
+      position:absolute;top:4px;left:4px;width:44px;height:44px;border-radius:50%;
+      background:linear-gradient(180deg,#5a6474,#3a4250);
+      box-shadow:0 4px 10px rgba(0,0,0,.4);
+      transition:left .25s cubic-bezier(.5,1.6,.4,1),background .25s ease;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .pwr-toggle .knob svg{width:20px;height:20px;stroke:#0b0f18;stroke-width:2.4;fill:none;stroke-linecap:round}
+    .pwr-toggle.on{background:linear-gradient(180deg,rgba(108,178,255,.45),rgba(108,178,255,.20));border-color:rgba(108,178,255,.6)}
+    .pwr-toggle.on .knob{left:39px;background:linear-gradient(180deg,#eaf4ff,#bcd9ff)}
+
+    /* Brightness */
+    .bri-row{display:flex;align-items:center;gap:12px}
+    .bri-row svg{width:20px;height:20px;flex:0 0 auto;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round}
+    .bri-val{min-width:52px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:15px}
+    input[type=range]{
+      flex:1;appearance:none;-webkit-appearance:none;height:34px;background:transparent;
+    }
+    input[type=range]::-webkit-slider-runnable-track{
+      height:10px;border-radius:999px;
+      background:linear-gradient(90deg,var(--accent) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;width:28px;height:28px;border-radius:50%;margin-top:-9px;
+      background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.45);border:none;
+    }
+
+    /* Effects */
+    .fx-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .fx-btn{
+      min-height:var(--tap);border-radius:15px;border:1px solid var(--line);
+      background:rgba(255,255,255,.045);color:var(--text);
+      display:flex;align-items:center;gap:10px;padding:8px 12px;
+      font-weight:600;font-size:14px;cursor:pointer;text-align:left;
+      transition:background .15s ease,border-color .15s ease;
+    }
+    .fx-btn:active{transform:scale(.985)}
+    .fx-btn .sw{
+      width:20px;height:20px;border-radius:50%;flex:0 0 auto;
+      border:1px solid rgba(255,255,255,.25);
+      background:var(--sw,linear-gradient(135deg,#6cb2ff,#7cf0c9));
+    }
+    .fx-btn.sel{
+      background:linear-gradient(180deg,rgba(108,178,255,.30),rgba(108,178,255,.12));
+      border-color:rgba(108,178,255,.62);
+    }
+    .fx-none{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:12px 0}
+
+    /* Maker footer */
+    .maker{
+      display:flex;justify-content:center;align-items:center;
+      padding:22px 0 4px;
+    }
+    .maker img{height:26px;opacity:.55;transition:opacity .2s}
+    .maker img:active{opacity:.85}
+
+    /* Hint card */
+    .hint-card{display:flex;gap:12px;align-items:flex-start}
+    .hint-card .txt{font-size:13px;color:var(--muted);line-height:1.45}
+    .hint-card .txt b{color:var(--text)}
+    .hint-close{margin-left:auto;flex:0 0 auto;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px}
+
+    /* Sheet (settings) */
+    .modal{position:fixed;inset:0;z-index:50}
+    .modal[hidden]{display:none}
+    .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+    .sheet{
+      position:absolute;left:0;right:0;bottom:0;max-height:88dvh;overflow:auto;
+      background:rgba(13,17,27,.97);border-top:1px solid rgba(255,255,255,.10);
+      border-radius:24px 24px 0 0;box-shadow:0 -18px 60px rgba(0,0,0,.55);
+      padding:14px 16px calc(env(safe-area-inset-bottom) + 18px);
+      -webkit-overflow-scrolling:touch;
+    }
+    .sheet-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+    .sheet-hdr .t{font-weight:800;font-size:17px}
+    .sheet-close{
+      width:34px;height:34px;border-radius:11px;border:1px solid var(--line);
+      background:rgba(255,255,255,.05);color:var(--text);font-size:16px;cursor:pointer;
+    }
+    .group{margin:14px 0 4px}
+    .group .g-label{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:0 2px 8px}
+    .g-card{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .row{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.06);min-height:48px;
+    }
+    .row:last-child{border-bottom:none}
+    .row .k{font-size:14.5px;font-weight:600;flex:1;min-width:0}
+    .row select.ctl{flex-shrink:0;max-width:56%}
+    .row .k .d{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:2px}
+    .row .v{font-size:13.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;word-break:break-all}
+    select.ctl{
+      appearance:none;-webkit-appearance:none;
+      background:rgba(0,0,0,.30);color:var(--text);border:1px solid var(--line);
+      border-radius:11px;padding:9px 30px 9px 12px;font-size:14px;font-family:var(--font);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23aab6cc' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+      background-repeat:no-repeat;background-position:right 10px center;
+    }
+    .sw-toggle{
+      width:52px;height:32px;border-radius:999px;border:1px solid var(--line);
+      background:rgba(0,0,0,.35);position:relative;cursor:pointer;flex:0 0 auto;transition:background .2s;
+    }
+    .sw-toggle .kn{
+      position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+      background:#8a94a6;transition:left .2s,background .2s;
+    }
+    .sw-toggle.on{background:rgba(124,240,201,.35);border-color:rgba(124,240,201,.5)}
+    .sw-toggle.on .kn{left:23px;background:#eafff6}
+    .btn{
+      display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+      min-height:46px;border-radius:13px;border:1px solid var(--line);
+      background:rgba(255,255,255,.06);color:var(--text);font-weight:700;font-size:14.5px;
+      cursor:pointer;font-family:var(--font);
+    }
+    .btn:active{transform:scale(.99)}
+    .btn.primary{background:linear-gradient(180deg,rgba(108,178,255,.32),rgba(108,178,255,.12));border-color:rgba(108,178,255,.55)}
+    .btn.danger{background:linear-gradient(180deg,rgba(255,90,123,.26),rgba(255,90,123,.08));border-color:rgba(255,90,123,.5);color:#ffd9e1}
+    .btn[disabled]{opacity:.45;pointer-events:none}
+    .stack{display:flex;flex-direction:column;gap:9px;padding:12px 14px}
+    .progress{height:8px;border-radius:999px;background:rgba(255,255,255,.10);overflow:hidden;margin-top:8px}
+    .progress .bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--good));transition:width .4s ease}
+    .upd-badge{
+      display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+      font-size:11.5px;font-weight:700;
+    }
+    .upd-badge.avail{background:rgba(255,204,102,.15);color:var(--warn);border:1px solid rgba(255,204,102,.4)}
+    .upd-badge.ok{background:rgba(124,240,201,.12);color:var(--good);border:1px solid rgba(124,240,201,.35)}
+    .toast{
+      position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%) translateY(20px);
+      background:rgba(20,26,38,.97);border:1px solid var(--line);border-radius:13px;
+      padding:11px 16px;font-size:13.5px;box-shadow:var(--shadow);opacity:0;transition:.25s;z-index:99;
+      max-width:88vw;text-align:center;
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .confirm-sheet{
+      position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+      width:min(340px,88vw);
+      background:rgba(13,17,27,.98);border:1px solid rgba(255,255,255,.10);
+      border-radius:20px;box-shadow:var(--shadow);
+    }
+    .confirm-box{padding:16px 14px;text-align:center}
+    .confirm-box .q{font-weight:700;font-size:15px;margin-bottom:4px}
+    .confirm-box .s{font-size:13px;color:var(--muted);line-height:1.45;margin-bottom:14px}
+    .confirm-box .btns{display:flex;gap:9px}
+    @media (max-width:520px) and (max-height:760px){
+      :root{--tap:47px}
+      .card{padding:13px;margin:10px 0}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="cloud" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M17.5 18H7a4 4 0 1 1 .7-7.94 5.5 5.5 0 0 1 10.63 1.55A3.7 3.7 0 0 1 17.5 18z"/></svg>
+          <img src="/icon.png" alt="" onerror="this.remove()">
+        </div>
+        <div style="min-width:0">
+          <h1 id="devName">Cloud Lamp</h1>
+          <div class="sub" id="devSerial">&nbsp;</div>
+        </div>
+      </div>
+      <div class="hdr-right">
+        <div class="pill"><span class="dot" id="connDot"></span><span id="connText">…</span></div>
+        <div class="iconbtn" id="btnSettings" role="button" tabindex="0" aria-label="Settings">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.46a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.55 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5z"/></svg>
+        </div>
+      </div>
+    </header>
+
+    <div class="card" id="iosHint" hidden>
+      <div class="hint-card">
+        <div class="txt" id="hintText"></div>
+        <button class="hint-close" id="hintClose" aria-label="Dismiss">✕</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="power">
+        <div class="state">
+          <div class="big" id="pwrLabel">—</div>
+          <div class="fx" id="pwrEffect">&nbsp;</div>
+        </div>
+        <div class="pwr-toggle" id="pwrToggle" role="switch" tabindex="0" aria-checked="false">
+          <div class="knob"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-label" data-i18n="brightness">Brightness</div>
+      <div class="bri-row">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 4v1"/><path d="M12 19v1"/><path d="M4 12h1"/><path d="M19 12h1"/></svg>
+        <input type="range" id="briSlider" min="5" max="100" value="70">
+        <div class="bri-val" id="briVal">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-label" data-i18n="effects">Effects</div>
+      <div class="fx-grid" id="fxGrid">
+        <div class="fx-none" data-i18n="loading">Loading…</div>
+      </div>
+    </div>
+
+    <div class="maker" aria-hidden="true">
+      <img src="/logo.png" alt="DD Productions" onerror="this.parentElement.remove()">
+    </div>
+  </div>
+
+  <!-- Settings sheet -->
+  <div class="modal" id="setModal" hidden>
+    <div class="backdrop" data-close></div>
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="sheet-hdr">
+        <div class="t" data-i18n="settings">Settings</div>
+        <button class="sheet-close" data-close aria-label="Close">✕</button>
+      </div>
+
+      <div class="group">
+        <div class="g-label" data-i18n="general">General</div>
+        <div class="g-card">
+          <div class="row">
+            <div class="k" data-i18n="language">Language</div>
+            <select class="ctl" id="langSel"></select>
+          </div>
+          <div class="row">
+            <div class="k"><span data-i18n="power_behavior">After power cut</span>
+              <span class="d" data-i18n="power_behavior_d">Behaviour when power returns</span></div>
+            <select class="ctl" id="pwrBehSel">
+              <option value="Start Off" data-i18n="beh_off">Start off</option>
+              <option value="Restore Last State" data-i18n="beh_restore">Restore last state</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="g-label" data-i18n="network">Network</div>
+        <div class="g-card">
+          <div class="row"><div class="k" data-i18n="wifi_network">Wi-Fi network</div><div class="v" id="netSsid">—</div></div>
+          <div class="row"><div class="k" data-i18n="signal">Signal</div><div class="v" id="netRssi">—</div></div>
+          <div class="row"><div class="k" data-i18n="ip_address">IP address</div><div class="v" id="netIp">—</div></div>
+          <div class="row"><div class="k" data-i18n="uptime">Uptime</div><div class="v" id="netUptime">—</div></div>
+        </div>
+      </div>
+
+      <div class="group" id="mqttGroup" hidden>
+        <div class="g-label">MQTT</div>
+        <div class="g-card">
+          <div class="row">
+            <div class="k"><span data-i18n="mqtt_enabled">MQTT enabled</span>
+              <span class="d" data-i18n="mqtt_d">Smart-home integration (optional)</span></div>
+            <div class="sw-toggle" id="mqttToggle" role="switch" tabindex="0"><div class="kn"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="g-label" data-i18n="firmware">Firmware</div>
+        <div class="g-card">
+          <div class="row"><div class="k" data-i18n="installed_version">Installed version</div><div class="v" id="fwCur">—</div></div>
+          <div class="row" id="fwLatestRow" hidden>
+            <div class="k" data-i18n="latest_version">Latest version</div>
+            <div class="v"><span id="fwLatest">—</span> <span class="upd-badge avail" id="fwBadge" hidden></span></div>
+          </div>
+          <div class="stack" id="fwActions">
+            <div class="v" id="fwStatus" style="font-size:12.5px;color:var(--muted)"></div>
+            <button class="btn primary" id="fwInstall" hidden data-i18n="install_update">Install update</button>
+            <div class="progress" id="fwProg" hidden><div class="bar" id="fwBar"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="g-label" data-i18n="maintenance">Maintenance</div>
+        <div class="g-card">
+          <div class="stack">
+            <button class="btn" id="btnRestart" data-i18n="restart">Restart lamp</button>
+            <button class="btn danger" id="btnFactory" data-i18n="factory_reset">Factory reset…</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="g-label" data-i18n="about">About</div>
+        <div class="g-card">
+          <div class="row"><div class="k" data-i18n="device_name">Device name</div><div class="v" id="aboutName">—</div></div>
+          <div class="row"><div class="k" data-i18n="serial">Serial</div><div class="v" id="aboutSerial">—</div></div>
+          <div class="row"><div class="k">MAC</div><div class="v" id="aboutMac">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm dialog -->
+  <div class="modal" id="confirmModal" hidden>
+    <div class="backdrop"></div>
+    <div class="confirm-sheet">
+      <div class="confirm-box">
+        <div class="q" id="confirmQ"></div>
+        <div class="s" id="confirmS"></div>
+        <div class="btns">
+          <button class="btn" id="confirmNo" data-i18n="cancel">Cancel</button>
+          <button class="btn danger" id="confirmYes" data-i18n="confirm">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+
+  /* ---------------- i18n ---------------- */
+  const LANGS = [
+    { code:"en", flag:"🇬🇧", name:"English" },
+    { code:"de", flag:"🇩🇪", name:"Deutsch" },
+    { code:"es", flag:"🇪🇸", name:"Español" },
+    { code:"fr", flag:"🇫🇷", name:"Français" },
+  ];
+  const I18N = {
+    en:{brightness:"Brightness",effects:"Effects",settings:"Settings",general:"General",language:"Language",
+      power_behavior:"After power cut",power_behavior_d:"Behaviour when power returns",
+      beh_off:"Start off",beh_restore:"Restore last state",network:"Network",wifi_network:"Wi-Fi network",
+      signal:"Signal",ip_address:"IP address",uptime:"Uptime",mqtt_enabled:"MQTT enabled",
+      mqtt_d:"Smart-home integration (optional)",firmware:"Firmware",installed_version:"Installed version",
+      latest_version:"Latest version",install_update:"Install update",maintenance:"Maintenance",
+      restart:"Restart lamp",factory_reset:"Factory reset…",about:"About",device_name:"Device name",serial:"Serial",
+      cancel:"Cancel",confirm:"Confirm",loading:"Loading…",on:"On",off:"Off",connected:"Connected",
+      offline:"Offline",update_available:"Update available",up_to_date:"Up to date",installing:"Installing… the lamp restarts by itself",
+      restart_q:"Restart the lamp?",restart_s:"The lamp will be back in about 10 seconds. Your settings are kept.",
+      factory_q:"Reset everything?",factory_s:"Deletes the saved Wi-Fi network and all settings. The lamp then opens its setup hotspot again (see sticker on the back).",
+      restarting:"Restarting…",done:"Done",failed:"Action failed",fw_checks:"The lamp checks for updates automatically.",
+      ios_hint:"<b>Tip:</b> open the share menu in Safari and choose <b>“Add to Home Screen”</b> — the lamp then works like an app.",
+      day:"d",hour:"h",min:"m"},
+    de:{brightness:"Helligkeit",effects:"Effekte",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
+      power_behavior:"Nach Stromausfall",power_behavior_d:"Verhalten, wenn der Strom zurückkehrt",
+      beh_off:"Aus bleiben",beh_restore:"Letzten Zustand wiederherstellen",network:"Netzwerk",wifi_network:"WLAN-Netzwerk",
+      signal:"Signal",ip_address:"IP-Adresse",uptime:"Laufzeit",mqtt_enabled:"MQTT aktiviert",
+      mqtt_d:"Smart-Home-Anbindung (optional)",firmware:"Firmware",installed_version:"Installierte Version",
+      latest_version:"Neueste Version",install_update:"Update installieren",maintenance:"Wartung",
+      restart:"Lampe neu starten",factory_reset:"Werkseinstellungen…",about:"Info",device_name:"Gerätename",serial:"Seriennummer",
+      cancel:"Abbrechen",confirm:"Bestätigen",loading:"Laden…",on:"Ein",off:"Aus",connected:"Verbunden",
+      offline:"Offline",update_available:"Update verfügbar",up_to_date:"Aktuell",installing:"Wird installiert… die Lampe startet selbst neu",
+      restart_q:"Lampe neu starten?",restart_s:"Die Lampe ist in ca. 10 Sekunden wieder da. Einstellungen bleiben erhalten.",
+      factory_q:"Alles zurücksetzen?",factory_s:"Löscht das gespeicherte WLAN und alle Einstellungen. Die Lampe öffnet danach wieder ihren Einrichtungs-Hotspot (siehe Aufkleber auf der Rückseite).",
+      restarting:"Neustart…",done:"Fertig",failed:"Aktion fehlgeschlagen",fw_checks:"Die Lampe sucht automatisch nach Updates.",
+      ios_hint:"<b>Tipp:</b> Öffne in Safari das Teilen-Menü und wähle <b>„Zum Home-Bildschirm“</b> — die Lampe funktioniert dann wie eine App.",
+      day:"T",hour:"Std",min:"Min"},
+    es:{brightness:"Brillo",effects:"Efectos",settings:"Ajustes",general:"General",language:"Idioma",
+      power_behavior:"Tras un corte de luz",power_behavior_d:"Comportamiento al volver la corriente",
+      beh_off:"Permanecer apagada",beh_restore:"Restaurar el último estado",network:"Red",wifi_network:"Red Wi-Fi",
+      signal:"Señal",ip_address:"Dirección IP",uptime:"Tiempo encendida",mqtt_enabled:"MQTT activado",
+      mqtt_d:"Integración domótica (opcional)",firmware:"Firmware",installed_version:"Versión instalada",
+      latest_version:"Última versión",install_update:"Instalar actualización",maintenance:"Mantenimiento",
+      restart:"Reiniciar lámpara",factory_reset:"Restablecer de fábrica…",about:"Información",device_name:"Nombre del dispositivo",serial:"Número de serie",
+      cancel:"Cancelar",confirm:"Confirmar",loading:"Cargando…",on:"Encendida",off:"Apagada",connected:"Conectado",
+      offline:"Sin conexión",update_available:"Actualización disponible",up_to_date:"Actualizado",installing:"Instalando… la lámpara se reinicia sola",
+      restart_q:"¿Reiniciar la lámpara?",restart_s:"La lámpara volverá en unos 10 segundos. Se conservan los ajustes.",
+      factory_q:"¿Restablecer todo?",factory_s:"Borra la red Wi-Fi guardada y todos los ajustes. Después, la lámpara vuelve a abrir su punto de acceso de configuración (ver etiqueta trasera).",
+      restarting:"Reiniciando…",done:"Hecho",failed:"La acción falló",fw_checks:"La lámpara busca actualizaciones automáticamente.",
+      ios_hint:"<b>Consejo:</b> abre el menú de compartir en Safari y elige <b>«Añadir a pantalla de inicio»</b>; la lámpara funcionará como una app.",
+      day:"d",hour:"h",min:"min"},
+    fr:{brightness:"Luminosité",effects:"Effets",settings:"Réglages",general:"Général",language:"Langue",
+      power_behavior:"Après une coupure",power_behavior_d:"Comportement au retour du courant",
+      beh_off:"Rester éteinte",beh_restore:"Restaurer le dernier état",network:"Réseau",wifi_network:"Réseau Wi-Fi",
+      signal:"Signal",ip_address:"Adresse IP",uptime:"En marche depuis",mqtt_enabled:"MQTT activé",
+      mqtt_d:"Intégration domotique (optionnel)",firmware:"Micrologiciel",installed_version:"Version installée",
+      latest_version:"Dernière version",install_update:"Installer la mise à jour",maintenance:"Maintenance",
+      restart:"Redémarrer la lampe",factory_reset:"Réinitialisation d'usine…",about:"À propos",device_name:"Nom de l'appareil",serial:"Numéro de série",
+      cancel:"Annuler",confirm:"Confirmer",loading:"Chargement…",on:"Allumée",off:"Éteinte",connected:"Connecté",
+      offline:"Hors ligne",update_available:"Mise à jour disponible",up_to_date:"À jour",installing:"Installation… la lampe redémarre toute seule",
+      restart_q:"Redémarrer la lampe ?",restart_s:"La lampe revient dans environ 10 secondes. Les réglages sont conservés.",
+      factory_q:"Tout réinitialiser ?",factory_s:"Efface le réseau Wi-Fi enregistré et tous les réglages. La lampe rouvre ensuite son point d'accès de configuration (voir l'étiquette au dos).",
+      restarting:"Redémarrage…",done:"Terminé",failed:"L'action a échoué",fw_checks:"La lampe recherche les mises à jour automatiquement.",
+      ios_hint:"<b>Astuce :</b> ouvrez le menu de partage dans Safari et choisissez <b>« Sur l'écran d'accueil »</b> — la lampe fonctionne alors comme une app.",
+      day:"j",hour:"h",min:"min"},
+  };
+  // Effect display names per language (fallback: raw firmware name)
+  const FX_NAMES = {
+    en:{}, // firmware names are English already
+    de:{"Warm White":"Warmweiß","White":"Weiß","Sky Blue":"Himmelblau","Cyan":"Cyan","Blue":"Blau",
+        "Indigo":"Indigo","Violet":"Violett","Sky Breathing":"Himmel-Atmen","Aurora Drift":"Aurora",
+        "Candlelight":"Kerzenlicht","Night Light":"Nachtlicht","Twinkle":"Sternenfunkeln",
+        "Color Wipe":"Farbverlauf","Rainbow":"Regenbogen","Pulse":"Pulsieren","Thunderstorm":"Gewitter"},
+    es:{"Warm White":"Blanco cálido","White":"Blanco","Sky Blue":"Azul cielo","Cyan":"Cian","Blue":"Azul",
+        "Indigo":"Índigo","Violet":"Violeta","Sky Breathing":"Cielo respirante","Aurora Drift":"Aurora",
+        "Candlelight":"Luz de vela","Night Light":"Luz nocturna","Twinkle":"Destellos",
+        "Color Wipe":"Barrido de color","Rainbow":"Arcoíris","Pulse":"Pulso","Thunderstorm":"Tormenta"},
+    fr:{"Warm White":"Blanc chaud","White":"Blanc","Sky Blue":"Bleu ciel","Cyan":"Cyan","Blue":"Bleu",
+        "Indigo":"Indigo","Violet":"Violet","Sky Breathing":"Ciel respirant","Aurora Drift":"Aurore",
+        "Candlelight":"Bougie","Night Light":"Veilleuse","Twinkle":"Scintillement",
+        "Color Wipe":"Balayage de couleur","Rainbow":"Arc-en-ciel","Pulse":"Pulsation","Thunderstorm":"Orage"},
+  };
+  // Swatch colours for known effects (CSS backgrounds)
+  const FX_SWATCH = {
+    "Warm White":"#ffd9a0","White":"#f4f7ff","Sky Blue":"#5aaaff","Cyan":"#19e3e3","Blue":"#2b50ff",
+    "Indigo":"#4b0082","Violet":"#8a2be2",
+    "Sky Breathing":"linear-gradient(135deg,#4696ff,#0ad2eb)",
+    "Aurora Drift":"linear-gradient(135deg,#28c8dc,#8c5aeb)",
+    "Candlelight":"linear-gradient(135deg,#ff9329,#ffce7a)",
+    "Night Light":"#7a5c33","Twinkle":"linear-gradient(135deg,#0b1030,#e8ecff)",
+    "Color Wipe":"linear-gradient(135deg,#008cff,#5940ff,#00bfe6)",
+    "Rainbow":"linear-gradient(135deg,#ff4040,#ffc040,#40ff70,#40c8ff,#a040ff)",
+    "Pulse":"radial-gradient(circle,#cfe4ff 20%,#3a5a8c 100%)",
+    "Thunderstorm":"linear-gradient(135deg,#1c2640,#8ea4d0)",
+  };
+
+  // English is the default; other languages are an explicit user choice.
+  let lang = localStorage.getItem("cl.lang") || "en";
+  if (!I18N[lang]) lang = "en";
+  const t = k => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
+  const fxName = raw => (FX_NAMES[lang] && FX_NAMES[lang][raw]) || raw;
+
+  function applyI18n(){
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+      const k = el.getAttribute("data-i18n");
+      if (k === "ios_hint") el.innerHTML = t(k); else el.textContent = t(k);
+    });
+    $("hintText").innerHTML = t("ios_hint");
+    renderEffects();
+    renderPower();
+    renderConn();
+    renderUpdate();
+    renderNet();
+  }
+
+  /* ---------------- State ---------------- */
+  const LIGHT_ID = "cloud_light";
+  const st = {
+    connected:false, on:false, brightness:70, effect:"None", effects:[],
+    ssid:"—", rssi:null, ip:"—", uptime:null,
+    fwCur:"—", fwLatest:null, fwInstalling:false, fwProgress:null,
+    mqttPresent:false, mqttOn:false,
+  };
+  let briDragging = false;
+
+  /* ---------------- Rendering ---------------- */
+  function renderConn(){
+    $("connDot").classList.toggle("ok", st.connected);
+    $("connText").textContent = st.connected ? t("connected") : t("offline");
+  }
+  function renderPower(){
+    $("pwrLabel").textContent = st.on ? t("on") : t("off");
+    $("pwrEffect").textContent = st.on && st.effect && st.effect !== "None" ? fxName(st.effect) : " ";
+    const tg = $("pwrToggle");
+    tg.classList.toggle("on", st.on);
+    tg.setAttribute("aria-checked", st.on ? "true" : "false");
+  }
+  function renderBrightness(){
+    if (briDragging) return;
+    const s = $("briSlider");
+    s.value = st.brightness;
+    s.style.setProperty("--fill", ((st.brightness - 5) / 95 * 100) + "%");
+    $("briVal").textContent = st.brightness + " %";
+  }
+  function renderEffects(){
+    const g = $("fxGrid");
+    if (!st.effects.length){
+      g.innerHTML = `<div class="fx-none">${t("loading")}</div>`;
+      return;
+    }
+    g.innerHTML = "";
+    st.effects.forEach(name => {
+      const b = document.createElement("button");
+      b.className = "fx-btn" + (st.on && st.effect === name ? " sel" : "");
+      const sw = document.createElement("span");
+      sw.className = "sw";
+      if (FX_SWATCH[name]) sw.style.background = FX_SWATCH[name];
+      const label = document.createElement("span");
+      label.textContent = fxName(name);
+      b.appendChild(sw); b.appendChild(label);
+      b.addEventListener("click", () => setEffect(name));
+      g.appendChild(b);
+    });
+  }
+  function fmtUptime(sec){
+    if (sec == null) return "—";
+    const d = Math.floor(sec/86400), h = Math.floor(sec%86400/3600), m = Math.floor(sec%3600/60);
+    if (d) return `${d}${t("day")} ${h}${t("hour")}`;
+    if (h) return `${h}${t("hour")} ${m}${t("min")}`;
+    return `${m}${t("min")}`;
+  }
+  function renderNet(){
+    $("netSsid").textContent = st.ssid || "—";
+    $("netRssi").textContent = st.rssi != null ? `${st.rssi} dBm` : "—";
+    $("netIp").textContent = st.ip || "—";
+    $("netUptime").textContent = fmtUptime(st.uptime);
+  }
+  function renderMqtt(){
+    $("mqttGroup").hidden = !st.mqttPresent;
+    $("mqttToggle").classList.toggle("on", st.mqttOn);
+  }
+  function renderUpdate(){
+    $("fwCur").textContent = st.fwCur;
+    const hasUpd = st.fwLatest && st.fwLatest !== st.fwCur;
+    $("fwLatestRow").hidden = !st.fwLatest;
+    $("fwLatest").textContent = st.fwLatest || "—";
+    const badge = $("fwBadge");
+    badge.hidden = !st.fwLatest;
+    badge.className = "upd-badge " + (hasUpd ? "avail" : "ok");
+    badge.textContent = hasUpd ? t("update_available") : t("up_to_date");
+    $("fwInstall").hidden = !hasUpd || st.fwInstalling;
+    $("fwProg").hidden = !st.fwInstalling;
+    if (st.fwInstalling && st.fwProgress != null)
+      $("fwBar").style.width = st.fwProgress + "%";
+    $("fwStatus").textContent = st.fwInstalling ? t("installing") : t("fw_checks");
+  }
+
+  /* ---------------- API ---------------- */
+  async function post(path){
+    const res = await fetch(path, { method:"POST" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+  }
+  function toast(msg){
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+  async function act(fn){
+    try { await fn(); } catch(e){ toast(t("failed")); }
+  }
+
+  const setOn  = () => act(() => post(`/light/${LIGHT_ID}/turn_on`));
+  const setOff = () => act(() => post(`/light/${LIGHT_ID}/turn_off`));
+  const setEffect = name =>
+    act(() => post(`/light/${LIGHT_ID}/turn_on?effect=${encodeURIComponent(name)}`));
+  const setBrightness = pct =>
+    act(() => post(`/light/${LIGHT_ID}/turn_on?brightness=${Math.round(pct*255/100)}`));
+
+  /* ---------------- SSE / state ingestion ---------------- */
+  function ingest(data){
+    if (!data || !data.id) return;
+    switch (data.id) {
+      case `light-${LIGHT_ID}`:
+        st.on = data.state === "ON";
+        if (typeof data.brightness === "number")
+          st.brightness = Math.max(5, Math.min(100, Math.round(data.brightness*100/255)));
+        st.effect = data.effect || "None";
+        renderPower(); renderBrightness(); renderEffects();
+        break;
+      case "select-power_behavior":
+        if (data.value) $("pwrBehSel").value = data.value;
+        break;
+      case "switch-mqtt_enabled":
+        st.mqttPresent = true;
+        st.mqttOn = data.state === "ON";
+        renderMqtt();
+        break;
+      case "sensor-wifi_signal":
+        st.rssi = Math.round(data.value); renderNet(); break;
+      case "sensor-uptime":
+        st.uptime = Math.round(data.value); renderNet(); break;
+      case "text_sensor-ip_address":
+        st.ip = data.value; renderNet(); break;
+      case "text_sensor-connected_ssid":
+        st.ssid = data.value; renderNet(); break;
+      case "update-firmware": {
+        st.fwCur = data.current_version || st.fwCur;
+        st.fwLatest = data.latest_version || st.fwLatest;
+        st.fwInstalling = data.state === "INSTALLING";
+        st.fwProgress = data.has_progress ? Math.round(data.progress) : null;
+        renderUpdate();
+        break;
+      }
+    }
+  }
+
+  let es = null, pollTimer = null, reconnectTimer = null;
+  function connectSSE(){
+    if (es) { es.close(); es = null; }
+    es = new EventSource("/events");
+    es.addEventListener("state", ev => {
+      try { ingest(JSON.parse(ev.data)); } catch {}
+    });
+    es.onopen = () => { st.connected = true; renderConn(); };
+    es.onerror = () => {
+      st.connected = false; renderConn();
+      if (es) { es.close(); es = null; }
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connectSSE, 3000);
+    };
+  }
+  async function pollLight(){
+    try {
+      const res = await fetch(`/light/${LIGHT_ID}`, { cache:"no-store" });
+      if (!res.ok) throw 0;
+      ingest(Object.assign({ id:`light-${LIGHT_ID}` }, await res.json()));
+      if (!es) { st.connected = true; renderConn(); }
+    } catch {
+      if (!es) { st.connected = false; renderConn(); }
+    }
+  }
+
+  async function initialLoad(){
+    try {
+      const res = await fetch(`/light/${LIGHT_ID}?detail=all`, { cache:"no-store" });
+      const j = await res.json();
+      st.effects = (j.effects || []).filter(e => e !== "None");
+      ingest(Object.assign({ id:`light-${LIGHT_ID}` }, j));
+      renderEffects();
+    } catch {}
+    try {
+      const res = await fetch("/device.json", { cache:"no-store" });
+      const d = await res.json();
+      $("devName").textContent = d.friendly_name || "Cloud Lamp";
+      document.title = d.friendly_name || "Cloud Lamp";
+      $("devSerial").textContent = d.serial ? `Cloud-Lamp-${d.serial}` : "";
+      $("aboutName").textContent = d.friendly_name || d.name || "—";
+      $("aboutSerial").textContent = d.serial || "—";
+      $("aboutMac").textContent = d.mac || "—";
+      st.fwCur = d.version || "—";
+      renderUpdate();
+    } catch {}
+    // Presence probes for optional entities
+    try {
+      const r = await fetch("/switch/mqtt_enabled", { cache:"no-store" });
+      if (r.ok) { st.mqttPresent = true; ingest(Object.assign({ id:"switch-mqtt_enabled" }, await r.json())); }
+    } catch {}
+    try {
+      const r = await fetch("/select/power_behavior", { cache:"no-store" });
+      if (r.ok) { const j = await r.json(); if (j.value) $("pwrBehSel").value = j.value; }
+    } catch {}
+    try {
+      const r = await fetch("/update/firmware", { cache:"no-store" });
+      if (r.ok) ingest(Object.assign({ id:"update-firmware" }, await r.json()));
+    } catch {}
+  }
+
+  /* ---------------- UI events ---------------- */
+  $("pwrToggle").addEventListener("click", () => st.on ? setOff() : setOn());
+
+  const briSlider = $("briSlider");
+  briSlider.addEventListener("input", () => {
+    briDragging = true;
+    const v = parseInt(briSlider.value, 10);
+    briSlider.style.setProperty("--fill", ((v-5)/95*100) + "%");
+    $("briVal").textContent = v + " %";
+  });
+  briSlider.addEventListener("change", () => {
+    const v = parseInt(briSlider.value, 10);
+    briDragging = false;
+    st.brightness = v;
+    setBrightness(v);
+  });
+
+  // Settings sheet
+  const setModal = $("setModal");
+  $("btnSettings").addEventListener("click", () => { setModal.hidden = false; });
+  setModal.querySelectorAll("[data-close]").forEach(el =>
+    el.addEventListener("click", () => { setModal.hidden = true; }));
+  window.addEventListener("keydown", e => { if (e.key === "Escape") setModal.hidden = true; });
+
+  // Language select
+  const langSel = $("langSel");
+  LANGS.forEach(l => {
+    const o = document.createElement("option");
+    o.value = l.code;
+    o.textContent = `${l.flag} ${l.name}`;
+    langSel.appendChild(o);
+  });
+  langSel.value = lang;
+  langSel.addEventListener("change", () => {
+    lang = langSel.value;
+    localStorage.setItem("cl.lang", lang);
+    applyI18n();
+  });
+
+  // Power behaviour select
+  $("pwrBehSel").addEventListener("change", () =>
+    act(() => post(`/select/power_behavior/set?option=${encodeURIComponent($("pwrBehSel").value)}`)));
+
+  // MQTT toggle
+  $("mqttToggle").addEventListener("click", () => {
+    const target = !st.mqttOn;
+    st.mqttOn = target; renderMqtt();
+    act(() => post(`/switch/mqtt_enabled/${target ? "turn_on" : "turn_off"}`));
+  });
+
+  // Confirm dialog helper
+  function confirmDlg(q, s, onYes){
+    $("confirmQ").textContent = q;
+    $("confirmS").textContent = s;
+    const modal = $("confirmModal");
+    modal.hidden = false;
+    const yes = $("confirmYes"), no = $("confirmNo");
+    const close = () => { modal.hidden = true; yes.onclick = no.onclick = null; };
+    yes.onclick = () => { close(); onYes(); };
+    no.onclick = close;
+  }
+
+  $("btnRestart").addEventListener("click", () =>
+    confirmDlg(t("restart_q"), t("restart_s"), () => {
+      act(() => post("/button/restart/press"));
+      toast(t("restarting"));
+      setModal.hidden = true;
+    }));
+
+  $("btnFactory").addEventListener("click", () =>
+    confirmDlg(t("factory_q"), t("factory_s"), () =>
+      // Double confirmation for the destructive action
+      confirmDlg(t("factory_q"), t("factory_s"), () => {
+        act(() => post("/button/factory_reset/press"));
+        setModal.hidden = true;
+      })));
+
+  $("fwInstall").addEventListener("click", () => {
+    st.fwInstalling = true; st.fwProgress = 0; renderUpdate();
+    act(() => post("/update/firmware/install"));
+  });
+
+  // iOS "Add to Home Screen" hint (Safari only, not when already installed)
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+  if (isIOS && !isStandalone && !localStorage.getItem("cl.hintDismissed"))
+    $("iosHint").hidden = false;
+  $("hintClose").addEventListener("click", () => {
+    $("iosHint").hidden = true;
+    localStorage.setItem("cl.hintDismissed", "1");
+  });
+
+  /* ---------------- Start ---------------- */
+  applyI18n();
+  renderBrightness();
+  initialLoad();
+  connectSSE();
+  pollTimer = setInterval(pollLight, 5000);
+})();
+</script>
+</body>
+</html>

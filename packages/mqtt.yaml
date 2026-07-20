@@ -1,0 +1,282 @@
+# ==============================================================================
+#  packages/mqtt.yaml — Optional MQTT / ioBroker integration
+#
+#  Enable/disable by (un)commenting one line in cloud-lamp.yaml's packages
+#  block. Designed so it can NEVER affect lamp functionality:
+#    - reboot_timeout: 0s — an unreachable broker never reboots the lamp
+#    - runtime kill switch ("MQTT Enabled", persisted) — stops all MQTT
+#      activity without a reflash
+#    - all handlers drive the same light/scripts as the button and web app
+#
+#  Topic scheme (unchanged from v1): ${mqtt_topic_root}${mqtt_topic_device}/
+#    Set/…      ioBroker → device   (commands,   retain: false)
+#    State/…    device → ioBroker   (state,      retain: true)
+#    Info/…     device → ioBroker   (metadata,   retain: true/false)
+#    Logging/…  device → ioBroker   (boot info,  retain: true; log lines QoS 0)
+#
+#  v2 fixes over v1:
+#    - Logging/Last_Reboot is published from time.on_time_sync (v1 published
+#      3 s after boot, when SNTP was almost never synced and MQTT often not
+#      connected — the timestamp was silently lost).
+#    - Logging/Last_Reboot_Reason is published on the first MQTT connect
+#      (v1: on_boot, same lost-publish problem).
+#    - Set/Reboot is protected against a stuck retained "true": commands
+#      arriving within 15 s of (re)connect are ignored, and the topic is
+#      cleared on the broker after every reception.
+# ==============================================================================
+
+globals:
+  - id: mqtt_connected_at
+    type: unsigned long
+    restore_value: no
+    initial_value: '0'
+
+  - id: reboot_reason_published
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  - id: last_reboot_published
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: "${timezone}"
+    on_time_sync:
+      # Publish the boot timestamp exactly once, as soon as both SNTP and
+      # MQTT are actually able to deliver it.
+      - lambda: |-
+          if (id(last_reboot_published) || !mqtt::global_mqtt_client->is_connected())
+            return;
+          char buf[25];
+          id(sntp_time).now().strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S");
+          mqtt::global_mqtt_client->publish(
+              "${mqtt_topic_root}${mqtt_topic_device}/Logging/Last_Reboot",
+              std::string(buf), 1, true);
+          id(last_reboot_published) = true;
+
+mqtt:
+  broker: !secret mqtt_broker_ip
+  port: !secret mqtt_broker_port
+  username: !secret mqtt_broker_username
+  password: !secret mqtt_broker_password
+  clean_session: false   # Broker queues QoS 1 messages while device is offline
+  keepalive: 8s
+  # NEVER reboot the lamp because the broker is unreachable. A gift lamp in a
+  # home without a broker must behave exactly like a lamp without MQTT.
+  reboot_timeout: 0s
+
+  log_topic:
+    topic: "${mqtt_topic_root}${mqtt_topic_device}/Logging/Log"
+    qos: 0
+    retain: false
+
+  birth_message:
+    topic: "${mqtt_topic_root}${mqtt_topic_device}/Info/Reachable"
+    payload: "online"
+    qos: 1
+    retain: true
+
+  will_message:
+    topic: "${mqtt_topic_root}${mqtt_topic_device}/Info/Reachable"
+    payload: "offline"
+    qos: 1
+    retain: true
+
+  on_connect:
+    then:
+      - lambda: 'id(mqtt_connected_at) = millis();'
+      - script.execute: publish_full_state
+      - mqtt.publish:
+          topic: "${mqtt_topic_root}${mqtt_topic_device}/Info/IP"
+          payload: !lambda 'return WiFi.localIP().toString().c_str();'
+          retain: true
+          qos: 1
+      - lambda: |-
+          if (!id(reboot_reason_published)) {
+            mqtt::global_mqtt_client->publish(
+                "${mqtt_topic_root}${mqtt_topic_device}/Logging/Last_Reboot_Reason",
+                std::string(ESP.getResetReason().c_str()), 1, true);
+            id(reboot_reason_published) = true;
+          }
+          // Retry the Last_Reboot timestamp in case SNTP synced while MQTT was down.
+          if (!id(last_reboot_published) && id(sntp_time).now().is_valid()) {
+            char buf[25];
+            id(sntp_time).now().strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S");
+            mqtt::global_mqtt_client->publish(
+                "${mqtt_topic_root}${mqtt_topic_device}/Logging/Last_Reboot",
+                std::string(buf), 1, true);
+            id(last_reboot_published) = true;
+          }
+
+  on_message:
+    - topic: "${mqtt_topic_root}${mqtt_topic_device}/Set/On"
+      qos: 1
+      then:
+        - lambda: |-
+            if (!id(boot_completed)) {
+              ESP_LOGW("lamp", "MQTT Set/On: ignoring during boot");
+              return;
+            }
+            if (x == "true" || x == "True" || x == "TRUE" ||
+                x == "on"   || x == "On"   || x == "ON"   || x == "1") {
+              ESP_LOGI("lamp", "MQTT Set/On: ON (last effect)");
+              id(lamp_turn_on).execute();
+            } else {
+              ESP_LOGI("lamp", "MQTT Set/On: OFF");
+              id(lamp_turn_off).execute();
+            }
+            id(publish_full_state).execute();
+
+    - topic: "${mqtt_topic_root}${mqtt_topic_device}/Set/Effect"
+      qos: 1
+      then:
+        - lambda: |-
+            if (!id(boot_completed)) {
+              ESP_LOGW("lamp", "MQTT Set/Effect: ignoring during boot");
+              return;
+            }
+            const auto &effects = id(led_rings).get_effects();
+            for (size_t i = 0; i < effects.size(); i++) {
+              if (strcmp(effects[i]->get_name().c_str(), x.c_str()) == 0) {
+                id(last_effect_index) = (int) i;
+                ESP_LOGI("lamp", "MQTT Set/Effect: \"%s\" (turns on if off)", x.c_str());
+                id(lamp_turn_on).execute();
+                id(publish_full_state).execute();
+                return;
+              }
+            }
+            ESP_LOGW("lamp", "MQTT Set/Effect: unknown effect \"%s\" — ignoring (case-sensitive)", x.c_str());
+            id(publish_full_state).execute();
+
+    - topic: "${mqtt_topic_root}${mqtt_topic_device}/Set/Brightness"
+      qos: 1
+      then:
+        - lambda: |-
+            if (!id(boot_completed)) {
+              ESP_LOGW("lamp", "MQTT Set/Brightness: ignoring during boot");
+              return;
+            }
+            int val = atoi(x.c_str());
+            if (val <= 0 || val > 100) {
+              ESP_LOGW("lamp", "MQTT Set/Brightness: %d out of range (1-100) — ignoring", val);
+              id(publish_full_state).execute();
+              return;
+            }
+            id(brightness_pct) = val;
+            ESP_LOGI("lamp", "MQTT Set/Brightness: %d%%", val);
+            if (id(led_rings).remote_values.is_on()) {
+              auto call = id(led_rings).turn_on();
+              call.set_brightness(val / 100.0f);
+              call.perform();
+            }
+            id(publish_full_state).execute();
+
+    - topic: "${mqtt_topic_root}${mqtt_topic_device}/Set/Reboot"
+      qos: 1
+      payload: "true"
+      then:
+        - lambda: |-
+            // Clear any retained copy on the broker so a reboot command can
+            // never replay on reconnect (a retained "true" would otherwise
+            // cause an endless reboot loop).
+            mqtt::global_mqtt_client->publish(
+                "${mqtt_topic_root}${mqtt_topic_device}/Set/Reboot", std::string(""), 1, true);
+        - if:
+            condition:
+              lambda: |-
+                return id(boot_completed) &&
+                       (millis() - id(mqtt_connected_at)) > 15000;
+            then:
+              - logger.log:
+                  level: WARN
+                  format: "MQTT Set/Reboot: rebooting in 3 s"
+              - delay: 3s
+              - button.press: restart_btn
+            else:
+              - logger.log:
+                  level: WARN
+                  format: "MQTT Set/Reboot: ignored (boot/connect grace period)"
+
+# ================================================================
+#  Periodic state re-publishing (self-healing sync with ioBroker)
+# ================================================================
+interval:
+  - interval: 10s
+    then:
+      - if:
+          condition:
+            mqtt.connected:
+          then:
+            - script.execute: publish_full_state
+
+  - interval: 60s
+    then:
+      - if:
+          condition:
+            mqtt.connected:
+          then:
+            - mqtt.publish:
+                topic: "${mqtt_topic_root}${mqtt_topic_device}/Info/IP"
+                payload: !lambda 'return WiFi.localIP().toString().c_str();'
+                retain: true
+                qos: 1
+            - mqtt.publish:
+                topic: "${mqtt_topic_root}${mqtt_topic_device}/Info/Uptime"
+                payload: !lambda 'return to_string((unsigned long)(millis() / 1000));'
+                retain: false
+                qos: 1
+            - mqtt.publish:
+                topic: "${mqtt_topic_root}${mqtt_topic_device}/Info/WiFi_Signal"
+                payload: !lambda 'return to_string(WiFi.RSSI());'
+                retain: false
+                qos: 1
+
+script:
+  - id: publish_full_state
+    mode: single
+    then:
+      - if:
+          condition:
+            mqtt.connected:
+          then:
+            - mqtt.publish:
+                topic: "${mqtt_topic_root}${mqtt_topic_device}/State/On"
+                payload: !lambda 'return id(led_rings).remote_values.is_on() ? "true" : "false";'
+                retain: true
+                qos: 1
+            - mqtt.publish:
+                topic: "${mqtt_topic_root}${mqtt_topic_device}/State/Effect"
+                payload: !lambda |-
+                  const auto &effects = id(led_rings).get_effects();
+                  int idx = id(last_effect_index);
+                  if (idx < 0 || idx >= (int) effects.size())
+                    return std::string("None");
+                  return std::string(effects[idx]->get_name().c_str());
+                retain: true
+                qos: 1
+            - mqtt.publish:
+                topic: "${mqtt_topic_root}${mqtt_topic_device}/State/Brightness"
+                payload: !lambda 'return to_string(id(brightness_pct));'
+                retain: true
+                qos: 1
+
+# ================================================================
+#  Runtime kill switch — visible in the web app's settings sheet.
+#  Persisted; OFF survives reboots, so a gift lamp that somehow got
+#  MQTT compiled in can be permanently silenced from the web UI.
+# ================================================================
+switch:
+  - platform: template
+    name: "MQTT Enabled"          # REST object_id: mqtt_enabled
+    id: mqtt_enabled
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    turn_on_action:
+      - lambda: 'mqtt::global_mqtt_client->enable();'
+    turn_off_action:
+      - lambda: 'mqtt::global_mqtt_client->disable();'

@@ -1,0 +1,520 @@
+# ==============================================================================
+#  cloud-lamp.yaml — Core firmware (v2) — PUBLIC / GIFT BUILD
+#
+#  THIS CONFIG IS PUBLIC-SAFE: it contains no personal names, no Wi-Fi
+#  networks and no MQTT credentials. Wi-Fi is configured exclusively by the
+#  recipient via the captive portal ("Cloud-Lamp-XXXX" setup hotspot).
+#  Binaries built from this file are published to the public update channel
+#  (firmware-dist/), so NOTHING device- or person-specific may be added here.
+#  The only embedded shared credentials are the sticker AP password and the
+#  shared OTA password (both deliberately non-secret, see docs).
+#
+#  For the builder's own bench/dev lamp use cloud-lamp-dev.yaml instead —
+#  it layers the builder/user Wi-Fi networks and MQTT on top of this file.
+#
+#  Architecture: the lamp is standalone-first. Everything network-related is
+#  either non-blocking (Wi-Fi, web remote, updates) or an optional package
+#  (MQTT, temperature sensor). The button always works, network or not.
+#
+#  The LIGHT COMPONENT is the single source of truth for on/off, brightness
+#  and effect. Button, web app and MQTT all drive it through the same light
+#  calls; the on_state hook mirrors the state into persisted globals so it
+#  can be restored after a power cut (if the user chooses "Restore").
+#
+#  File map:
+#    cloud-lamp.yaml               core / public gift build (this file)
+#    cloud-lamp-dev.yaml           builder build = core + secret Wi-Fi + MQTT
+#    effects.yaml                  light effects + tuning knobs
+#    packages/web-remote.yaml      web server + iOS-style web app  (default ON)
+#    packages/updates.yaml         online firmware updates          (default ON)
+#    packages/mqtt.yaml            MQTT / ioBroker integration      (dev build only)
+#    packages/temperature-sensor.yaml  case temp + thermal shutdown (optional)
+# ==============================================================================
+
+substitutions:
+  # ================================================================
+  #  PER-BUILD CONFIGURATION — only edit values in this block
+  # ================================================================
+
+  # --- Device identity ---
+  # Generic on purpose: lamps are personalised only by the physical text on
+  # the front. Devices are told apart by their serial (AP name Cloud-Lamp-XXXX,
+  # web app Settings -> About).
+  device_name:          "cloud-lamp"   # ESPHome internal name (lowercase, hyphens only)
+  device_friendly_name: "Cloud-Lamp"   # Human-readable display name (web app title)
+
+  # --- Firmware version (bump for every release; used by the online updater) ---
+  project_version: "2.0.0"
+
+  # --- LED ring count ---
+  # ring_count is informational only — it is never referenced directly in the firmware.
+  # led_count IS used in the firmware (num_leds, LED-clearing range, effect buffers).
+  # ring_count │ led_count
+  #     1      │     8
+  #     2      │    16
+  #     3      │    24
+  ring_count: "3"   # informational only
+  led_count:  "24"  # used in firmware
+
+  # --- Brightness ---
+  brightness_default: "70"   # Default brightness in % (5–100). Used on first boot /
+                             # after factory reset; afterwards the last-set brightness
+                             # is always remembered (survives reboots and power cuts).
+
+  # --- Wi-Fi setup hotspot (captive portal) ---
+  # SSID is generated at runtime as "Cloud-Lamp-XXXX" (XXXX = last 4 hex digits
+  # of the chip MAC, uppercase). Printed on the product sticker together with
+  # this password. Not a secret — it is public on every sticker.
+  wifi_ap_password: "cloud-lamp"
+
+  # --- Online updates ---
+  # Public manifest URL checked by the updater (see packages/updates.yaml and
+  # docs/firmware-updates.md). Served straight from the GitHub repo via
+  # raw.githubusercontent.com; releases are published with tools/release.sh.
+  # An unreachable URL is harmless: the check fails quietly.
+  update_manifest_url: "https://raw.githubusercontent.com/danieldriessen/cloud-lamp/main/firmware-dist/cloud-lamp/manifest.json"
+
+  # --- MQTT topic structure (only used when packages/mqtt.yaml is enabled) ---
+  # Full base topic: ${mqtt_topic_root}${mqtt_topic_device}/...
+  # Note: mqtt_topic_root must include a trailing slash when non-empty.
+  mqtt_topic_root:   ""
+  mqtt_topic_device: "Cloud-Lamp"
+
+  # --- Time / SNTP (only used when packages/mqtt.yaml is enabled) ---
+  # POSIX timezone string, used for the Logging/Last_Reboot timestamp.
+  #   Europe/Berlin (CET/CEST): "CET-1CEST,M3.5.0,M10.5.0/3"
+  #   UTC:                      "UTC0"
+  timezone: "CET-1CEST,M3.5.0,M10.5.0/3"
+
+  # --- Temperature sensor (only used when temperature-sensor package is enabled) ---
+  temp_sensor_address:     "0x0000000000000000"  # DS18B20 address — read from logs on first boot
+  temp_shutdown_threshold: "40"                  # °C — LEDs shut off above this temperature
+  temp_recovery_threshold: "35"                  # °C — LEDs re-enable below this temperature
+
+# ================================================================
+#  PACKAGES — toggle optional modules here
+# ================================================================
+packages:
+  effects:    !include effects.yaml
+  web_remote: !include packages/web-remote.yaml
+  updates:    !include packages/updates.yaml
+  # MQTT integration lives in cloud-lamp-dev.yaml ONLY — published gift builds
+  # must never carry broker credentials.
+  # Case temperature sensor + thermal emergency shutdown:
+  # temperature_sensor: !include packages/temperature-sensor.yaml
+
+# ================================================================
+#  CORE ESPHOME CONFIG
+# ================================================================
+esphome:
+  name: ${device_name}
+  friendly_name: ${device_friendly_name}
+  project:
+    name: "dd_productions.cloud-lamp"
+    version: ${project_version}
+
+  on_boot:
+    # ---- Stage 1 (priority 600): set the setup-hotspot SSID to
+    # "Cloud-Lamp-XXXX" (XXXX = last 4 hex digits of the MAC, uppercase)
+    # before the Wi-Fi component starts.
+    - priority: 600
+      then:
+        - lambda: |-
+            std::string mac = get_mac_address();  // 12 lowercase hex chars
+            std::string serial = mac.substr(mac.size() - 4);
+            for (auto &c : serial) c = ::toupper(c);
+            wifi::WiFiAP ap;
+            ap.set_ssid("Cloud-Lamp-" + serial);
+            ap.set_password("${wifi_ap_password}");
+            wifi::global_wifi_component->set_ap(ap);
+            ESP_LOGI("boot", "Setup hotspot SSID: Cloud-Lamp-%s", serial.c_str());
+
+    # ---- Stage 2 (priority -100): everything is set up. Detect the
+    # factory-reset gesture (button held since power-on) or apply the
+    # user-chosen power-cut behaviour.
+    # NOTE: the debounced binary_sensor state is not valid yet this early,
+    # so the gesture reads the GPIO pin directly (GPIO12, active low).
+    - priority: -100
+      then:
+        - lambda: |-
+            if (!digitalRead(12)) {
+              ESP_LOGW("boot", "Button held at power-on — starting factory reset countdown");
+              id(factory_reset_countdown).execute();
+            } else {
+              id(apply_boot_light_state).execute();
+            }
+
+esp8266:
+  board: d1_mini
+
+logger:
+  level: INFO
+
+# Push-based OTA from the builder's machine (esphome run / dashboard).
+# Online pull updates live in packages/updates.yaml; browser-upload OTA
+# lives in packages/web-remote.yaml.
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  # NO networks compiled in — this build is published publicly and must not
+  # embed any Wi-Fi credentials. The recipient connects the lamp via the
+  # captive portal; those credentials are stored in flash (survive updates).
+  # The builder's dev build (cloud-lamp-dev.yaml) adds compiled-in networks.
+  ap:
+    # Placeholder — replaced at runtime in on_boot stage 1 with "Cloud-Lamp-XXXX".
+    ssid: "Cloud-Lamp"
+    password: "${wifi_ap_password}"
+  power_save_mode: none   # Mains-powered; radio sleep only causes latency
+  fast_connect: false     # Must be false with multiple networks
+  # THE LAMP MUST WORK WITHOUT WI-FI. Never reboot because of a missing
+  # network — the setup hotspot + captive portal stay available instead.
+  reboot_timeout: 0s
+
+captive_portal:
+
+safe_mode:
+  num_attempts: 5        # Enter safe mode after 5 crash-reboots in a row
+  reboot_timeout: 3min   # Retry normal boot after 3 minutes in safe mode
+
+# ================================================================
+#  GLOBALS — persisted memory (survives reboots, power cuts and OTA
+#  updates; stored in the ESP preferences area outside the firmware
+#  image). IDs must stay stable across firmware versions, otherwise
+#  saved values are orphaned after an update.
+# ================================================================
+globals:
+  - id: boot_completed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  # Mirrors of the light state, kept in sync by the light's on_state hook.
+  # Used to restore the lamp after a power cut ("Restore Last State").
+  - id: saved_on
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
+  - id: last_effect_index
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: brightness_pct
+    type: int
+    restore_value: yes
+    initial_value: "${brightness_default}"
+
+  # Hold-to-dim direction; alternates on every hold (see dim_hold script).
+  - id: dim_up
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  # Factory-reset countdown bookkeeping (power-on gesture).
+  - id: factory_count
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+# ================================================================
+#  SCRIPTS — the only place that changes lamp state.
+#  Button, boot logic, MQTT and the web app all call these.
+# ================================================================
+script:
+  # Turn on with the remembered effect and brightness.
+  - id: lamp_turn_on
+    mode: restart
+    then:
+      - lambda: |-
+          const auto &effects = id(led_rings).get_effects();
+          int idx = id(last_effect_index);
+          if (idx < 0 || idx >= (int) effects.size())
+            idx = 0;
+          id(last_effect_index) = idx;
+          if (id(brightness_pct) < 5)
+            id(brightness_pct) = 5;
+          auto call = id(led_rings).turn_on();
+          call.set_brightness(id(brightness_pct) / 100.0f);
+          if (!effects.empty())
+            call.set_effect(idx + 1);  // effect numbers are 1-based (0 = None)
+          call.perform();
+
+  # Turn off, then hard-clear the pixel buffer after the fade so no LED can
+  # ever stay lit (belt-and-braces carried over from the hand-lamp project).
+  - id: lamp_turn_off
+    mode: restart
+    then:
+      - light.turn_off: led_rings
+      - delay: 500ms
+      - if:
+          condition:
+            lambda: 'return !id(led_rings).remote_values.is_on();'
+          then:
+            - light.addressable_set:
+                id: led_rings
+                range_from: 0
+                range_to: !lambda 'return ${led_count} - 1;'
+                red: 0
+                green: 0
+                blue: 0
+
+  # Cycle to the next effect (wraps around). Only meaningful while on.
+  - id: lamp_next_effect
+    mode: restart
+    then:
+      - lambda: |-
+          const auto &effects = id(led_rings).get_effects();
+          if (effects.empty())
+            return;
+          int idx = (id(last_effect_index) + 1) % (int) effects.size();
+          id(last_effect_index) = idx;
+          ESP_LOGI("button", "Cycling to effect %d", idx);
+          auto call = id(led_rings).turn_on();
+          call.set_effect(idx + 1);
+          call.perform();
+
+  # Hold-to-dim. Direction alternates per hold; near the limits it always
+  # moves away from the limit so a hold never appears to "do nothing".
+  # Full range takes ~3 s. No wrap-around: the ramp stops at the limit.
+  - id: dim_hold
+    mode: restart
+    then:
+      - lambda: |-
+          float b = id(led_rings).remote_values.get_brightness();
+          if (b >= 0.93f)      id(dim_up) = false;
+          else if (b <= 0.12f) id(dim_up) = true;
+          else                 id(dim_up) = !id(dim_up);
+          ESP_LOGI("button", "Hold-to-dim started (%s)", id(dim_up) ? "up" : "down");
+      - while:
+          condition:
+            lambda: 'return id(push_button).state && id(led_rings).remote_values.is_on();'
+          then:
+            - lambda: |-
+                float b = id(led_rings).remote_values.get_brightness();
+                float nb = b + (id(dim_up) ? 0.02f : -0.02f);
+                if (nb > 1.0f) nb = 1.0f;
+                if (nb < 0.05f) nb = 0.05f;
+                if (nb != b) {
+                  auto call = id(led_rings).turn_on();
+                  call.set_brightness(nb);
+                  call.set_transition_length(0);
+                  call.perform();
+                }
+            - delay: 60ms
+
+  # Applied at the end of boot: user-selectable power-cut behaviour.
+  - id: apply_boot_light_state
+    mode: single
+    then:
+      - lambda: |-
+          if (id(power_behavior).state == "Restore Last State" && id(saved_on)) {
+            ESP_LOGI("boot", "Power-cut behaviour: restoring last state (on)");
+            id(lamp_turn_on).execute();
+          } else {
+            ESP_LOGI("boot", "Power-cut behaviour: starting off");
+            id(lamp_turn_off).execute();
+          }
+      - delay: 750ms
+      - lambda: 'id(boot_completed) = true;'
+
+  # Factory reset countdown: button was held while plugging in power.
+  # The rings pulse red for ~10 s as a warning; releasing the button at any
+  # time aborts and boots normally. Surviving the countdown wipes all saved
+  # settings (Wi-Fi credentials, brightness, effect, preferences) and reboots.
+  - id: factory_reset_countdown
+    mode: single
+    then:
+      - lambda: 'id(factory_count) = 0;'
+      - while:
+          condition:
+            lambda: 'return !digitalRead(12) && id(factory_count) < 12;'
+          then:
+            - light.turn_on:
+                id: led_rings
+                red: 100%
+                green: 0%
+                blue: 0%
+                brightness: 35%
+                transition_length: 150ms
+            - delay: 400ms
+            - light.turn_off:
+                id: led_rings
+                transition_length: 150ms
+            - delay: 400ms
+            - lambda: 'id(factory_count) += 1;'
+      - if:
+          condition:
+            lambda: 'return !digitalRead(12);'
+          then:
+            - logger.log:
+                level: WARN
+                format: "FACTORY RESET — wiping all saved settings"
+            - light.turn_on:
+                id: led_rings
+                red: 100%
+                green: 0%
+                blue: 0%
+                brightness: 60%
+                transition_length: 0s
+            - delay: 1s
+            - button.press: factory_reset_btn
+          else:
+            - logger.log: "Factory reset aborted (button released) — booting normally"
+            - script.execute: apply_boot_light_state
+
+# ================================================================
+#  LIGHT
+# ================================================================
+light:
+  - platform: neopixelbus
+    variant: ws2812x
+    type: GRB
+    pin: GPIO03
+    num_leds: ${led_count}
+    name: "Cloud Light"          # REST object_id: cloud_light
+    id: led_rings
+    restore_mode: ALWAYS_OFF     # Boot state is handled by apply_boot_light_state
+    default_transition_length: 300ms
+    color_correct: [100%, 75%, 60%]   # Tune per-batch by eye to achieve neutral white
+    on_state:
+      # Mirror the confirmed state into the persisted globals — regardless of
+      # whether the change came from the button, the web app or MQTT.
+      - lambda: |-
+          if (!id(boot_completed))
+            return;
+          bool on = id(led_rings).remote_values.is_on();
+          id(saved_on) = on;
+          if (on) {
+            int b = (int) roundf(id(led_rings).remote_values.get_brightness() * 100.0f);
+            if (b >= 1)
+              id(brightness_pct) = b;
+            std::string fx = id(led_rings).get_effect_name();
+            if (fx != "None") {
+              const auto &effects = id(led_rings).get_effects();
+              for (size_t i = 0; i < effects.size(); i++) {
+                if (strcmp(effects[i]->get_name().c_str(), fx.c_str()) == 0) {
+                  id(last_effect_index) = (int) i;
+                  break;
+                }
+              }
+            }
+          }
+    on_turn_on:
+      # If the light was switched on without an explicit effect (e.g. the web
+      # app's ON button or a plain MQTT Set/On), restore the last-used effect.
+      - lambda: |-
+          if (!id(boot_completed))
+            return;
+          if (id(led_rings).get_effect_name() == "None") {
+            const auto &effects = id(led_rings).get_effects();
+            int idx = id(last_effect_index);
+            if (!effects.empty() && idx >= 0 && idx < (int) effects.size()) {
+              auto call = id(led_rings).turn_on();
+              call.set_effect(idx + 1);
+              call.perform();
+            }
+          }
+
+# ================================================================
+#  BUTTON — full reference:
+#    1× click            → toggle on/off
+#    2× click            → next effect (turns on if off)
+#    hold ≥ 0.5 s        → dim up/down while held (turns on if off)
+#    hold at power-on 10 s → factory reset (red countdown, see script above)
+#  All actions are ignored until boot has completed.
+# ================================================================
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO12   # D6
+      mode:
+        input: true
+        pullup: true
+      inverted: true   # HIGH at idle (pull-up); LOW when button shorts to GND
+    name: "Push Button"
+    id: push_button
+    internal: true
+    filters:
+      - delayed_on:  10ms   # Debounce
+      - delayed_off: 10ms
+    on_multi_click:
+      # Single click: short press, then released long enough to rule out a
+      # double click. Fires ~350 ms after release.
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at least 0.35s
+        then:
+          - if:
+              condition:
+                lambda: 'return id(boot_completed);'
+              then:
+                - if:
+                    condition:
+                      light.is_on: led_rings
+                    then:
+                      - script.execute: lamp_turn_off
+                    else:
+                      - script.execute: lamp_turn_on
+
+      # Double click: fires on release of the second click.
+      - timing:
+          - ON for at most 0.4s
+          - OFF for at most 0.35s
+          - ON for at most 0.4s
+        then:
+          - if:
+              condition:
+                lambda: 'return id(boot_completed);'
+              then:
+                - if:
+                    condition:
+                      light.is_on: led_rings
+                    then:
+                      - script.execute: lamp_next_effect
+                    else:
+                      - script.execute: lamp_turn_on
+
+      # Hold: fires 0.5 s into the press, while still held.
+      - timing:
+          - ON for at least 0.5s
+        then:
+          - if:
+              condition:
+                lambda: 'return id(boot_completed);'
+              then:
+                - if:
+                    condition:
+                      light.is_on: led_rings
+                    then:
+                      - script.execute: dim_hold
+                    else:
+                      - script.execute: lamp_turn_on
+
+# ================================================================
+#  SETTINGS ENTITIES — exposed to the web app via the REST API
+# ================================================================
+select:
+  - platform: template
+    name: "Power Behavior"       # REST object_id: power_behavior
+    id: power_behavior
+    options:
+      - "Start Off"
+      - "Restore Last State"
+    initial_option: "Start Off"
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+button:
+  - platform: restart
+    name: "Restart"              # REST object_id: restart
+    id: restart_btn
+    entity_category: diagnostic
+
+  - platform: factory_reset
+    name: "Factory Reset"        # REST object_id: factory_reset
+    id: factory_reset_btn
+    entity_category: diagnostic
