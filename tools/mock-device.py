@@ -35,6 +35,9 @@ state = {
     "mqtt": True,
     "fw_installing": False,
     "fw_progress": 0,
+    "fw_current": "2.1.8",
+    "fw_latest": "2.2.0",
+    "fw_offline": False,   # simulate reboot blackout during OTA
 }
 listeners = []
 lock = threading.Lock()
@@ -56,17 +59,23 @@ def light_json(detail_all=False):
 
 def update_json():
     # Match ESPHome web_server shape: latest version is in `value`.
-    latest = "2.1.9"
+    # Note: web REST does NOT include progress — only state / value / current_version.
+    latest = state["fw_latest"]
+    cur = state["fw_current"]
     installing = state["fw_installing"]
+    if installing:
+        st = "INSTALLING"
+    elif latest != cur:
+        st = "UPDATE AVAILABLE"
+    else:
+        st = "NO UPDATE"
     return {
         "id": "update-firmware",
         "value": latest,
-        "state": "INSTALLING" if installing else "NO UPDATE",
-        "current_version": "2.1.9",
+        "state": st,
+        "current_version": cur,
         "title": "Cloud Lamp (cloud-lamp)",
         "summary": f"Cloud-Lamp firmware {latest}",
-        "has_progress": installing,
-        "progress": state["fw_progress"],
     }
 
 
@@ -98,6 +107,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
+        # Simulate lamp reboot blackout during OTA (web app coach waits for return).
+        if state.get("fw_offline") and path not in ("/", "/app", "/brand.png", "/icon.png", "/logo.png", "/manifest.json"):
+            self._send(503, b"{}")
+            return
         if path in ("/", "/app"):
             self._send(200, (ROOT / "web" / "app.html").read_bytes(), "text/html")
         elif path in ("/icon.png", "/brand.png", "/logo.png"):
@@ -110,7 +123,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(200, json.dumps({
                 "name": "cloud-lamp-dd3f2a", "friendly_name": "Cloud-Lamp-dd3f2a",
                 "hostname": "cloud-lamp-dd3f2a", "serial": "DD3F2A",
-                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.9",
+                "mac": "AA:BB:CC:DD:3F:2A", "version": state["fw_current"],
             }).encode())
         elif path == "/manifest.json":
             self._send(200, json.dumps({"name": "Cloud-Lamp", "display": "standalone"}).encode())
@@ -190,12 +203,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(200)
 
             def fake_install():
+                # Match real device: INSTALLING → (web freezes/offline) → reboot → new version.
                 state["fw_installing"] = True
-                for p in range(0, 101, 10):
-                    state["fw_progress"] = p
-                    broadcast(update_json())
-                    time.sleep(0.5)
+                broadcast(update_json())
+                time.sleep(3)          # "download"
+                state["fw_offline"] = True
                 state["fw_installing"] = False
+                time.sleep(5)          # reboot blackout
+                state["fw_current"] = state["fw_latest"]
+                state["fw_offline"] = False
+                broadcast(update_json())
             threading.Thread(target=fake_install, daemon=True).start()
         elif path in ("/button/restart/press", "/button/factory_reset/press", "/button/reset_wifi/press"):
             self._send(200)

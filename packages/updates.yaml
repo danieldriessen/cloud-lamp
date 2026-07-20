@@ -26,7 +26,11 @@
 # ==============================================================================
 
 http_request:
-  timeout: 15s
+  # Idle-read timeout between chunks while downloading ~750 KB over HTTPS.
+  # 15 s was too tight when GitHub/Fastly stalled briefly — the OTA aborted,
+  # the update entity snapped back to "UPDATE AVAILABLE", and the web app
+  # looked like "nothing happened" (no error is exposed on the REST API).
+  timeout: 60s
   # BearSSL on the ESP8266 has no CA certificate store; transport is still
   # TLS-encrypted, and firmware integrity is enforced by the manifest MD5.
   verify_ssl: false

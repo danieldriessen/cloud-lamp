@@ -31,10 +31,16 @@ GitHub Pages setup or separate repo needed.
    which runs `update.check` — the web-server API only exposes install, not check).
 2. If the manifest version differs from the installed `${project_version}`, the web app
    shows an **Update available** badge and an **Install** button.
-3. On install, the lamp downloads the firmware image (the `path` in the manifest is
-   resolved relative to the manifest URL, so the `.bin` sits next to it), verifies its
-   **MD5 checksum**, writes it to the inactive flash area, and reboots into it. The lamp
-   keeps working during the download.
+3. On install, the web app opens a full-screen **update coach** (installing → restarting →
+   waiting → done / failed). The lamp downloads the firmware image (the `path` in the
+   manifest is resolved relative to the manifest URL, so the `.bin` sits next to it),
+   verifies its **MD5 checksum**, writes it to the inactive flash area, and reboots into
+   it. On ESP8266 the download blocks the main loop, so the web UI freezes until reboot —
+   the coach treats that disconnect as the restart phase and polls until the lamp returns.
+4. Important limitation: ESPHome's **web REST API does not expose download progress or
+   error strings** for update entities (only the native API does). A failed install used
+   to look like “nothing happened”; the coach now detects a silent return to
+   `UPDATE AVAILABLE` while still online and shows **Update failed**.
 
 An unreachable manifest URL is harmless — the check fails silently and the lamp keeps
 running (relevant for lamps in homes without internet, or before a device's first release

@@ -17,19 +17,17 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.9 — project wordmark logo (rainbow cloud + "Lamp") as README hero,
-> web-app header brand and (transparently) the PWA / home-screen icon — iOS may still
-> fill transparent apple-touch-icon pixels black; check on a real device after Add to
-> Home Screen. v2.1.8: ten web-app languages (Italian, Dutch, Polish, Portuguese,
-> Turkish, Russian added; English now uses the US flag). v2.1.7: custom colour picker.
-> v2.1.6: true full-bleed iOS background. v2.1.5: colour-scale effect list, grouped
-> effect grid, user manual + header manual button.
+> **Phase:** v2.2.0 — firmware update coach (full-screen install → reboot → reconnect
+> UI) plus longer HTTP OTA timeouts (60 s HTTP idle timeout) so silent mid-download
+> aborts are less likely; web REST still has no progress %, so the coach uses an
+> indeterminate bar. v2.1.9: project wordmark logo. v2.1.8: ten languages. v2.1.7:
+> custom colour picker. v2.1.6: full-bleed iOS background. v2.1.5: effect list + manual.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the product
 > sticker (P-Touch template exists: docs/Label.lbx, field checklist in
 > device-credentials.md); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.9
+> **Firmware:** ESPHome 2026.6.0, project version 2.2.0
 
 ---
 
@@ -209,7 +207,7 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   [user manual](./user-manual.md) in a new tab (permanent GitHub URL, same target as the
   sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
   *Change Wi-Fi network*, MQTT kill switch when present, firmware version/update with
-  *Check for updates now* and install progress, restart, factory reset, device info). The
+  *Check for updates now*; Install opens a full-screen update coach through reboot/reconnect; restart, factory reset, device info). The
   settings sheet is a bottom sheet capped at the same max width
   as the main view (`520px`), locks background scroll while open, and keeps extra right /
   bottom padding so the scroll indicator and home-indicator area stay clear.
