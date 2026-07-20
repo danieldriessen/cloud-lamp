@@ -154,9 +154,10 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
 - **Icon:** kept square on purpose — iOS rounds home-screen icons automatically, and
   `apple-touch-icon` does not support transparency (pre-rounded corners would render
   black). Inside the app it is displayed with CSS corner rounding (header brand).
-- **PWA:** recipients open the page in Safari and use *Share → Add to Home Screen*; the app
-  then launches full-screen like a native app. A dismissible hint in the app explains this
-  on iOS.
+- **PWA:** a top-of-page button *Create a remote control app* opens a structured sheet with
+  step-by-step iOS home-screen instructions (including the lamp’s own unique
+  `http://cloud-lamp-<mac6>.local/` address). Already-installed home-screen apps hide that
+  button. Onboarding via the setup hotspot is unchanged.
 - **iOS "HTTPS-Only" errors:** since iOS 18.2, Safari hard-blocks *home-screen links* to
   plain-HTTP pages when *Settings → Apps → Safari → Not Secure Connection Warning* is on
   (German: *„Die Steuerung ist fehlgeschlagen… HTTP-URL mit aktiviertem Modus HTTP is

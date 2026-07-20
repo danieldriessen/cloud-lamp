@@ -112,8 +112,13 @@ packages:
 #  CORE ESPHOME CONFIG
 # ================================================================
 esphome:
+  # Hostname becomes cloud-lamp-<last6 MAC hex>, e.g. cloud-lamp-cfb911.local —
+  # unique per chip so several lamps on one network don't fight over one mDNS name.
+  # The sticker serial stays the shorter last-4 form (Cloud-Lamp-B911); both share
+  # the same MAC ending. Captive-portal onboarding is unchanged (AP SSID / 192.168.4.1).
   name: ${device_name}
   friendly_name: ${device_friendly_name}
+  name_add_mac_suffix: true
   project:
     name: "dd_productions.cloud-lamp"
     version: ${project_version}

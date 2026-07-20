@@ -121,9 +121,11 @@ void CloudLampWeb::handle_png_(AsyncWebServerRequest *request, const uint8_t *da
 }
 
 void CloudLampWeb::handle_device_info_(AsyncWebServerRequest *request) {
+  // name = unique mDNS hostname (cloud-lamp-<mac6>); serial = sticker XXXX (last 4).
   std::string json = "{\"name\":\"" + App.get_name() +
                      "\",\"friendly_name\":\"" + App.get_friendly_name() +
                      "\",\"serial\":\"" + device_serial() +
+                     "\",\"hostname\":\"" + App.get_name() +
                      "\",\"mac\":\"" + get_mac_address_pretty() +
                      "\",\"version\":\"" +
 #ifdef ESPHOME_PROJECT_VERSION

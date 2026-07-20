@@ -16,15 +16,18 @@ Each lamp gets a sticker with everything the recipient needs for Wi-Fi setup:
 | Device name | `Cloud-Lamp` | Generic on purpose — lamps are personalised only by the physical front text |
 | Setup Wi-Fi | `Cloud-Lamp-XXXX` | Generated at runtime; XXXX = last 4 hex digits of the chip MAC, uppercase |
 | Wi-Fi password | `cloud-lamp` | Shared across all devices (see below) |
+| Web address | `http://cloud-lamp-<mac6>.local/` | Unique per chip (last 6 MAC hex). Sticker serial XXXX is the last 4 of those 6. |
 
 To read the serial for the sticker before assembly: boot the device once and check the log
 line `Setup hotspot SSID: Cloud-Lamp-XXXX`, or open `http://<lamp-ip>/device.json` (field
-`serial`). The same serial is shown in the web app under Settings → About.
+`serial`). The same serial is shown in the web app under Settings → About. The unique
+hostname is in the same JSON (`hostname`) and under Settings → About → Hostname.
 
-**Uniqueness:** the four hex digits are the last two bytes of the chip MAC → 65 536
-possible values. That is **plenty for gift batches and household use**, but it is **not**
-a cryptographic or globally unique ID (two chips can share the same last two bytes). The
-full MAC (shown in Settings → About) is the unique identifier if you ever need one.
+**Uniqueness:** the four-digit sticker serial is the last two MAC bytes → 65 536 values —
+fine for gift batches, not globally unique. The **mDNS hostname** uses the last **six**
+MAC hex digits (`cloud-lamp-cfb911.local`), so multiple lamps on one network do not collide.
+The full MAC (Settings → About) remains the definitive unique ID. Captive-portal onboarding
+still uses the sticker hotspot `Cloud-Lamp-XXXX` / `192.168.4.1` and is unchanged.
 
 ---
 

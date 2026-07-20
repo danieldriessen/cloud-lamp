@@ -98,8 +98,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._send(404, b"")
         elif path == "/device.json":
             self._send(200, json.dumps({
-                "name": "cloud-lamp", "friendly_name": "Cloud-Lamp",
-                "serial": "3F2A", "mac": "AA:BB:CC:DD:3F:2A", "version": "2.0.0",
+                "name": "cloud-lamp-dd3f2a", "friendly_name": "Cloud-Lamp-dd3f2a",
+                "hostname": "cloud-lamp-dd3f2a", "serial": "3F2A",
+                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.0.0",
             }).encode())
         elif path == "/manifest.json":
             self._send(200, json.dumps({"name": "Cloud-Lamp", "display": "standalone"}).encode())

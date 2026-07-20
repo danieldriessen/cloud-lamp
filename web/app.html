@@ -184,11 +184,30 @@
     .maker img:active{opacity:.85}
     .maker .copy{font-size:12px;color:var(--muted);opacity:.80;letter-spacing:.3px;margin-top:2px}
 
-    /* Hint card */
-    .hint-card{display:flex;gap:12px;align-items:flex-start}
-    .hint-card .txt{font-size:13px;color:var(--muted);line-height:1.45}
-    .hint-card .txt b{color:var(--text)}
-    .hint-close{margin-left:auto;flex:0 0 auto;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px}
+    /* Install-app entry (replaces the old always-on tip banner) */
+    .install-entry .btn{font-size:14px;font-weight:700;min-height:44px}
+    .install-steps{margin:0;padding:4px 0 0;list-style:none;counter-reset:step}
+    .install-steps li{
+      position:relative;padding:12px 14px 12px 48px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      font-size:14px;line-height:1.45;color:var(--text);
+    }
+    .install-steps li:last-child{border-bottom:none}
+    .install-steps li::before{
+      counter-increment:step;content:counter(step);
+      position:absolute;left:14px;top:12px;
+      width:24px;height:24px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(108,178,255,.18);border:1px solid rgba(108,178,255,.4);
+      color:var(--accent);font-size:12px;font-weight:800;
+    }
+    .install-steps li .url{
+      display:block;margin-top:6px;padding:8px 10px;border-radius:10px;
+      background:rgba(0,0,0,.35);border:1px solid var(--line);
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+      word-break:break-all;color:#cfe4ff;user-select:text;-webkit-user-select:text;
+    }
+    .install-note{font-size:12.5px;color:var(--muted);line-height:1.45;padding:12px 14px}
 
     /* Sheet (settings) — centred bottom sheet, same max width as the main view.
        Body scroll is locked while open (see openSettings/closeSettings). */
@@ -308,11 +327,8 @@
       </div>
     </header>
 
-    <div class="card" id="iosHint" hidden>
-      <div class="hint-card">
-        <div class="txt" id="hintText"></div>
-        <button class="hint-close" id="hintClose" aria-label="Dismiss">✕</button>
-      </div>
+    <div class="card install-entry" id="installEntry" hidden>
+      <button class="btn" type="button" id="btnInstallApp" data-i18n="install_app_btn">Create a remote control app</button>
     </div>
 
     <div class="card">
@@ -434,8 +450,41 @@
         <div class="g-label" data-i18n="about">About</div>
         <div class="g-card">
           <div class="row"><div class="k" data-i18n="device_name">Device name</div><div class="v" id="aboutName">—</div></div>
+          <div class="row"><div class="k" data-i18n="hostname">Hostname</div><div class="v" id="aboutHost">—</div></div>
           <div class="row"><div class="k" data-i18n="serial">Serial</div><div class="v" id="aboutSerial">—</div></div>
           <div class="row"><div class="k">MAC</div><div class="v" id="aboutMac">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Install as home-screen app (structured steps) -->
+  <div class="modal" id="installModal" hidden>
+    <div class="backdrop" data-close-install></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+      <div class="sheet-hdr">
+        <div class="t" id="installTitle" data-i18n="install_app_title">Remote control app</div>
+        <button class="sheet-close" data-close-install aria-label="Close">✕</button>
+      </div>
+      <div class="group">
+        <div class="g-label" data-i18n="install_app_how">How to add it</div>
+        <div class="g-card">
+          <ol class="install-steps">
+            <li>
+              <span data-i18n="install_step1">On this iPhone, open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.</span>
+            </li>
+            <li>
+              <span data-i18n="install_step2">In Safari, open this lamp’s address (type it with http:// — do not use a search link):</span>
+              <span class="url" id="installUrlCanonical">http://cloud-lamp.local/</span>
+            </li>
+            <li>
+              <span data-i18n="install_step3">Tap Share → Add to Home Screen → Add. The lamp then opens like an app.</span>
+            </li>
+          </ol>
+          <div class="install-note">
+            <span data-i18n="install_note_multi">Each lamp has its own address (hostname ends with part of the chip serial). Use the address for this lamp only — not a shared name.</span>
+            <span class="url" id="installUrlCurrent" style="margin-top:8px"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -478,7 +527,7 @@
       mqtt_d:"Smart-home integration (optional)",firmware:"Firmware",installed_version:"Installed version",
       latest_version:"Latest version",install_update:"Install update",maintenance:"Maintenance",
       restart:"Restart lamp",factory_reset:"Factory reset…",change_wifi:"Change Wi-Fi network…",
-      about:"About",device_name:"Device name",serial:"Serial",
+      about:"About",device_name:"Device name",hostname:"Hostname",serial:"Serial",
       cancel:"Cancel",confirm:"Confirm",loading:"Loading…",on:"On",off:"Off",connected:"Connected",
       offline:"Offline",update_available:"Update available",up_to_date:"Up to date",installing:"Installing… the lamp restarts by itself",
       restart_q:"Restart the lamp?",restart_s:"The lamp will be back in about 10 seconds. Your settings are kept.",
@@ -486,7 +535,14 @@
       wifi_q:"Change Wi-Fi network?",wifi_s:"The lamp leaves this network and opens its setup hotspot (Cloud-Lamp-XXXX on the sticker). Other settings stay. Connect to that hotspot to choose a new network — you cannot stay in this page after confirming.",
       wifi_done:"Opening setup hotspot…",
       restarting:"Restarting…",done:"Done",failed:"Action failed",fw_checks:"The lamp checks for updates every 6 hours (and shortly after power-on).",
-      ios_hint:"<b>Add as app:</b> in Safari type <b>http://cloud-lamp.local/</b> (with <b>http://</b>), then Share → <b>Add to Home Screen</b>. Before that, turn off <b>Settings → Apps → Safari → Not Secure Connection Warning</b> — otherwise iOS blocks the home-screen app (the lamp is local-only and has no HTTPS).",
+      install_app_btn:"Create a remote control app",
+      install_app_title:"Remote control app",
+      install_app_how:"How to add it",
+      install_step1:"On this iPhone, open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.",
+      install_step2:"In Safari, open this lamp’s own address (type it with http:// — do not search for it):",
+      install_step3:"Tap Share → Add to Home Screen → Add. The lamp then opens like an app.",
+      install_note_multi:"Each lamp has its own .local address (unique per chip). Use the address shown above for this lamp only. The setup hotspot on the sticker (Cloud-Lamp-XXXX) is unchanged for Wi-Fi onboarding.",
+      install_current:"Address you are using now:",
       day:"d",hour:"h",min:"m"},
     de:{brightness:"Helligkeit",effects:"Effekte",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
       power_behavior:"Nach Stromausfall",power_behavior_d:"Verhalten, wenn der Strom zurückkehrt",
@@ -495,7 +551,7 @@
       mqtt_d:"Smart-Home-Anbindung (optional)",firmware:"Firmware",installed_version:"Installierte Version",
       latest_version:"Neueste Version",install_update:"Update installieren",maintenance:"Wartung",
       restart:"Lampe neu starten",factory_reset:"Werkseinstellungen…",change_wifi:"WLAN wechseln…",
-      about:"Info",device_name:"Gerätename",serial:"Seriennummer",
+      about:"Info",device_name:"Gerätename",hostname:"Hostname",serial:"Seriennummer",
       cancel:"Abbrechen",confirm:"Bestätigen",loading:"Laden…",on:"Ein",off:"Aus",connected:"Verbunden",
       offline:"Offline",update_available:"Update verfügbar",up_to_date:"Aktuell",installing:"Wird installiert… die Lampe startet selbst neu",
       restart_q:"Lampe neu starten?",restart_s:"Die Lampe ist in ca. 10 Sekunden wieder da. Einstellungen bleiben erhalten.",
@@ -503,7 +559,14 @@
       wifi_q:"WLAN wechseln?",wifi_s:"Die Lampe verlässt dieses Netz und öffnet ihren Einrichtungs-Hotspot (Cloud-Lamp-XXXX auf dem Aufkleber). Andere Einstellungen bleiben. Verbinde dich mit dem Hotspot, um ein neues Netz zu wählen — diese Seite ist danach nicht mehr erreichbar.",
       wifi_done:"Einrichtungs-Hotspot wird geöffnet…",
       restarting:"Neustart…",done:"Fertig",failed:"Aktion fehlgeschlagen",fw_checks:"Die Lampe sucht alle 6 Stunden (und kurz nach dem Einschalten) nach Updates.",
-      ios_hint:"<b>Als App hinzufügen:</b> Tippe in Safari <b>http://cloud-lamp.local/</b> (mit <b>http://</b>), dann Teilen → <b>Zum Home-Bildschirm</b>. Schalte vorher <b>Einstellungen → Apps → Safari → Warnung bei unsicherer Verbindung</b> aus — sonst blockiert iOS die Home-Screen-App (die Lampe ist nur lokal und hat kein HTTPS).",
+      install_app_btn:"Fernbedienungs-App erstellen",
+      install_app_title:"Fernbedienungs-App",
+      install_app_how:"So fügst du sie hinzu",
+      install_step1:"Öffne auf diesem iPhone Einstellungen → Apps → Safari und schalte „Warnung bei unsicherer Verbindung“ aus.",
+      install_step2:"Öffne in Safari die eigene Adresse dieser Lampe (mit http:// eintippen — nicht über die Suche):",
+      install_step3:"Tippe auf Teilen → Zum Home-Bildschirm → Hinzufügen. Die Lampe öffnet sich danach wie eine App.",
+      install_note_multi:"Jede Lampe hat ihre eigene .local-Adresse (eindeutig pro Chip). Nutze nur die Adresse oben für genau diese Lampe. Der Einrichtungs-Hotspot auf dem Aufkleber (Cloud-Lamp-XXXX) bleibt für die WLAN-Einrichtung unverändert.",
+      install_current:"Adresse, die du gerade nutzt:",
       day:"T",hour:"Std",min:"Min"},
     es:{brightness:"Brillo",effects:"Efectos",settings:"Ajustes",general:"General",language:"Idioma",
       power_behavior:"Tras un corte de luz",power_behavior_d:"Comportamiento al volver la corriente",
@@ -512,7 +575,7 @@
       mqtt_d:"Integración domótica (opcional)",firmware:"Firmware",installed_version:"Versión instalada",
       latest_version:"Última versión",install_update:"Instalar actualización",maintenance:"Mantenimiento",
       restart:"Reiniciar lámpara",factory_reset:"Restablecer de fábrica…",change_wifi:"Cambiar red Wi-Fi…",
-      about:"Información",device_name:"Nombre del dispositivo",serial:"Número de serie",
+      about:"Información",device_name:"Nombre del dispositivo",hostname:"Nombre de host",serial:"Número de serie",
       cancel:"Cancelar",confirm:"Confirmar",loading:"Cargando…",on:"Encendida",off:"Apagada",connected:"Conectado",
       offline:"Sin conexión",update_available:"Actualización disponible",up_to_date:"Actualizado",installing:"Instalando… la lámpara se reinicia sola",
       restart_q:"¿Reiniciar la lámpara?",restart_s:"La lámpara volverá en unos 10 segundos. Se conservan los ajustes.",
@@ -520,7 +583,14 @@
       wifi_q:"¿Cambiar la red Wi-Fi?",wifi_s:"La lámpara sale de esta red y abre su punto de acceso de configuración (Cloud-Lamp-XXXX en la etiqueta). El resto de ajustes se conservan. Conéctate a ese punto de acceso para elegir una red nueva: esta página dejará de estar disponible.",
       wifi_done:"Abriendo el punto de acceso…",
       restarting:"Reiniciando…",done:"Hecho",failed:"La acción falló",fw_checks:"La lámpara busca actualizaciones cada 6 horas (y poco después de encenderse).",
-      ios_hint:"<b>Añadir como app:</b> en Safari escribe <b>http://cloud-lamp.local/</b> (con <b>http://</b>), luego Compartir → <b>Añadir a pantalla de inicio</b>. Antes desactiva <b>Ajustes → Apps → Safari → Aviso de conexión no segura</b>; si no, iOS bloquea la app (la lámpara es solo local y no tiene HTTPS).",
+      install_app_btn:"Crear una app de control",
+      install_app_title:"App de control",
+      install_app_how:"Cómo añadirla",
+      install_step1:"En este iPhone, ve a Ajustes → Apps → Safari y desactiva «Aviso de conexión no segura».",
+      install_step2:"En Safari, abre la dirección propia de esta lámpara (escríbela con http:// — no la busques):",
+      install_step3:"Toca Compartir → Añadir a pantalla de inicio → Añadir. La lámpara se abrirá como una app.",
+      install_note_multi:"Cada lámpara tiene su propia dirección .local (única por chip). Usa solo la dirección de arriba para esta lámpara. El punto de acceso de la etiqueta (Cloud-Lamp-XXXX) no cambia para la configuración Wi-Fi.",
+      install_current:"Dirección que estás usando ahora:",
       day:"d",hour:"h",min:"min"},
     fr:{brightness:"Luminosité",effects:"Effets",settings:"Réglages",general:"Général",language:"Langue",
       power_behavior:"Après une coupure",power_behavior_d:"Comportement au retour du courant",
@@ -529,7 +599,7 @@
       mqtt_d:"Intégration domotique (optionnel)",firmware:"Micrologiciel",installed_version:"Version installée",
       latest_version:"Dernière version",install_update:"Installer la mise à jour",maintenance:"Maintenance",
       restart:"Redémarrer la lampe",factory_reset:"Réinitialisation d'usine…",change_wifi:"Changer de réseau Wi-Fi…",
-      about:"À propos",device_name:"Nom de l'appareil",serial:"Numéro de série",
+      about:"À propos",device_name:"Nom de l'appareil",hostname:"Nom d'hôte",serial:"Numéro de série",
       cancel:"Annuler",confirm:"Confirmer",loading:"Chargement…",on:"Allumée",off:"Éteinte",connected:"Connecté",
       offline:"Hors ligne",update_available:"Mise à jour disponible",up_to_date:"À jour",installing:"Installation… la lampe redémarre toute seule",
       restart_q:"Redémarrer la lampe ?",restart_s:"La lampe revient dans environ 10 secondes. Les réglages sont conservés.",
@@ -537,7 +607,14 @@
       wifi_q:"Changer de réseau Wi-Fi ?",wifi_s:"La lampe quitte ce réseau et ouvre son point d'accès de configuration (Cloud-Lamp-XXXX sur l'étiquette). Les autres réglages sont conservés. Connectez-vous à ce point d'accès pour choisir un nouveau réseau — cette page ne sera plus accessible.",
       wifi_done:"Ouverture du point d'accès…",
       restarting:"Redémarrage…",done:"Terminé",failed:"L'action a échoué",fw_checks:"La lampe recherche les mises à jour toutes les 6 heures (et peu après la mise sous tension).",
-      ios_hint:"<b>Ajouter comme app :</b> dans Safari tapez <b>http://cloud-lamp.local/</b> (avec <b>http://</b>), puis Partager → <b>Sur l'écran d'accueil</b>. Désactivez d'abord <b>Réglages → Apps → Safari → Alerte de connexion non sécurisée</b>, sinon iOS bloque l'app (la lampe est locale et n'a pas de HTTPS).",
+      install_app_btn:"Créer une appli de télécommande",
+      install_app_title:"Appli de télécommande",
+      install_app_how:"Comment l'ajouter",
+      install_step1:"Sur cet iPhone, ouvrez Réglages → Apps → Safari et désactivez « Alerte de connexion non sécurisée ».",
+      install_step2:"Dans Safari, ouvrez l'adresse propre à cette lampe (tapez-la avec http:// — ne passez pas par la recherche) :",
+      install_step3:"Touchez Partager → Sur l'écran d'accueil → Ajouter. La lampe s'ouvre alors comme une appli.",
+      install_note_multi:"Chaque lampe a sa propre adresse .local (unique par puce). Utilisez uniquement l'adresse ci-dessus pour cette lampe. Le point d'accès de l'étiquette (Cloud-Lamp-XXXX) reste inchangé pour le Wi-Fi.",
+      install_current:"Adresse que vous utilisez maintenant :",
       day:"j",hour:"h",min:"min"},
   };
   // Effect display names per language (fallback: raw firmware name)
@@ -578,15 +655,14 @@
 
   function applyI18n(){
     document.querySelectorAll("[data-i18n]").forEach(el => {
-      const k = el.getAttribute("data-i18n");
-      if (k === "ios_hint") el.innerHTML = t(k); else el.textContent = t(k);
+      el.textContent = t(el.getAttribute("data-i18n"));
     });
-    $("hintText").innerHTML = t("ios_hint");
     renderEffects();
     renderPower();
     renderConn();
     renderUpdate();
     renderNet();
+    renderInstallUrls();
   }
 
   /* ---------------- State ---------------- */
@@ -597,6 +673,7 @@
   const st = {
     connected:false, on:false, brightness:70, effect:"None", effects:[],
     ssid:"—", rssi:null, ip:"—", uptime:null,
+    hostname:"", serial:"",
     fwCur:"—", fwLatest:null, fwInstalling:false, fwProgress:null,
     mqttPresent:false, mqttOn:false,
   };
@@ -810,14 +887,20 @@
     try {
       const res = await fetch("/device.json", { cache:"no-store" });
       const d = await res.json();
-      $("devName").textContent = d.friendly_name || "Cloud Lamp";
-      document.title = d.friendly_name || "Cloud Lamp";
-      $("devSerial").textContent = d.serial ? `Cloud-Lamp-${d.serial}` : "";
-      $("aboutName").textContent = d.friendly_name || d.name || "—";
-      $("aboutSerial").textContent = d.serial || "—";
+      st.hostname = d.hostname || d.name || "";
+      st.serial = d.serial || "";
+      // Display brand stays "Cloud-Lamp"; MAC suffix lives in hostname / serial only.
+      const brand = "Cloud-Lamp";
+      $("devName").textContent = brand;
+      document.title = st.serial ? `${brand} ${st.serial}` : brand;
+      $("devSerial").textContent = st.serial ? `${brand}-${st.serial}` : "";
+      $("aboutName").textContent = brand;
+      $("aboutHost").textContent = st.hostname ? `${st.hostname}.local` : "—";
+      $("aboutSerial").textContent = st.serial || "—";
       $("aboutMac").textContent = d.mac || "—";
       st.fwCur = d.version || "—";
       renderUpdate();
+      renderInstallUrls();
     } catch {}
     // Presence probes for optional entities
     try {
@@ -851,31 +934,54 @@
     setBrightness(v);
   });
 
-  // Settings sheet — lock background scroll while open
+  // Modal helpers — lock background scroll while any sheet is open
   const setModal = $("setModal");
-  let settingsScrollY = 0;
-  function openSettings(){
-    settingsScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const installModal = $("installModal");
+  let sheetScrollY = 0;
+  function lockSheetScroll(){
+    sheetScrollY = window.scrollY || document.documentElement.scrollTop || 0;
     document.body.classList.add("settings-open");
-    document.body.style.top = `-${settingsScrollY}px`;
+    document.body.style.top = `-${sheetScrollY}px`;
     document.body.style.position = "fixed";
     document.body.style.width = "100%";
-    setModal.hidden = false;
   }
-  function closeSettings(){
-    setModal.hidden = true;
+  function unlockSheetScroll(){
+    if (!setModal.hidden || !installModal.hidden) return;
     document.body.classList.remove("settings-open");
     document.body.style.position = "";
     document.body.style.top = "";
     document.body.style.width = "";
-    window.scrollTo(0, settingsScrollY);
+    window.scrollTo(0, sheetScrollY);
   }
+  function openSettings(){ lockSheetScroll(); setModal.hidden = false; }
+  function closeSettings(){ setModal.hidden = true; unlockSheetScroll(); }
+  function renderInstallUrls(){
+    const host = st.hostname || location.hostname.replace(/\.local$/i, "");
+    const canonical = host ? `http://${host}.local/` : `http://${location.host}/`;
+    $("installUrlCanonical").textContent = canonical;
+    const cur = $("installUrlCurrent");
+    cur.textContent = `${t("install_current")} http://${location.host}/`;
+  }
+  function openInstall(){
+    renderInstallUrls();
+    lockSheetScroll();
+    installModal.hidden = false;
+  }
+  function closeInstall(){ installModal.hidden = true; unlockSheetScroll(); }
   $("btnSettings").addEventListener("click", openSettings);
   setModal.querySelectorAll("[data-close]").forEach(el =>
     el.addEventListener("click", closeSettings));
-  window.addEventListener("keydown", e => { if (e.key === "Escape" && !setModal.hidden) closeSettings(); });
+  $("btnInstallApp").addEventListener("click", openInstall);
+  installModal.querySelectorAll("[data-close-install]").forEach(el =>
+    el.addEventListener("click", closeInstall));
+  window.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if (!installModal.hidden) closeInstall();
+    else if (!setModal.hidden) closeSettings();
+  });
   // Don't let touch-scroll on the dimmed backdrop move the page behind
   setModal.querySelector(".backdrop").addEventListener("touchmove", e => e.preventDefault(), { passive:false });
+  installModal.querySelector(".backdrop").addEventListener("touchmove", e => e.preventDefault(), { passive:false });
 
   // Language select
   const langSel = $("langSel");
@@ -942,15 +1048,9 @@
     act(() => post("/update/firmware/install"));
   });
 
-  // iOS "Add to Home Screen" hint (Safari only, not when already installed)
+  // Show the install entry when not already running as a home-screen app
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
-  if (isIOS && !isStandalone && !localStorage.getItem("cl.hintDismissed"))
-    $("iosHint").hidden = false;
-  $("hintClose").addEventListener("click", () => {
-    $("iosHint").hidden = true;
-    localStorage.setItem("cl.hintDismissed", "1");
-  });
+  $("installEntry").hidden = !!isStandalone;
 
   /* ---------------- Start ---------------- */
   applyI18n();
