@@ -29,6 +29,7 @@ state = {
     "on": False,
     "brightness": 178,   # 0-255
     "effect": "Sky Breathing",
+    "color": (90, 170, 255),   # custom colour RGB (effect "None")
     "speed": 50,         # effect_speed 1–100
     "power_behavior": "Start Off",
     "mqtt": True,
@@ -40,11 +41,13 @@ lock = threading.Lock()
 
 
 def light_json(detail_all=False):
+    r, g, b = state["color"]
     j = {
         "id": "light-cloud_light",
         "state": "ON" if state["on"] else "OFF",
         "brightness": state["brightness"],
         "effect": state["effect"] if state["on"] else "None",
+        "color": {"r": r, "g": g, "b": b},
     }
     if detail_all:
         j["effects"] = ["None"] + EFFECTS
@@ -156,6 +159,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 state["brightness"] = int(q["brightness"][0])
             if "effect" in q:
                 state["effect"] = q["effect"][0]
+            if all(k in q for k in ("r", "g", "b")):
+                state["color"] = (int(q["r"][0]), int(q["g"][0]), int(q["b"][0]))
             self._send(200)
             broadcast(light_json())
         elif path == "/light/cloud_light/turn_off":

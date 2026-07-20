@@ -44,7 +44,7 @@ substitutions:
   device_friendly_name: "Cloud-Lamp"   # Human-readable display name (web app title)
 
   # --- Firmware version (bump for every release; used by the online updater) ---
-  project_version: "2.1.6"
+  project_version: "2.1.7"
 
   # --- LED ring count ---
   # ring_count is informational only — it is never referenced directly in the firmware.
@@ -216,6 +216,18 @@ globals:
     restore_value: yes
     initial_value: '0'
 
+  # Custom colour picked in the web app (effect "None" + RGB). When active it
+  # is restored instead of the effect; double-press re-enters the effect cycle.
+  - id: custom_color_active
+    type: bool
+    restore_value: yes
+    initial_value: 'false'
+
+  - id: custom_color_rgb        # Packed 0xRRGGBB
+    type: int
+    restore_value: yes
+    initial_value: '0xFFFFFF'
+
   - id: brightness_pct
     type: int
     restore_value: yes
@@ -238,7 +250,7 @@ globals:
 #  Button, boot logic, MQTT and the web app all call these.
 # ================================================================
 script:
-  # Turn on with the remembered effect and brightness.
+  # Turn on with the remembered effect (or custom colour) and brightness.
   - id: lamp_turn_on
     mode: restart
     then:
@@ -252,8 +264,15 @@ script:
             id(brightness_pct) = ${brightness_min};
           auto call = id(led_rings).turn_on();
           call.set_brightness(id(brightness_pct) / 100.0f);
-          if (!effects.empty())
+          if (id(custom_color_active)) {
+            int rgb = id(custom_color_rgb);
+            call.set_effect("None");  // plain colour, no effect
+            call.set_rgb(((rgb >> 16) & 0xFF) / 255.0f,
+                         ((rgb >> 8) & 0xFF) / 255.0f,
+                         (rgb & 0xFF) / 255.0f);
+          } else if (!effects.empty()) {
             call.set_effect(idx + 1);  // effect numbers are 1-based (0 = None)
+          }
           call.perform();
 
   # Turn off, then hard-clear the pixel buffer after the fade so no LED can
@@ -276,6 +295,7 @@ script:
                 blue: 0
 
   # Cycle to the next effect (wraps around). Only meaningful while on.
+  # From a custom colour it re-enters the cycle at the last-used effect.
   - id: lamp_next_effect
     mode: restart
     then:
@@ -283,7 +303,13 @@ script:
           const auto &effects = id(led_rings).get_effects();
           if (effects.empty())
             return;
-          int idx = (id(last_effect_index) + 1) % (int) effects.size();
+          int idx;
+          if (id(custom_color_active)) {
+            id(custom_color_active) = false;
+            idx = id(last_effect_index) % (int) effects.size();
+          } else {
+            idx = (id(last_effect_index) + 1) % (int) effects.size();
+          }
           id(last_effect_index) = idx;
           ESP_LOGI("button", "Cycling to effect %d", idx);
           auto call = id(led_rings).turn_on();
@@ -418,13 +444,27 @@ light:
                   break;
                 }
               }
+              id(custom_color_active) = false;
+            } else {
+              // No effect while on = custom colour (web-app colour picker).
+              auto v = id(led_rings).remote_values;
+              float cb = v.get_color_brightness();
+              if (cb <= 0.0f) cb = 1.0f;
+              int r = (int) roundf(cb * v.get_red() * 255.0f);
+              int g = (int) roundf(cb * v.get_green() * 255.0f);
+              int bl = (int) roundf(cb * v.get_blue() * 255.0f);
+              if (r + g + bl > 0) {
+                id(custom_color_rgb) = (r << 16) | (g << 8) | bl;
+                id(custom_color_active) = true;
+              }
             }
           }
     on_turn_on:
       # If the light was switched on without an explicit effect (e.g. the web
       # app's ON button or a plain MQTT Set/On), restore the last-used effect.
+      # A custom colour needs no action — the light keeps its colour values.
       - lambda: |-
-          if (!id(boot_completed))
+          if (!id(boot_completed) || id(custom_color_active))
             return;
           if (id(led_rings).get_effect_name() == "None") {
             const auto &effects = id(led_rings).get_effects();

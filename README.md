@@ -23,6 +23,10 @@ through a built-in web app.
   `effects.yaml`.
 - **Effect speed** — live 1–100 slider in the web app for animated effects (persisted;
   50 = the calm defaults). Solids and Night Light hide the control.
+- **Custom colour** — a *Custom color* tile in the web app opens the device's native
+  colour picker (the iOS system picker on iPhone/iPad); the picked colour is remembered
+  like an effect and survives power cuts. A double press on the button returns to the
+  effect presets.
 - **iOS-style web app** — served directly from the lamp, no cloud, no app store.
   Progressive Web App: open the lamp's address in Safari, "Add to Home Screen", and it
   behaves like a native app. Power, brightness, speed, effect selection, settings and

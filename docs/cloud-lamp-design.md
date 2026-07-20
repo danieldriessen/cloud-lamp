@@ -17,7 +17,9 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.6 — true full-bleed iOS background (no fixed theme-color; Safari samples
+> **Phase:** v2.1.7 — custom colour picker (native OS colour picker in the web app's
+> *Effect Presets* section; the picked colour persists like an effect and survives power
+> cuts). v2.1.6: true full-bleed iOS background (no fixed theme-color; Safari samples
 > the page gradient for its bars). v2.1.5: colour-scale effect list (Red/Yellow/Green
 > added, Indigo removed), grouped effect grid (Colors / Special effects), vivid Aurora
 > Drift, update-badge layout, user manual (docs/user-manual.md) + header manual button.
@@ -25,7 +27,7 @@ Related documents:
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; product stickers; 3D print
 > files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.6
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.7
 
 ---
 
@@ -190,8 +192,14 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   `/select/...`, `/switch/...`, `/button/...`, `/update/...`) and receives live state via
   the `/events` server-sent-events stream, with a 5 s polling fallback. All state shown is
   device-confirmed (no unverified optimistic UI).
-- **Features:** power toggle, brightness slider, effect grid with colour swatches (grouped
-  into *Colors* and *Special effects*), a header book icon that opens the
+- **Features:** power toggle, brightness slider, *Effect Presets* grid with colour
+  swatches (grouped into *Colors* and *Special effects*) plus a *Custom color* tile that
+  opens the OS-native colour picker (`<input type="color">` — the iOS 14+ system
+  spectrum/grid/slider sheet; live preview is throttled to ~5 requests/s while dragging).
+  A custom colour is stored in the firmware like an effect (globals
+  `custom_color_active` + `custom_color_rgb`), so it survives power cuts and off/on;
+  a button double-press leaves it and re-enters the effect cycle at the last-used
+  effect. There is also a header book icon that opens the
   [user manual](./user-manual.md) in a new tab (permanent GitHub URL, same target as the
   sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
   *Change Wi-Fi network*, MQTT kill switch when present, firmware version/update with
@@ -301,7 +309,7 @@ All topics follow `${mqtt_topic_root}${mqtt_topic_device}/<subtree>/<name>`
 | `…/Set/Brightness` | in | false | 1 | Integer 1–100 (0/out-of-range ignored) |
 | `…/Set/Reboot` | in | false | 1 | `"true"` (guarded, see below) |
 | `…/State/On` | out | true | 1 | `"true"`/`"false"` |
-| `…/State/Effect` | out | true | 1 | Effect name |
+| `…/State/Effect` | out | true | 1 | Effect name, or `"Custom Color"` when a picked colour is active |
 | `…/State/Brightness` | out | true | 1 | Integer 1–100 |
 | `…/Info/Reachable` | out | true | 1 | `"online"`/`"offline"` (birth/LWT) |
 | `…/Info/IP` | out | true | 1 | IP address |

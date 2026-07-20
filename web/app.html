@@ -187,6 +187,13 @@
       border-color:rgba(108,178,255,.62);
     }
     .fx-none{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:12px 0}
+    /* Custom-colour tile: the native colour input covers the whole tile
+       invisibly, so a tap opens the OS colour picker directly. */
+    .fx-btn.fx-custom{position:relative}
+    .fx-btn.fx-custom input[type=color]{
+      position:absolute;inset:0;width:100%;height:100%;
+      opacity:0;border:none;padding:0;cursor:pointer;
+    }
     .fx-group-label{
       grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.6px;
       text-transform:uppercase;color:var(--muted);margin:6px 2px 0;
@@ -554,7 +561,7 @@
     { code:"fr", flag:"🇫🇷", name:"Français" },
   ];
   const I18N = {
-    en:{brightness:"Brightness",speed:"Speed",effects:"Effects",settings:"Settings",general:"General",language:"Language",
+    en:{brightness:"Brightness",speed:"Speed",effects:"Effect Presets",settings:"Settings",general:"General",language:"Language",
       power_behavior:"After power cut",power_behavior_d:"Behaviour when power returns",
       beh_off:"Start switched off",beh_restore:"Restore last state",network:"Network",wifi_network:"Wi-Fi network",
       signal:"Signal",ip_address:"IP address",uptime:"Uptime",mqtt_enabled:"MQTT enabled",
@@ -577,9 +584,9 @@
       install_step1:"Open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.",
       install_step2:"In Safari, open this lamp’s address (type it with http:// — do not search for it):",
       install_step3:"Tap Share → Add to Home Screen → Add. The lamp then opens like an app.",
-      fx_colors:"Colors",fx_special:"Special effects",
+      fx_colors:"Colors",fx_special:"Special effects",fx_custom:"Custom color",
       day:"d",hour:"h",min:"m"},
-    de:{brightness:"Helligkeit",speed:"Geschwindigkeit",effects:"Effekte",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
+    de:{brightness:"Helligkeit",speed:"Geschwindigkeit",effects:"Effekt-Presets",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
       power_behavior:"Nach Stromausfall",power_behavior_d:"Verhalten, wenn der Strom zurückkehrt",
       beh_off:"Ausgeschaltet starten",beh_restore:"Letzten Zustand wiederherstellen",network:"Netzwerk",wifi_network:"WLAN-Netzwerk",
       signal:"Signal",ip_address:"IP-Adresse",uptime:"Laufzeit",mqtt_enabled:"MQTT aktiviert",
@@ -602,9 +609,9 @@
       install_step1:"Öffne Einstellungen → Apps → Safari und schalte „Warnung bei unsicherer Verbindung“ aus.",
       install_step2:"Öffne in Safari die Adresse dieser Lampe (mit http:// eintippen — nicht über die Suche):",
       install_step3:"Tippe auf Teilen → Zum Home-Bildschirm → Hinzufügen. Die Lampe öffnet sich danach wie eine App.",
-      fx_colors:"Farben",fx_special:"Spezialeffekte",
+      fx_colors:"Farben",fx_special:"Spezialeffekte",fx_custom:"Eigene Farbe",
       day:"T",hour:"Std",min:"Min"},
-    es:{brightness:"Brillo",speed:"Velocidad",effects:"Efectos",settings:"Ajustes",general:"General",language:"Idioma",
+    es:{brightness:"Brillo",speed:"Velocidad",effects:"Preajustes de efectos",settings:"Ajustes",general:"General",language:"Idioma",
       power_behavior:"Tras un corte de luz",power_behavior_d:"Comportamiento al volver la corriente",
       beh_off:"Arrancar apagada",beh_restore:"Restaurar el último estado",network:"Red",wifi_network:"Red Wi-Fi",
       signal:"Señal",ip_address:"Dirección IP",uptime:"Tiempo encendida",mqtt_enabled:"MQTT activado",
@@ -627,9 +634,9 @@
       install_step1:"Ve a Ajustes → Apps → Safari y desactiva «Aviso de conexión no segura».",
       install_step2:"En Safari, abre la dirección de esta lámpara (escríbela con http:// — no la busques):",
       install_step3:"Toca Compartir → Añadir a pantalla de inicio → Añadir. La lámpara se abrirá como una app.",
-      fx_colors:"Colores",fx_special:"Efectos especiales",
+      fx_colors:"Colores",fx_special:"Efectos especiales",fx_custom:"Color personalizado",
       day:"d",hour:"h",min:"min"},
-    fr:{brightness:"Luminosité",speed:"Vitesse",effects:"Effets",settings:"Réglages",general:"Général",language:"Langue",
+    fr:{brightness:"Luminosité",speed:"Vitesse",effects:"Préréglages d'effets",settings:"Réglages",general:"Général",language:"Langue",
       power_behavior:"Après une coupure",power_behavior_d:"Comportement au retour du courant",
       beh_off:"Démarrer éteinte",beh_restore:"Restaurer le dernier état",network:"Réseau",wifi_network:"Réseau Wi-Fi",
       signal:"Signal",ip_address:"Adresse IP",uptime:"En marche depuis",mqtt_enabled:"MQTT activé",
@@ -652,7 +659,7 @@
       install_step1:"Ouvrez Réglages → Apps → Safari et désactivez « Alerte de connexion non sécurisée ».",
       install_step2:"Dans Safari, ouvrez l'adresse de cette lampe (tapez-la avec http:// — ne passez pas par la recherche) :",
       install_step3:"Touchez Partager → Sur l'écran d'accueil → Ajouter. La lampe s'ouvre alors comme une appli.",
-      fx_colors:"Couleurs",fx_special:"Effets spéciaux",
+      fx_colors:"Couleurs",fx_special:"Effets spéciaux",fx_custom:"Couleur personnalisée",
       day:"j",hour:"h",min:"min"},
   };
   // Effect display names per language (fallback: raw firmware name)
@@ -726,6 +733,7 @@
   ]);
   const st = {
     connected:false, on:false, brightness:70, speed:50, effect:"None", effects:[],
+    colorHex:"#5aaaff",   // last custom colour (effect "None"); synced via SSE
     ssid:"—", rssi:null, ip:"—", uptime:null,
     hostname:"", serial:"",
     fwCur:"—", fwLatest:null, fwInstalling:false, fwChecking:false, fwProgress:null,
@@ -741,7 +749,10 @@
   }
   function renderPower(){
     $("pwrLabel").textContent = st.on ? t("on") : t("off");
-    $("pwrEffect").textContent = st.on && st.effect && st.effect !== "None" ? fxName(st.effect) : " ";
+    // Effect "None" while on = custom colour from the picker.
+    $("pwrEffect").textContent = st.on
+      ? (st.effect && st.effect !== "None" ? fxName(st.effect) : t("fx_custom"))
+      : " ";
     const tg = $("pwrToggle");
     tg.classList.toggle("on", st.on);
     tg.setAttribute("aria-checked", st.on ? "true" : "false");
@@ -799,20 +810,53 @@
         b.addEventListener("click", () => setEffect(name));
         g.appendChild(b);
       };
+      // Custom-colour tile: a native <input type=color> stretched invisibly
+      // over the tile, so a tap opens the OS colour picker directly
+      // (iOS 14+ shows the system spectrum/grid/sliders sheet).
+      const addCustom = () => {
+        const b = document.createElement("button");
+        b.className = "fx-btn fx-custom";
+        b.dataset.fx = "None";
+        const sw = document.createElement("span");
+        sw.className = "sw";
+        sw.id = "fxCustomSw";
+        const label = document.createElement("span");
+        label.textContent = t("fx_custom");
+        const inp = document.createElement("input");
+        inp.type = "color";
+        inp.id = "fxColorInput";
+        inp.value = st.colorHex;
+        inp.addEventListener("input", () => setColor(inp.value, false));
+        inp.addEventListener("change", () => setColor(inp.value, true));
+        b.appendChild(sw); b.appendChild(label); b.appendChild(inp);
+        g.appendChild(b);
+      };
       const solids = st.effects.filter(n => SOLID_FX.has(n));
       const special = st.effects.filter(n => !SOLID_FX.has(n));
       if (solids.length && special.length) {
         addLabel("fx_colors");
         solids.forEach(addBtn);
+        addCustom();
         addLabel("fx_special");
         special.forEach(addBtn);
       } else {
         st.effects.forEach(addBtn);
+        addCustom();
       }
     }
     g.querySelectorAll(".fx-btn").forEach(b => {
       b.classList.toggle("sel", st.on && b.dataset.fx === st.effect);
     });
+    const customSw = $("fxCustomSw");
+    if (customSw) {
+      const active = st.on && st.effect === "None";
+      // Rainbow ring when idle; the picked colour once active.
+      customSw.style.background = active
+        ? st.colorHex
+        : "conic-gradient(#ff4040,#ffc040,#40ff70,#40c8ff,#a040ff,#ff4040)";
+      const inp = $("fxColorInput");
+      if (inp && document.activeElement !== inp) inp.value = st.colorHex;
+    }
   }
   function fmtUptime(sec){
     if (sec == null) return "—";
@@ -884,6 +928,32 @@
     renderPower(); renderEffects(); renderSpeed();
     act(() => post(`/light/${LIGHT_ID}/turn_on?effect=${encodeURIComponent(name)}`)).catch(() => {});
   }
+  // Custom colour: switch the effect off ("None") and set plain RGB.
+  // `input` events stream while dragging the iOS picker, so live updates are
+  // throttled; the final `change` is always sent.
+  let colorTimer = null, colorPending = null;
+  function postColor(hex){
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return post(`/light/${LIGHT_ID}/turn_on?effect=None&r=${r}&g=${g}&b=${b}`);
+  }
+  function setColor(hex, final){
+    st.on = true;
+    st.effect = "None";
+    st.colorHex = hex;
+    renderPower(); renderEffects(); renderSpeed();
+    if (final) {
+      clearTimeout(colorTimer); colorTimer = null; colorPending = null;
+      act(() => postColor(hex)).catch(() => {});
+      return;
+    }
+    colorPending = hex;
+    if (!colorTimer) {
+      colorTimer = setTimeout(() => {
+        colorTimer = null;
+        if (colorPending) { const h = colorPending; colorPending = null; postColor(h).catch(() => {}); }
+      }, 200);
+    }
+  }
   function setBrightness(pct){
     st.brightness = pct;
     renderBrightness();
@@ -905,13 +975,21 @@
         let nextBri = st.brightness;
         if (typeof data.brightness === "number")
           nextBri = Math.max(BRI_MIN, Math.min(100, Math.round(data.brightness*100/255)));
+        let nextColor = st.colorHex;
+        if (data.color && typeof data.color.r === "number") {
+          const hx = v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+          const h = "#" + hx(data.color.r) + hx(data.color.g) + hx(data.color.b);
+          if (h !== "#000000") nextColor = h;
+        }
         const onChanged = nextOn !== st.on;
         const fxChanged = nextFx !== st.effect;
         const briChanged = nextBri !== st.brightness;
+        const colorChanged = nextColor !== st.colorHex;
         st.on = nextOn;
         st.effect = nextFx;
         st.brightness = nextBri;
-        if (onChanged || fxChanged) { renderPower(); renderEffects(); renderSpeed(); }
+        st.colorHex = nextColor;
+        if (onChanged || fxChanged || colorChanged) { renderPower(); renderEffects(); renderSpeed(); }
         if (briChanged) renderBrightness();
         break;
       }

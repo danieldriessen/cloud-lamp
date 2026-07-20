@@ -92,7 +92,10 @@ Open the **web address from the sticker** (e.g. `http://cloud-lamp-cfb911.local/
 phone's browser — type it exactly, including `http://`. You can:
 
 - turn the lamp on/off and dim it,
-- choose colours and special effects,
+- choose colours and special effects from the *Effect Presets* grid,
+- pick **any colour you like** — tap *Custom color* and your device's own colour picker
+  opens; the lamp remembers the colour even after unplugging (press the button twice to
+  go back to the presets),
 - adjust the speed of animated effects,
 - change settings and install firmware updates.
 
@@ -161,7 +164,7 @@ afterwards the lamp opens its setup hotspot again (sticker).
 | Light source | 24 addressable RGB LEDs (WS2812) |
 | Radio | Wi-Fi 2.4 GHz (802.11 b/g/n) — 5 GHz-only networks are not supported |
 | Controls | 1 push-button, web app (English, German, Spanish, French) |
-| Effects | 18 (solid colours + special effects) |
+| Effects | 18 (solid colours + special effects) plus a free colour picker in the web app |
 | Firmware | Open source: `github.com/danieldriessen/cloud-lamp` |
 
 ---
