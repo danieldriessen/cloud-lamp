@@ -163,6 +163,7 @@ ota:
     password: !secret ota_password
 
 wifi:
+  id: wifi_comp
   # NO networks compiled in — this build is published publicly and must not
   # embed any Wi-Fi credentials. The recipient connects the lamp via the
   # captive portal; those credentials are stored in flash (survive updates).
@@ -171,6 +172,9 @@ wifi:
     # Placeholder — replaced at runtime in on_boot stage 1 with "Cloud-Lamp-XXXX".
     ssid: "Cloud-Lamp"
     password: "${wifi_ap_password}"
+    # How long STA must be down before the setup hotspot appears. Kept short
+    # so "Change Wi-Fi network" (and a failed home network) recover quickly.
+    ap_timeout: 15s
   power_save_mode: none   # Mains-powered; radio sleep only causes latency
   fast_connect: false     # Must be false with multiple networks
   # THE LAMP MUST WORK WITHOUT WI-FI. Never reboot because of a missing
@@ -527,3 +531,32 @@ button:
     name: "Factory Reset"        # REST object_id: factory_reset
     id: factory_reset_btn
     entity_category: diagnostic
+
+  # Forget the current home Wi-Fi and reopen the setup hotspot
+  # (Cloud-Lamp-XXXX). Never disables the radio and never clears the AP
+  # password — the sticker credentials always remain a way back in.
+  - platform: template
+    name: "Reset WiFi"           # REST object_id: reset_wifi
+    id: reset_wifi_btn
+    entity_category: config
+    on_press:
+      - lambda: |-
+          ESP_LOGI("wifi", "Reset Wi-Fi: clearing saved STA credentials, opening setup hotspot");
+          // 1) Wipe captive-portal credentials from flash.
+          wifi::global_wifi_component->save_wifi_sta("", "");
+          // 2) Drop them from the runtime list (save_wifi_sta would otherwise
+          //    leave an empty STA entry that blocks the pure-AP path).
+          wifi::global_wifi_component->clear_sta();
+          // 3) Re-assert the per-device AP identity (same as on_boot).
+          std::string mac = get_mac_address();
+          std::string serial = mac.substr(mac.size() - 4);
+          for (auto &c : serial) c = ::toupper(c);
+          wifi::WiFiAP ap;
+          ap.set_ssid("Cloud-Lamp-" + serial);
+          ap.set_password("${wifi_ap_password}");
+          wifi::global_wifi_component->set_ap(ap);
+          // 4) Bounce the radio so AP + captive portal come up immediately.
+          //    The AP password is unchanged — sticker still works.
+          wifi::global_wifi_component->set_ap_timeout(1);
+          wifi::global_wifi_component->disable();
+          wifi::global_wifi_component->enable();

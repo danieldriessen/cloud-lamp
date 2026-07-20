@@ -21,6 +21,11 @@ To read the serial for the sticker before assembly: boot the device once and che
 line `Setup hotspot SSID: Cloud-Lamp-XXXX`, or open `http://<lamp-ip>/device.json` (field
 `serial`). The same serial is shown in the web app under Settings → About.
 
+**Uniqueness:** the four hex digits are the last two bytes of the chip MAC → 65 536
+possible values. That is **plenty for gift batches and household use**, but it is **not**
+a cryptographic or globally unique ID (two chips can share the same last two bytes). The
+full MAC (shown in Settings → About) is the unique identifier if you ever need one.
+
 ---
 
 ## Setup hotspot (captive portal)

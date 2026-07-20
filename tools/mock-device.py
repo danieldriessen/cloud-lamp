@@ -169,7 +169,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     time.sleep(0.5)
                 state["fw_installing"] = False
             threading.Thread(target=fake_install, daemon=True).start()
-        elif path in ("/button/restart/press", "/button/factory_reset/press"):
+        elif path in ("/button/restart/press", "/button/factory_reset/press", "/button/reset_wifi/press"):
             self._send(200)
         else:
             self._send(404)

@@ -190,17 +190,26 @@
     .hint-card .txt b{color:var(--text)}
     .hint-close{margin-left:auto;flex:0 0 auto;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px}
 
-    /* Sheet (settings) */
-    .modal{position:fixed;inset:0;z-index:50}
-    .modal[hidden]{display:none}
+    /* Sheet (settings) — centred bottom sheet, same max width as the main view.
+       Body scroll is locked while open (see openSettings/closeSettings). */
+    .modal{
+      position:fixed;inset:0;z-index:50;
+      display:flex;align-items:flex-end;justify-content:center;
+      overscroll-behavior:none;
+    }
+    .modal[hidden]{display:none !important}
     .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
     .sheet{
-      position:absolute;left:0;right:0;bottom:0;max-height:88dvh;overflow:auto;
+      position:relative;z-index:1;width:100%;max-width:520px;
+      max-height:calc(100dvh - env(safe-area-inset-top, 0px) - 10px);
+      max-height:calc(100svh - env(safe-area-inset-top, 0px) - 10px);
+      overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
       background:rgba(13,17,27,.97);border-top:1px solid rgba(255,255,255,.10);
       border-radius:24px 24px 0 0;box-shadow:0 -18px 60px rgba(0,0,0,.55);
-      padding:14px 16px calc(env(safe-area-inset-bottom) + 18px);
-      -webkit-overflow-scrolling:touch;
+      padding:14px 20px calc(env(safe-area-inset-bottom, 0px) + 28px) 16px;
+      -webkit-overflow-scrolling:touch;scrollbar-gutter:stable;
     }
+    body.settings-open{overflow:hidden;touch-action:none}
     .sheet-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
     .sheet-hdr .t{font-weight:800;font-size:17px}
     .sheet-close{
@@ -364,7 +373,7 @@
             <div class="k"><span data-i18n="power_behavior">After power cut</span>
               <span class="d" data-i18n="power_behavior_d">Behaviour when power returns</span></div>
             <select class="ctl" id="pwrBehSel">
-              <option value="Start Off" data-i18n="beh_off">Start off</option>
+              <option value="Start Off" data-i18n="beh_off">Start switched off</option>
               <option value="Restore Last State" data-i18n="beh_restore">Restore last state</option>
             </select>
           </div>
@@ -378,6 +387,9 @@
           <div class="row"><div class="k" data-i18n="signal">Signal</div><div class="v" id="netRssi">—</div></div>
           <div class="row"><div class="k" data-i18n="ip_address">IP address</div><div class="v" id="netIp">—</div></div>
           <div class="row"><div class="k" data-i18n="uptime">Uptime</div><div class="v" id="netUptime">—</div></div>
+          <div class="stack">
+            <button class="btn" id="btnResetWifi" data-i18n="change_wifi">Change Wi-Fi network…</button>
+          </div>
         </div>
       </div>
 
@@ -461,58 +473,70 @@
   const I18N = {
     en:{brightness:"Brightness",effects:"Effects",settings:"Settings",general:"General",language:"Language",
       power_behavior:"After power cut",power_behavior_d:"Behaviour when power returns",
-      beh_off:"Start off",beh_restore:"Restore last state",network:"Network",wifi_network:"Wi-Fi network",
+      beh_off:"Start switched off",beh_restore:"Restore last state",network:"Network",wifi_network:"Wi-Fi network",
       signal:"Signal",ip_address:"IP address",uptime:"Uptime",mqtt_enabled:"MQTT enabled",
       mqtt_d:"Smart-home integration (optional)",firmware:"Firmware",installed_version:"Installed version",
       latest_version:"Latest version",install_update:"Install update",maintenance:"Maintenance",
-      restart:"Restart lamp",factory_reset:"Factory reset…",about:"About",device_name:"Device name",serial:"Serial",
+      restart:"Restart lamp",factory_reset:"Factory reset…",change_wifi:"Change Wi-Fi network…",
+      about:"About",device_name:"Device name",serial:"Serial",
       cancel:"Cancel",confirm:"Confirm",loading:"Loading…",on:"On",off:"Off",connected:"Connected",
       offline:"Offline",update_available:"Update available",up_to_date:"Up to date",installing:"Installing… the lamp restarts by itself",
       restart_q:"Restart the lamp?",restart_s:"The lamp will be back in about 10 seconds. Your settings are kept.",
       factory_q:"Reset everything?",factory_s:"Deletes the saved Wi-Fi network and all settings. The lamp then opens its setup hotspot again (see sticker on the back).",
-      restarting:"Restarting…",done:"Done",failed:"Action failed",fw_checks:"The lamp checks for updates automatically.",
+      wifi_q:"Change Wi-Fi network?",wifi_s:"The lamp leaves this network and opens its setup hotspot (Cloud-Lamp-XXXX on the sticker). Other settings stay. Connect to that hotspot to choose a new network — you cannot stay in this page after confirming.",
+      wifi_done:"Opening setup hotspot…",
+      restarting:"Restarting…",done:"Done",failed:"Action failed",fw_checks:"The lamp checks for updates every 6 hours (and shortly after power-on).",
       ios_hint:"<b>Add as app:</b> in Safari type <b>http://cloud-lamp.local/</b> (with <b>http://</b>), then Share → <b>Add to Home Screen</b>. Before that, turn off <b>Settings → Apps → Safari → Not Secure Connection Warning</b> — otherwise iOS blocks the home-screen app (the lamp is local-only and has no HTTPS).",
       day:"d",hour:"h",min:"m"},
     de:{brightness:"Helligkeit",effects:"Effekte",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
       power_behavior:"Nach Stromausfall",power_behavior_d:"Verhalten, wenn der Strom zurückkehrt",
-      beh_off:"Aus bleiben",beh_restore:"Letzten Zustand wiederherstellen",network:"Netzwerk",wifi_network:"WLAN-Netzwerk",
+      beh_off:"Ausgeschaltet starten",beh_restore:"Letzten Zustand wiederherstellen",network:"Netzwerk",wifi_network:"WLAN-Netzwerk",
       signal:"Signal",ip_address:"IP-Adresse",uptime:"Laufzeit",mqtt_enabled:"MQTT aktiviert",
       mqtt_d:"Smart-Home-Anbindung (optional)",firmware:"Firmware",installed_version:"Installierte Version",
       latest_version:"Neueste Version",install_update:"Update installieren",maintenance:"Wartung",
-      restart:"Lampe neu starten",factory_reset:"Werkseinstellungen…",about:"Info",device_name:"Gerätename",serial:"Seriennummer",
+      restart:"Lampe neu starten",factory_reset:"Werkseinstellungen…",change_wifi:"WLAN wechseln…",
+      about:"Info",device_name:"Gerätename",serial:"Seriennummer",
       cancel:"Abbrechen",confirm:"Bestätigen",loading:"Laden…",on:"Ein",off:"Aus",connected:"Verbunden",
       offline:"Offline",update_available:"Update verfügbar",up_to_date:"Aktuell",installing:"Wird installiert… die Lampe startet selbst neu",
       restart_q:"Lampe neu starten?",restart_s:"Die Lampe ist in ca. 10 Sekunden wieder da. Einstellungen bleiben erhalten.",
       factory_q:"Alles zurücksetzen?",factory_s:"Löscht das gespeicherte WLAN und alle Einstellungen. Die Lampe öffnet danach wieder ihren Einrichtungs-Hotspot (siehe Aufkleber auf der Rückseite).",
-      restarting:"Neustart…",done:"Fertig",failed:"Aktion fehlgeschlagen",fw_checks:"Die Lampe sucht automatisch nach Updates.",
+      wifi_q:"WLAN wechseln?",wifi_s:"Die Lampe verlässt dieses Netz und öffnet ihren Einrichtungs-Hotspot (Cloud-Lamp-XXXX auf dem Aufkleber). Andere Einstellungen bleiben. Verbinde dich mit dem Hotspot, um ein neues Netz zu wählen — diese Seite ist danach nicht mehr erreichbar.",
+      wifi_done:"Einrichtungs-Hotspot wird geöffnet…",
+      restarting:"Neustart…",done:"Fertig",failed:"Aktion fehlgeschlagen",fw_checks:"Die Lampe sucht alle 6 Stunden (und kurz nach dem Einschalten) nach Updates.",
       ios_hint:"<b>Als App hinzufügen:</b> Tippe in Safari <b>http://cloud-lamp.local/</b> (mit <b>http://</b>), dann Teilen → <b>Zum Home-Bildschirm</b>. Schalte vorher <b>Einstellungen → Apps → Safari → Warnung bei unsicherer Verbindung</b> aus — sonst blockiert iOS die Home-Screen-App (die Lampe ist nur lokal und hat kein HTTPS).",
       day:"T",hour:"Std",min:"Min"},
     es:{brightness:"Brillo",effects:"Efectos",settings:"Ajustes",general:"General",language:"Idioma",
       power_behavior:"Tras un corte de luz",power_behavior_d:"Comportamiento al volver la corriente",
-      beh_off:"Permanecer apagada",beh_restore:"Restaurar el último estado",network:"Red",wifi_network:"Red Wi-Fi",
+      beh_off:"Arrancar apagada",beh_restore:"Restaurar el último estado",network:"Red",wifi_network:"Red Wi-Fi",
       signal:"Señal",ip_address:"Dirección IP",uptime:"Tiempo encendida",mqtt_enabled:"MQTT activado",
       mqtt_d:"Integración domótica (opcional)",firmware:"Firmware",installed_version:"Versión instalada",
       latest_version:"Última versión",install_update:"Instalar actualización",maintenance:"Mantenimiento",
-      restart:"Reiniciar lámpara",factory_reset:"Restablecer de fábrica…",about:"Información",device_name:"Nombre del dispositivo",serial:"Número de serie",
+      restart:"Reiniciar lámpara",factory_reset:"Restablecer de fábrica…",change_wifi:"Cambiar red Wi-Fi…",
+      about:"Información",device_name:"Nombre del dispositivo",serial:"Número de serie",
       cancel:"Cancelar",confirm:"Confirmar",loading:"Cargando…",on:"Encendida",off:"Apagada",connected:"Conectado",
       offline:"Sin conexión",update_available:"Actualización disponible",up_to_date:"Actualizado",installing:"Instalando… la lámpara se reinicia sola",
       restart_q:"¿Reiniciar la lámpara?",restart_s:"La lámpara volverá en unos 10 segundos. Se conservan los ajustes.",
       factory_q:"¿Restablecer todo?",factory_s:"Borra la red Wi-Fi guardada y todos los ajustes. Después, la lámpara vuelve a abrir su punto de acceso de configuración (ver etiqueta trasera).",
-      restarting:"Reiniciando…",done:"Hecho",failed:"La acción falló",fw_checks:"La lámpara busca actualizaciones automáticamente.",
+      wifi_q:"¿Cambiar la red Wi-Fi?",wifi_s:"La lámpara sale de esta red y abre su punto de acceso de configuración (Cloud-Lamp-XXXX en la etiqueta). El resto de ajustes se conservan. Conéctate a ese punto de acceso para elegir una red nueva: esta página dejará de estar disponible.",
+      wifi_done:"Abriendo el punto de acceso…",
+      restarting:"Reiniciando…",done:"Hecho",failed:"La acción falló",fw_checks:"La lámpara busca actualizaciones cada 6 horas (y poco después de encenderse).",
       ios_hint:"<b>Añadir como app:</b> en Safari escribe <b>http://cloud-lamp.local/</b> (con <b>http://</b>), luego Compartir → <b>Añadir a pantalla de inicio</b>. Antes desactiva <b>Ajustes → Apps → Safari → Aviso de conexión no segura</b>; si no, iOS bloquea la app (la lámpara es solo local y no tiene HTTPS).",
       day:"d",hour:"h",min:"min"},
     fr:{brightness:"Luminosité",effects:"Effets",settings:"Réglages",general:"Général",language:"Langue",
       power_behavior:"Après une coupure",power_behavior_d:"Comportement au retour du courant",
-      beh_off:"Rester éteinte",beh_restore:"Restaurer le dernier état",network:"Réseau",wifi_network:"Réseau Wi-Fi",
+      beh_off:"Démarrer éteinte",beh_restore:"Restaurer le dernier état",network:"Réseau",wifi_network:"Réseau Wi-Fi",
       signal:"Signal",ip_address:"Adresse IP",uptime:"En marche depuis",mqtt_enabled:"MQTT activé",
       mqtt_d:"Intégration domotique (optionnel)",firmware:"Micrologiciel",installed_version:"Version installée",
       latest_version:"Dernière version",install_update:"Installer la mise à jour",maintenance:"Maintenance",
-      restart:"Redémarrer la lampe",factory_reset:"Réinitialisation d'usine…",about:"À propos",device_name:"Nom de l'appareil",serial:"Numéro de série",
+      restart:"Redémarrer la lampe",factory_reset:"Réinitialisation d'usine…",change_wifi:"Changer de réseau Wi-Fi…",
+      about:"À propos",device_name:"Nom de l'appareil",serial:"Numéro de série",
       cancel:"Annuler",confirm:"Confirmer",loading:"Chargement…",on:"Allumée",off:"Éteinte",connected:"Connecté",
       offline:"Hors ligne",update_available:"Mise à jour disponible",up_to_date:"À jour",installing:"Installation… la lampe redémarre toute seule",
       restart_q:"Redémarrer la lampe ?",restart_s:"La lampe revient dans environ 10 secondes. Les réglages sont conservés.",
       factory_q:"Tout réinitialiser ?",factory_s:"Efface le réseau Wi-Fi enregistré et tous les réglages. La lampe rouvre ensuite son point d'accès de configuration (voir l'étiquette au dos).",
-      restarting:"Redémarrage…",done:"Terminé",failed:"L'action a échoué",fw_checks:"La lampe recherche les mises à jour automatiquement.",
+      wifi_q:"Changer de réseau Wi-Fi ?",wifi_s:"La lampe quitte ce réseau et ouvre son point d'accès de configuration (Cloud-Lamp-XXXX sur l'étiquette). Les autres réglages sont conservés. Connectez-vous à ce point d'accès pour choisir un nouveau réseau — cette page ne sera plus accessible.",
+      wifi_done:"Ouverture du point d'accès…",
+      restarting:"Redémarrage…",done:"Terminé",failed:"L'action a échoué",fw_checks:"La lampe recherche les mises à jour toutes les 6 heures (et peu après la mise sous tension).",
       ios_hint:"<b>Ajouter comme app :</b> dans Safari tapez <b>http://cloud-lamp.local/</b> (avec <b>http://</b>), puis Partager → <b>Sur l'écran d'accueil</b>. Désactivez d'abord <b>Réglages → Apps → Safari → Alerte de connexion non sécurisée</b>, sinon iOS bloque l'app (la lampe est locale et n'a pas de HTTPS).",
       day:"j",hour:"h",min:"min"},
   };
@@ -789,12 +813,31 @@
     setBrightness(v);
   });
 
-  // Settings sheet
+  // Settings sheet — lock background scroll while open
   const setModal = $("setModal");
-  $("btnSettings").addEventListener("click", () => { setModal.hidden = false; });
+  let settingsScrollY = 0;
+  function openSettings(){
+    settingsScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.classList.add("settings-open");
+    document.body.style.top = `-${settingsScrollY}px`;
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    setModal.hidden = false;
+  }
+  function closeSettings(){
+    setModal.hidden = true;
+    document.body.classList.remove("settings-open");
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
+    window.scrollTo(0, settingsScrollY);
+  }
+  $("btnSettings").addEventListener("click", openSettings);
   setModal.querySelectorAll("[data-close]").forEach(el =>
-    el.addEventListener("click", () => { setModal.hidden = true; }));
-  window.addEventListener("keydown", e => { if (e.key === "Escape") setModal.hidden = true; });
+    el.addEventListener("click", closeSettings));
+  window.addEventListener("keydown", e => { if (e.key === "Escape" && !setModal.hidden) closeSettings(); });
+  // Don't let touch-scroll on the dimmed backdrop move the page behind
+  setModal.querySelector(".backdrop").addEventListener("touchmove", e => e.preventDefault(), { passive:false });
 
   // Language select
   const langSel = $("langSel");
@@ -838,7 +881,7 @@
     confirmDlg(t("restart_q"), t("restart_s"), () => {
       act(() => post("/button/restart/press"));
       toast(t("restarting"));
-      setModal.hidden = true;
+      closeSettings();
     }));
 
   $("btnFactory").addEventListener("click", () =>
@@ -846,8 +889,15 @@
       // Double confirmation for the destructive action
       confirmDlg(t("factory_q"), t("factory_s"), () => {
         act(() => post("/button/factory_reset/press"));
-        setModal.hidden = true;
+        closeSettings();
       })));
+
+  $("btnResetWifi").addEventListener("click", () =>
+    confirmDlg(t("wifi_q"), t("wifi_s"), () => {
+      toast(t("wifi_done"));
+      act(() => post("/button/reset_wifi/press"));
+      closeSettings();
+    }));
 
   $("fwInstall").addEventListener("click", () => {
     st.fwInstalling = true; st.fwProgress = 0; renderUpdate();

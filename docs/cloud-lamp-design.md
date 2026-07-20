@@ -120,10 +120,11 @@ Two ways, both deliberate:
    digits of the chip MAC, uppercase) before Wi-Fi starts. This is the name printed on the
    product sticker.
 2. **Priority −100 (end of boot):** if the button is held → factory-reset countdown.
-   Otherwise the *Power Behavior* setting is applied: **Start Off** (default) or
-   **Restore Last State** (turns back on with the saved effect and brightness if the lamp
-   was on when power was cut). Then `boot_completed` is set; only from this point are
-   button presses, MQTT commands and state mirroring active.
+   Otherwise the *Power Behavior* setting is applied: **Start switched off** (firmware
+   option `Start Off`, default) or **Restore Last State** (turns back on with the saved
+   effect and brightness if the lamp was on when power was cut). Then `boot_completed`
+   is set; only from this point are button presses, MQTT commands and state mirroring
+   active.
 
 `restore_mode: ALWAYS_OFF` on the light plus a hard pixel-buffer clear after every turn-off
 guarantee no LED can stay lit from an undefined boot state.
@@ -177,8 +178,14 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   the `/events` server-sent-events stream, with a 5 s polling fallback. All state shown is
   device-confirmed (no unverified optimistic UI).
 - **Features:** power toggle, brightness slider, effect grid with colour swatches, settings
-  sheet (language, power-cut behaviour, network diagnostics, MQTT kill switch when present,
-  firmware version/update with progress bar, restart, factory reset, device info).
+  sheet (language, power-cut behaviour, network diagnostics, *Change Wi-Fi network*, MQTT
+  kill switch when present, firmware version/update with progress bar, restart, factory
+  reset, device info). The settings sheet is a bottom sheet capped at the same max width
+  as the main view (`520px`), locks background scroll while open, and keeps extra right /
+  bottom padding so the scroll indicator and home-indicator area stay clear.
+- **Change Wi-Fi:** clears saved STA credentials, re-asserts the `Cloud-Lamp-XXXX` AP, and
+  restarts the radio into AP + captive portal. The AP password is never changed or
+  cleared — the sticker always remains a way back in. Other lamp settings are kept.
 - **i18n:** English (default), German, Spanish, French — language dropdown with flags,
   persisted in the browser's localStorage. Effect names are localised via a display-name
   map in the app; the firmware always uses the English names as canonical identifiers.
