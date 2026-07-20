@@ -621,24 +621,36 @@
     s.style.setProperty("--fill", ((st.brightness - BRI_MIN) / (100 - BRI_MIN) * 100) + "%");
     $("briVal").textContent = st.brightness + " %";
   }
-  function renderEffects(){
+  // Rebuild the grid only when the effect list or language changes; selection
+  // highlighting is a cheap class toggle so taps feel instant on iOS.
+  let fxGridKey = "";
+  function renderEffects(forceRebuild){
     const g = $("fxGrid");
     if (!st.effects.length){
       g.innerHTML = `<div class="fx-none">${t("loading")}</div>`;
+      fxGridKey = "";
       return;
     }
-    g.innerHTML = "";
-    st.effects.forEach(name => {
-      const b = document.createElement("button");
-      b.className = "fx-btn" + (st.on && st.effect === name ? " sel" : "");
-      const sw = document.createElement("span");
-      sw.className = "sw";
-      if (FX_SWATCH[name]) sw.style.background = FX_SWATCH[name];
-      const label = document.createElement("span");
-      label.textContent = fxName(name);
-      b.appendChild(sw); b.appendChild(label);
-      b.addEventListener("click", () => setEffect(name));
-      g.appendChild(b);
+    const key = lang + "|" + st.effects.join("\0");
+    if (forceRebuild || key !== fxGridKey){
+      fxGridKey = key;
+      g.innerHTML = "";
+      st.effects.forEach(name => {
+        const b = document.createElement("button");
+        b.className = "fx-btn";
+        b.dataset.fx = name;
+        const sw = document.createElement("span");
+        sw.className = "sw";
+        if (FX_SWATCH[name]) sw.style.background = FX_SWATCH[name];
+        const label = document.createElement("span");
+        label.textContent = fxName(name);
+        b.appendChild(sw); b.appendChild(label);
+        b.addEventListener("click", () => setEffect(name));
+        g.appendChild(b);
+      });
+    }
+    g.querySelectorAll(".fx-btn").forEach(b => {
+      b.classList.toggle("sel", st.on && b.dataset.fx === st.effect);
     });
   }
   function fmtUptime(sec){
@@ -687,27 +699,53 @@
     el._t = setTimeout(() => el.classList.remove("show"), 2600);
   }
   async function act(fn){
-    try { await fn(); } catch(e){ toast(t("failed")); }
+    try { await fn(); } catch(e){ toast(t("failed")); throw e; }
   }
 
-  const setOn  = () => act(() => post(`/light/${LIGHT_ID}/turn_on`));
-  const setOff = () => act(() => post(`/light/${LIGHT_ID}/turn_off`));
-  const setEffect = name =>
-    act(() => post(`/light/${LIGHT_ID}/turn_on?effect=${encodeURIComponent(name)}`));
-  const setBrightness = pct =>
-    act(() => post(`/light/${LIGHT_ID}/turn_on?brightness=${Math.round(pct*255/100)}`));
+  // Optimistic UI: paint the tap immediately, then confirm via POST + SSE.
+  // Other phones still catch up from the event stream within ~1 s.
+  function setOn(){
+    st.on = true;
+    renderPower(); renderEffects();
+    act(() => post(`/light/${LIGHT_ID}/turn_on`)).catch(() => {});
+  }
+  function setOff(){
+    st.on = false;
+    renderPower(); renderEffects();
+    act(() => post(`/light/${LIGHT_ID}/turn_off`)).catch(() => {});
+  }
+  function setEffect(name){
+    st.on = true;
+    st.effect = name;
+    renderPower(); renderEffects();
+    act(() => post(`/light/${LIGHT_ID}/turn_on?effect=${encodeURIComponent(name)}`)).catch(() => {});
+  }
+  function setBrightness(pct){
+    st.brightness = pct;
+    renderBrightness();
+    act(() => post(`/light/${LIGHT_ID}/turn_on?brightness=${Math.round(pct*255/100)}`)).catch(() => {});
+  }
 
   /* ---------------- SSE / state ingestion ---------------- */
   function ingest(data){
     if (!data || !data.id) return;
     switch (data.id) {
-      case `light-${LIGHT_ID}`:
-        st.on = data.state === "ON";
+      case `light-${LIGHT_ID}`: {
+        const nextOn = data.state === "ON";
+        const nextFx = data.effect || "None";
+        let nextBri = st.brightness;
         if (typeof data.brightness === "number")
-          st.brightness = Math.max(BRI_MIN, Math.min(100, Math.round(data.brightness*100/255)));
-        st.effect = data.effect || "None";
-        renderPower(); renderBrightness(); renderEffects();
+          nextBri = Math.max(BRI_MIN, Math.min(100, Math.round(data.brightness*100/255)));
+        const onChanged = nextOn !== st.on;
+        const fxChanged = nextFx !== st.effect;
+        const briChanged = nextBri !== st.brightness;
+        st.on = nextOn;
+        st.effect = nextFx;
+        st.brightness = nextBri;
+        if (onChanged || fxChanged) { renderPower(); renderEffects(); }
+        if (briChanged) renderBrightness();
         break;
+      }
       case "select-power_behavior":
         if (data.value) $("pwrBehSel").value = data.value;
         break;
