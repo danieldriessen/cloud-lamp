@@ -36,9 +36,11 @@ void CloudLampWeb::dump_config() {
                 "Cloud-Lamp web app:\n"
                 "  HTML: %u bytes (gzip)\n"
                 "  Icon: %u bytes\n"
+                "  Brand: %u bytes\n"
                 "  Logo: %u bytes\n"
                 "  Serial: %s",
-                (unsigned) this->html_size_, (unsigned) this->icon_size_, (unsigned) this->logo_size_,
+                (unsigned) this->html_size_, (unsigned) this->icon_size_,
+                (unsigned) this->brand_size_, (unsigned) this->logo_size_,
                 device_serial().c_str());
 }
 
@@ -56,7 +58,7 @@ bool CloudLampWeb::canHandle(AsyncWebServerRequest *request) const {
 #endif
   const auto &url = request->url();
   return url == F("/") || url == F("/app") || url == F("/manifest.json") || url == F("/icon.png") ||
-         url == F("/logo.png") || url == F("/device.json");
+         url == F("/brand.png") || url == F("/logo.png") || url == F("/device.json");
 }
 
 void CloudLampWeb::handleRequest(AsyncWebServerRequest *request) {
@@ -67,6 +69,8 @@ void CloudLampWeb::handleRequest(AsyncWebServerRequest *request) {
     this->handle_manifest_(request);
   } else if (url == F("/icon.png")) {
     this->handle_png_(request, this->icon_, this->icon_size_);
+  } else if (url == F("/brand.png")) {
+    this->handle_png_(request, this->brand_, this->brand_size_);
   } else if (url == F("/logo.png")) {
     this->handle_png_(request, this->logo_, this->logo_size_);
   } else if (url == F("/device.json")) {

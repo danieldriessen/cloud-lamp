@@ -18,7 +18,8 @@ namespace cloud_lamp_web {
  *                         provided; the stock UI stays reachable because this
  *                         handler only claims the routes listed here.
  *   GET /manifest.json -> web app manifest (name from friendly_name)
- *   GET /icon.png      -> home screen icon (if provided at compile time)
+ *   GET /icon.png      -> home screen / PWA icon (if provided at compile time)
+ *   GET /brand.png     -> transparent in-app header brand mark (if provided)
  *   GET /logo.png      -> maker logo shown in the app (if provided)
  *   GET /device.json   -> device metadata (name, serial, version, mac)
  *
@@ -44,6 +45,10 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
     this->icon_ = data;
     this->icon_size_ = size;
   }
+  void set_brand(const uint8_t *data, size_t size) {
+    this->brand_ = data;
+    this->brand_size_ = size;
+  }
   void set_logo(const uint8_t *data, size_t size) {
     this->logo_ = data;
     this->logo_size_ = size;
@@ -64,6 +69,8 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
   size_t html_size_{0};
   const uint8_t *icon_{nullptr};
   size_t icon_size_{0};
+  const uint8_t *brand_{nullptr};
+  size_t brand_size_{0};
   const uint8_t *logo_{nullptr};
   size_t logo_size_{0};
 };

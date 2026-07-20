@@ -116,7 +116,9 @@ secrets.example.yaml       template for the required secrets.yaml
 packages/                  feature modules: web app, updates, MQTT, temperature sensor
 components/cloud_lamp_web/ custom ESPHome component serving the web app
 web/                       web app source (embedded into the firmware at build time)
-assets/                    artwork sources
+assets/                    artwork sources (PWA icon, header brand, logos)
+web/brand.png              transparent header mark (embedded as /brand.png)
+web/icon.png               home-screen / PWA icon (embedded as /icon.png)
 firmware-dist/             published firmware releases (online update channel)
 docs/                      project documentation
 tools/                     development and release helpers

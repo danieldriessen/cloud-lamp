@@ -1,9 +1,10 @@
 """Cloud-Lamp web app component.
 
 Serves the single-file iOS-style web app (gzipped, from PROGMEM) at `/` and
-`/app`, plus the PWA manifest at `/manifest.json` and the home-screen icon at
-`/icon.png`. Registers before the standard `web_server` component so it wins
-the `/` route while leaving the whole REST + /events API untouched. Steps
+`/app`, plus the PWA manifest at `/manifest.json`, the home-screen icon at
+`/icon.png`, the in-app header brand mark at `/brand.png`, and the maker logo
+at `/logo.png`. Registers before the standard `web_server` component so it
+wins the `/` route while leaving the whole REST + /events API untouched. Steps
 aside automatically while the captive portal (Wi-Fi setup) is active.
 
 The HTML file is read and gzip-compressed at compile time; changing
@@ -29,9 +30,11 @@ CloudLampWeb = cloud_lamp_web_ns.class_("CloudLampWeb", cg.Component)
 
 CONF_HTML_FILE = "html_file"
 CONF_ICON_FILE = "icon_file"
+CONF_BRAND_FILE = "brand_file"
 CONF_LOGO_FILE = "logo_file"
 CONF_HTML_DATA_ID = "html_data_id"
 CONF_ICON_DATA_ID = "icon_data_id"
+CONF_BRAND_DATA_ID = "brand_data_id"
 CONF_LOGO_DATA_ID = "logo_data_id"
 
 CONFIG_SCHEMA = cv.Schema(
@@ -42,9 +45,11 @@ CONFIG_SCHEMA = cv.Schema(
         ),
         cv.Required(CONF_HTML_FILE): cv.file_,
         cv.Optional(CONF_ICON_FILE): cv.file_,
+        cv.Optional(CONF_BRAND_FILE): cv.file_,
         cv.Optional(CONF_LOGO_FILE): cv.file_,
         cv.GenerateID(CONF_HTML_DATA_ID): cv.declare_id(cg.uint8),
         cv.GenerateID(CONF_ICON_DATA_ID): cv.declare_id(cg.uint8),
+        cv.GenerateID(CONF_BRAND_DATA_ID): cv.declare_id(cg.uint8),
         cv.GenerateID(CONF_LOGO_DATA_ID): cv.declare_id(cg.uint8),
     }
 ).extend(cv.COMPONENT_SCHEMA)
@@ -65,6 +70,12 @@ async def to_code(config):
         icon_data = icon_path.read_bytes()
         icon_arr = cg.progmem_array(config[CONF_ICON_DATA_ID], list(icon_data))
         cg.add(var.set_icon(icon_arr, len(icon_data)))
+
+    if CONF_BRAND_FILE in config:
+        brand_path = Path(CORE.relative_config_path(config[CONF_BRAND_FILE]))
+        brand_data = brand_path.read_bytes()
+        brand_arr = cg.progmem_array(config[CONF_BRAND_DATA_ID], list(brand_data))
+        cg.add(var.set_brand(brand_arr, len(brand_data)))
 
     if CONF_LOGO_FILE in config:
         logo_path = Path(CORE.relative_config_path(config[CONF_LOGO_FILE]))

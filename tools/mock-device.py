@@ -54,8 +54,8 @@ def update_json():
     return {
         "id": "update-firmware",
         "state": "INSTALLING" if state["fw_installing"] else "AVAILABLE",
-        "current_version": "2.1.2",
-        "latest_version": "2.1.2",
+        "current_version": "2.1.3",
+        "latest_version": "2.1.3",
         "has_progress": state["fw_installing"],
         "progress": state["fw_progress"],
     }
@@ -91,7 +91,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = urllib.parse.urlparse(self.path).path
         if path in ("/", "/app"):
             self._send(200, (ROOT / "web" / "app.html").read_bytes(), "text/html")
-        elif path in ("/icon.png", "/logo.png"):
+        elif path in ("/icon.png", "/brand.png", "/logo.png"):
             f = ROOT / "web" / path.lstrip("/")
             if f.exists():
                 self._send(200, f.read_bytes(), "image/png")
@@ -101,7 +101,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(200, json.dumps({
                 "name": "cloud-lamp-dd3f2a", "friendly_name": "Cloud-Lamp-dd3f2a",
                 "hostname": "cloud-lamp-dd3f2a", "serial": "DD3F2A",
-                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.2",
+                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.3",
             }).encode())
         elif path == "/manifest.json":
             self._send(200, json.dumps({"name": "Cloud-Lamp", "display": "standalone"}).encode())

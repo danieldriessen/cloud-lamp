@@ -16,11 +16,11 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.2 — effect speed, Latte Brown, unified 6-hex serial, install polish,
-> HTTPS update TLS buffer fix for GitHub.
+> **Phase:** v2.1.3 — transparent header brand mark (PWA icon unchanged), effect speed,
+> Latte Brown, unified 6-hex serial, install polish, HTTPS update TLS buffer fix.
 > **Still open:** intensity slider (per-effect mapping); test button gestures / captive
-> portal end-to-end; provisional app icon; product stickers; 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.2
+> portal end-to-end; product stickers; 3D print files.
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.3
 
 ---
 
@@ -62,9 +62,10 @@ cloud-lamp/
 │   └── cloud_lamp_web/           # Custom ESPHome component serving the web app
 ├── web/
 │   ├── app.html                  # Single-file iOS-style web app (gzipped into firmware)
-│   ├── icon.png                  # Home-screen icon, 256×256 (embedded, served at /icon.png)
+│   ├── icon.png                  # Home-screen / PWA icon (embedded, served at /icon.png)
+│   ├── brand.png                 # Transparent header cloud mark (embedded, /brand.png)
 │   └── logo.png                  # DD Productions logo (embedded, served at /logo.png)
-├── assets/                       # Original artwork sources (icon, logo variants)
+├── assets/                       # Original artwork sources (icon, brand, logo variants)
 ├── firmware-dist/                # Published releases (update channel, see firmware-updates.md)
 ├── tools/
 │   ├── release.sh                # Build + package a firmware release for the updater
@@ -147,12 +148,15 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
 
 - **Delivery:** `web/app.html` is gzip-compressed at compile time and embedded in flash
   (PROGMEM) by the custom `cloud_lamp_web` component. The component also serves
-  `/manifest.json` (PWA manifest, name = friendly name), `/icon.png` (home-screen icon),
-  `/logo.png` (DD Productions maker logo, shown in the app footer) and `/device.json`
-  (name, serial, MAC, version).
-- **Icon:** kept square on purpose — iOS rounds home-screen icons automatically, and
-  `apple-touch-icon` does not support transparency (pre-rounded corners would render
-  black). Inside the app it is displayed with CSS corner rounding (header brand).
+  `/manifest.json` (PWA manifest, name = friendly name), `/icon.png` (home-screen / PWA
+  icon), `/brand.png` (transparent cloud mark in the app header), `/logo.png` (DD
+  Productions maker logo in the footer) and `/device.json` (name, serial, MAC, version).
+- **PWA icon (`/icon.png`):** kept square on purpose — iOS rounds home-screen icons
+  automatically, and `apple-touch-icon` does not support transparency (transparent
+  corners would render black). Used only for Add to Home Screen / manifest icons.
+- **Header brand (`/brand.png`):** transparent cloud artwork for the in-app header only;
+  sized larger than the previous tile and shown with `object-fit: contain` (no blue
+  background box).
 - **PWA:** a top-of-page button *Create a remote control app* opens a structured sheet with
   step-by-step iOS home-screen instructions (including the lamp’s own unique
   `http://cloud-lamp-<serial>.local/` address — same six-hex serial as the header). The button is shown only when

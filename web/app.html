@@ -77,16 +77,14 @@
     header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
     .brand{display:flex;align-items:center;gap:10px;min-width:0}
     .brand .cloud{
-      position:relative;overflow:hidden;
-      width:38px;height:38px;border-radius:12px;flex:0 0 auto;
+      position:relative;overflow:visible;
+      width:48px;height:48px;border-radius:0;flex:0 0 auto;
       display:flex;align-items:center;justify-content:center;
-      background:linear-gradient(180deg,rgba(108,178,255,.25),rgba(108,178,255,.08));
-      border:1px solid rgba(108,178,255,.35);
+      background:transparent;border:none;
     }
-    .brand .cloud svg{width:22px;height:22px;fill:none;stroke:#cfe4ff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .brand .cloud svg{width:28px;height:28px;fill:none;stroke:#cfe4ff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .brand .cloud img{
-      position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-      border-radius:inherit;
+      position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
     }
     .brand h1{margin:0;font-size:18px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .brand .sub{font-size:11px;color:var(--muted);margin-top:1px}
@@ -319,7 +317,7 @@
       <div class="brand">
         <div class="cloud" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M17.5 18H7a4 4 0 1 1 .7-7.94 5.5 5.5 0 0 1 10.63 1.55A3.7 3.7 0 0 1 17.5 18z"/></svg>
-          <img src="/icon.png" alt="" onerror="this.remove()">
+          <img src="/brand.png" alt="" onerror="this.remove()">
         </div>
         <div style="min-width:0">
           <h1 id="devName">Cloud Lamp</h1>
