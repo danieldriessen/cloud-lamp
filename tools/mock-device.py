@@ -20,7 +20,8 @@ from pathlib import Path
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8932
 ROOT = Path(__file__).resolve().parent.parent
 
-EFFECTS = ["White", "Warm White", "Latte Brown", "Sky Blue", "Cyan", "Blue", "Indigo", "Violet",
+EFFECTS = ["White", "Warm White", "Latte Brown", "Red", "Yellow", "Green",
+           "Cyan", "Sky Blue", "Blue", "Violet",
            "Sky Breathing", "Aurora Drift", "Candlelight", "Night Light",
            "Twinkle", "Color Wipe", "Rainbow", "Pulse"]
 
@@ -52,13 +53,13 @@ def light_json(detail_all=False):
 
 def update_json():
     # Match ESPHome web_server shape: latest version is in `value`.
-    latest = "2.1.4"
+    latest = "2.1.5"
     installing = state["fw_installing"]
     return {
         "id": "update-firmware",
         "value": latest,
         "state": "INSTALLING" if installing else "NO UPDATE",
-        "current_version": "2.1.4",
+        "current_version": "2.1.5",
         "title": "Cloud Lamp (cloud-lamp)",
         "summary": f"Cloud-Lamp firmware {latest}",
         "has_progress": installing,
@@ -106,7 +107,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(200, json.dumps({
                 "name": "cloud-lamp-dd3f2a", "friendly_name": "Cloud-Lamp-dd3f2a",
                 "hostname": "cloud-lamp-dd3f2a", "serial": "DD3F2A",
-                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.4",
+                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.5",
             }).encode())
         elif path == "/manifest.json":
             self._send(200, json.dumps({"name": "Cloud-Lamp", "display": "standalone"}).encode())

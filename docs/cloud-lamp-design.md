@@ -9,6 +9,7 @@ summarised in [the changelog section](#v1--v2-changelog) at the end.
 Related documents:
 
 - [README.md](../README.md) — public project overview, features, getting started
+- [user-manual.md](./user-manual.md) — end-user manual (permanent URL: sticker QR code + web-app book icon)
 - [device-credentials.md](./device-credentials.md) — shared passwords, AP naming, sticker contents
 - [firmware-updates.md](./firmware-updates.md) — online update workflow and release process
 
@@ -16,11 +17,15 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.4 — fix update UI (ESPHome puts latest version in `value`), Check for
-> updates now, transparent header brand, effect speed, Latte Brown, 6-hex serial.
-> **Still open:** intensity slider (per-effect mapping); test button gestures / captive
-> portal end-to-end; product stickers; 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.4
+> **Phase:** v2.1.5 — colour-scale effect list (Red/Yellow/Green added, Indigo removed),
+> grouped web-app effect grid (Colors / Special effects), vivid Aurora Drift, update-badge
+> layout, user manual (docs/user-manual.md) + header manual button.
+> Before that: update-UI fix, Check for updates now, header brand, effect speed.
+> **Still open:** per-effect user presets (store brightness + speed per effect, applied on
+> selection — feasible, deferred; see Web app section); intensity slider (per-effect
+> mapping); test button gestures / captive portal end-to-end; product stickers; 3D print
+> files.
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.5
 
 ---
 
@@ -185,11 +190,13 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   `/select/...`, `/switch/...`, `/button/...`, `/update/...`) and receives live state via
   the `/events` server-sent-events stream, with a 5 s polling fallback. All state shown is
   device-confirmed (no unverified optimistic UI).
-- **Features:** power toggle, brightness slider, effect grid with colour swatches, settings
-  sheet (language, power-cut behaviour, network diagnostics, *Change Wi-Fi network*, MQTT
-  kill switch when present, firmware version/update with *Check for updates now* and
-  install progress, restart, factory reset, device info). The settings sheet is a bottom
-  sheet capped at the same max width
+- **Features:** power toggle, brightness slider, effect grid with colour swatches (grouped
+  into *Colors* and *Special effects*), a header book icon that opens the
+  [user manual](./user-manual.md) in a new tab (permanent GitHub URL, same target as the
+  sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
+  *Change Wi-Fi network*, MQTT kill switch when present, firmware version/update with
+  *Check for updates now* and install progress, restart, factory reset, device info). The
+  settings sheet is a bottom sheet capped at the same max width
   as the main view (`520px`), locks background scroll while open, and keeps extra right /
   bottom padding so the scroll indicator and home-indicator area stay clear.
 - **Change Wi-Fi:** clears saved STA credentials, re-asserts the `Cloud-Lamp-XXXXXX` AP, and
@@ -231,9 +238,9 @@ substitution at the top of the file.
 
 | Effect | Type | Character |
 |---|---|---|
-| White / Warm White / Latte Brown / Sky Blue / Cyan / Blue / Indigo / Violet | solid | Static colours, 250 ms refresh (White first = default cycle start). Latte Brown = case PLA (Bambu Lab Matte `#D3B7A7`; DE Milchkaffee-Braun, ES Marrón Latte, FR Café au lait). Speed slider hidden. |
+| White / Warm White / Latte Brown / Red / Yellow / Green / Cyan / Sky Blue / Blue / Violet | solid | Static colours, 250 ms refresh. Order: neutrals first (White = default cycle start), then the spectrum red → violet. Latte Brown = case PLA (Bambu Lab Matte `#D3B7A7`; DE Milchkaffee-Braun, ES Marrón Latte, FR Café au lait). Speed slider hidden. Indigo was removed in v2.1.5 (too dark on WS2812). |
 | Sky Breathing | animated | Very slow blue↔cyan crossfade — the signature calm effect |
-| Aurora Drift | animated | Slow-moving pastel cyan→violet gradient with per-ring depth |
+| Aurora Drift | animated | Slow-moving vivid teal→violet gradient with per-ring depth (saturated endpoints since v2.1.5 — the pastel pair washed out) |
 | Candlelight | animated | Warm white with soft per-ring flicker |
 | Night Light | solid | Very dim warm glow, gentle even at 100 % brightness. Speed slider hidden. |
 | Twinkle | animated | Quiet starfield — ~1 soft spark/s, long fade; baby-lamp defaults |
@@ -250,7 +257,20 @@ values calm the motion. Solids and Night Light ignore it.
 
 Effect names are case-sensitive canonical identifiers used by MQTT (`Set/Effect` /
 `State/Effect`) and the REST API. When renaming an effect, update the display-name maps in
-`web/app.html` (`FX_NAMES`, `FX_SWATCH`, `SPEED_FX`) as well.
+`web/app.html` (`FX_NAMES`, `FX_SWATCH`, `SPEED_FX`, `SOLID_FX`) as well. The web app
+groups the grid into **Colors** (names in `SOLID_FX`) and **Special effects** (everything
+else, including Night Light and unknown future effects). Note: the last-used effect is
+persisted as an *index*, so reordering or removing effects shifts which effect a lamp
+restores after its first update — harmless one-time cosmetic jump.
+
+### Deferred idea: per-effect user presets
+
+Store brightness + speed per effect in the preferences area and apply them whenever that
+effect is selected (button, web app and MQTT alike, via the shared effect scripts). UI:
+adjust the live sliders, then "Save as default for this effect" + per-effect reset.
+Feasible and cheap (16×2 small values); needs a decision on brightness semantics (today
+brightness is global and survives effect changes). Creating entirely *new* user effects is
+not possible — effect algorithms are compiled in.
 
 ---
 

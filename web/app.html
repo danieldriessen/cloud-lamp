@@ -179,6 +179,11 @@
       border-color:rgba(108,178,255,.62);
     }
     .fx-none{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:12px 0}
+    .fx-group-label{
+      grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.6px;
+      text-transform:uppercase;color:var(--muted);margin:6px 2px 0;
+    }
+    .fx-group-label:first-child{margin-top:0}
 
     /* Maker footer */
     .maker{
@@ -287,6 +292,9 @@
     }
     .upd-badge.avail{background:rgba(255,204,102,.15);color:var(--warn);border:1px solid rgba(255,204,102,.4)}
     .upd-badge.ok{background:rgba(124,240,201,.12);color:var(--good);border:1px solid rgba(124,240,201,.35)}
+    /* Badge sits before the version number, number right-aligned like the
+       Installed-version row; the gap keeps them clearly separated. */
+    .fw-latest{display:inline-flex;align-items:center;justify-content:flex-end;gap:14px}
     .toast{
       position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%) translateY(20px);
       background:rgba(20,26,38,.97);border:1px solid var(--line);border-radius:13px;
@@ -326,6 +334,9 @@
       </div>
       <div class="hdr-right">
         <div class="pill"><span class="dot" id="connDot"></span><span id="connText">…</span></div>
+        <div class="iconbtn" id="btnManual" role="button" tabindex="0" aria-label="Manual">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
         <div class="iconbtn" id="btnSettings" role="button" tabindex="0" aria-label="Settings">
           <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.46a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.55 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5z"/></svg>
         </div>
@@ -444,7 +455,7 @@
           <div class="row"><div class="k" data-i18n="installed_version">Installed version</div><div class="v" id="fwCur">—</div></div>
           <div class="row" id="fwLatestRow" hidden>
             <div class="k" data-i18n="latest_version">Latest version</div>
-            <div class="v"><span id="fwLatest">—</span> <span class="upd-badge avail" id="fwBadge" hidden></span></div>
+            <div class="v fw-latest"><span class="upd-badge avail" id="fwBadge" hidden></span><span id="fwLatest">—</span></div>
           </div>
           <div class="stack" id="fwActions">
             <div class="v" id="fwStatus" style="font-size:12.5px;color:var(--muted)"></div>
@@ -558,6 +569,7 @@
       install_step1:"Open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.",
       install_step2:"In Safari, open this lamp’s address (type it with http:// — do not search for it):",
       install_step3:"Tap Share → Add to Home Screen → Add. The lamp then opens like an app.",
+      fx_colors:"Colors",fx_special:"Special effects",
       day:"d",hour:"h",min:"m"},
     de:{brightness:"Helligkeit",speed:"Geschwindigkeit",effects:"Effekte",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
       power_behavior:"Nach Stromausfall",power_behavior_d:"Verhalten, wenn der Strom zurückkehrt",
@@ -582,6 +594,7 @@
       install_step1:"Öffne Einstellungen → Apps → Safari und schalte „Warnung bei unsicherer Verbindung“ aus.",
       install_step2:"Öffne in Safari die Adresse dieser Lampe (mit http:// eintippen — nicht über die Suche):",
       install_step3:"Tippe auf Teilen → Zum Home-Bildschirm → Hinzufügen. Die Lampe öffnet sich danach wie eine App.",
+      fx_colors:"Farben",fx_special:"Spezialeffekte",
       day:"T",hour:"Std",min:"Min"},
     es:{brightness:"Brillo",speed:"Velocidad",effects:"Efectos",settings:"Ajustes",general:"General",language:"Idioma",
       power_behavior:"Tras un corte de luz",power_behavior_d:"Comportamiento al volver la corriente",
@@ -606,6 +619,7 @@
       install_step1:"Ve a Ajustes → Apps → Safari y desactiva «Aviso de conexión no segura».",
       install_step2:"En Safari, abre la dirección de esta lámpara (escríbela con http:// — no la busques):",
       install_step3:"Toca Compartir → Añadir a pantalla de inicio → Añadir. La lámpara se abrirá como una app.",
+      fx_colors:"Colores",fx_special:"Efectos especiales",
       day:"d",hour:"h",min:"min"},
     fr:{brightness:"Luminosité",speed:"Vitesse",effects:"Effets",settings:"Réglages",general:"Général",language:"Langue",
       power_behavior:"Après une coupure",power_behavior_d:"Comportement au retour du courant",
@@ -630,36 +644,47 @@
       install_step1:"Ouvrez Réglages → Apps → Safari et désactivez « Alerte de connexion non sécurisée ».",
       install_step2:"Dans Safari, ouvrez l'adresse de cette lampe (tapez-la avec http:// — ne passez pas par la recherche) :",
       install_step3:"Touchez Partager → Sur l'écran d'accueil → Ajouter. La lampe s'ouvre alors comme une appli.",
+      fx_colors:"Couleurs",fx_special:"Effets spéciaux",
       day:"j",hour:"h",min:"min"},
   };
   // Effect display names per language (fallback: raw firmware name)
   const FX_NAMES = {
     en:{}, // firmware names are English already
-    de:{"Warm White":"Warmweiß","White":"Weiß","Latte Brown":"Milchkaffee-Braun","Sky Blue":"Himmelblau","Cyan":"Cyan","Blue":"Blau",
-        "Indigo":"Indigo","Violet":"Violett","Sky Breathing":"Himmel-Atmen","Aurora Drift":"Aurora",
+    de:{"Warm White":"Warmweiß","White":"Weiß","Latte Brown":"Milchkaffee-Braun","Red":"Rot","Yellow":"Gelb","Green":"Grün",
+        "Sky Blue":"Himmelblau","Cyan":"Cyan","Blue":"Blau",
+        "Violet":"Violett","Sky Breathing":"Himmel-Atmen","Aurora Drift":"Aurora",
         "Candlelight":"Kerzenlicht","Night Light":"Nachtlicht","Twinkle":"Sternenfunkeln",
         "Color Wipe":"Farbverlauf","Rainbow":"Regenbogen","Pulse":"Pulsieren"},
-    es:{"Warm White":"Blanco cálido","White":"Blanco","Latte Brown":"Marrón Latte","Sky Blue":"Azul cielo","Cyan":"Cian","Blue":"Azul",
-        "Indigo":"Índigo","Violet":"Violeta","Sky Breathing":"Cielo respirante","Aurora Drift":"Aurora",
+    es:{"Warm White":"Blanco cálido","White":"Blanco","Latte Brown":"Marrón Latte","Red":"Rojo","Yellow":"Amarillo","Green":"Verde",
+        "Sky Blue":"Azul cielo","Cyan":"Cian","Blue":"Azul",
+        "Violet":"Violeta","Sky Breathing":"Cielo respirante","Aurora Drift":"Aurora",
         "Candlelight":"Luz de vela","Night Light":"Luz nocturna","Twinkle":"Destellos",
         "Color Wipe":"Barrido de color","Rainbow":"Arcoíris","Pulse":"Pulso"},
-    fr:{"Warm White":"Blanc chaud","White":"Blanc","Latte Brown":"Café au lait","Sky Blue":"Bleu ciel","Cyan":"Cyan","Blue":"Bleu",
-        "Indigo":"Indigo","Violet":"Violet","Sky Breathing":"Ciel respirant","Aurora Drift":"Aurore",
+    fr:{"Warm White":"Blanc chaud","White":"Blanc","Latte Brown":"Café au lait","Red":"Rouge","Yellow":"Jaune","Green":"Vert",
+        "Sky Blue":"Bleu ciel","Cyan":"Cyan","Blue":"Bleu",
+        "Violet":"Violet","Sky Breathing":"Ciel respirant","Aurora Drift":"Aurore",
         "Candlelight":"Bougie","Night Light":"Veilleuse","Twinkle":"Scintillement",
         "Color Wipe":"Balayage de couleur","Rainbow":"Arc-en-ciel","Pulse":"Pulsation"},
   };
   // Swatch colours for known effects (CSS backgrounds)
   const FX_SWATCH = {
-    "Warm White":"#ffd9a0","White":"#f4f7ff","Latte Brown":"#D3B7A7","Sky Blue":"#5aaaff","Cyan":"#19e3e3","Blue":"#2b50ff",
-    "Indigo":"#4b0082","Violet":"#8a2be2",
+    "Warm White":"#ffd9a0","White":"#f4f7ff","Latte Brown":"#D3B7A7",
+    "Red":"#ff3b30","Yellow":"#ffc800","Green":"#2ee649",
+    "Sky Blue":"#5aaaff","Cyan":"#19e3e3","Blue":"#2b50ff","Violet":"#8a2be2",
     "Sky Breathing":"linear-gradient(135deg,#4696ff,#0ad2eb)",
-    "Aurora Drift":"linear-gradient(135deg,#28c8dc,#8c5aeb)",
+    "Aurora Drift":"linear-gradient(135deg,#00e6d2,#aa1eff)",
     "Candlelight":"linear-gradient(135deg,#ff9329,#ffce7a)",
     "Night Light":"#7a5c33","Twinkle":"linear-gradient(135deg,#0b1030,#e8ecff)",
     "Color Wipe":"linear-gradient(135deg,#008cff,#5940ff,#00bfe6)",
     "Rainbow":"linear-gradient(135deg,#ff4040,#ffc040,#40ff70,#40c8ff,#a040ff)",
     "Pulse":"radial-gradient(circle,#cfe4ff 20%,#3a5a8c 100%)",
   };
+  // Solid colours are listed under "Colours"; everything else (animations,
+  // Night Light, unknown future effects) lands in "Special effects".
+  const SOLID_FX = new Set([
+    "White","Warm White","Latte Brown","Red","Yellow","Green",
+    "Cyan","Sky Blue","Blue","Violet",
+  ]);
 
   // English is the default; other languages are an explicit user choice.
   let lang = localStorage.getItem("cl.lang") || "en";
@@ -747,7 +772,13 @@
     if (forceRebuild || key !== fxGridKey){
       fxGridKey = key;
       g.innerHTML = "";
-      st.effects.forEach(name => {
+      const addLabel = k => {
+        const l = document.createElement("div");
+        l.className = "fx-group-label";
+        l.textContent = t(k);
+        g.appendChild(l);
+      };
+      const addBtn = name => {
         const b = document.createElement("button");
         b.className = "fx-btn";
         b.dataset.fx = name;
@@ -759,7 +790,17 @@
         b.appendChild(sw); b.appendChild(label);
         b.addEventListener("click", () => setEffect(name));
         g.appendChild(b);
-      });
+      };
+      const solids = st.effects.filter(n => SOLID_FX.has(n));
+      const special = st.effects.filter(n => !SOLID_FX.has(n));
+      if (solids.length && special.length) {
+        addLabel("fx_colors");
+        solids.forEach(addBtn);
+        addLabel("fx_special");
+        special.forEach(addBtn);
+      } else {
+        st.effects.forEach(addBtn);
+      }
     }
     g.querySelectorAll(".fx-btn").forEach(b => {
       b.classList.toggle("sel", st.on && b.dataset.fx === st.effect);
@@ -1045,6 +1086,10 @@
   }
   function closeInstall(){ installModal.hidden = true; unlockSheetScroll(); }
   $("btnSettings").addEventListener("click", openSettings);
+
+  // User manual — permanent URL, also encoded in the QR code on the sticker.
+  const MANUAL_URL = "https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.md";
+  $("btnManual").addEventListener("click", () => window.open(MANUAL_URL, "_blank", "noopener"));
   setModal.querySelectorAll("[data-close]").forEach(el =>
     el.addEventListener("click", closeSettings));
   $("btnInstallApp").addEventListener("click", openInstall);

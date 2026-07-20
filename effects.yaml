@@ -55,7 +55,8 @@ light:
       # Solid colours (slow refresh; brightness/colour-correction is
       # applied by the light component at output time, so no fast
       # redraw is needed).
-      # Order is the UI / button cycle order: White first, then Warm White.
+      # Order is the UI / button cycle order: neutrals first (White is
+      # the default cycle start), then the spectrum red → violet.
       # ------------------------------------------------------------
       - addressable_lambda:
           name: "White"
@@ -71,21 +72,30 @@ light:
           update_interval: 250ms
           lambda: 'it.all() = Color(0xD3, 0xB7, 0xA7);'
       - addressable_lambda:
-          name: "Sky Blue"
+          name: "Red"
           update_interval: 250ms
-          lambda: 'it.all() = Color(90, 170, 255);'
+          lambda: 'it.all() = Color(255, 0, 0);'
+      # Slightly warm yellow — pure (255,255,0) reads greenish on WS2812.
+      - addressable_lambda:
+          name: "Yellow"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(255, 200, 0);'
+      - addressable_lambda:
+          name: "Green"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0, 255, 0);'
       - addressable_lambda:
           name: "Cyan"
           update_interval: 250ms
           lambda: 'it.all() = Color(0, 255, 255);'
       - addressable_lambda:
+          name: "Sky Blue"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(90, 170, 255);'
+      - addressable_lambda:
           name: "Blue"
           update_interval: 250ms
           lambda: 'it.all() = Color(0, 0, 255);'
-      - addressable_lambda:
-          name: "Indigo"
-          update_interval: 250ms
-          lambda: 'it.all() = Color(75, 0, 130);'
       - addressable_lambda:
           name: "Violet"
           update_interval: 250ms
@@ -116,15 +126,17 @@ light:
               (uint8_t)(a.g + (b.g - a.g) * m),
               (uint8_t)(a.b + (b.b - a.b) * m));
 
-      # Aurora Drift: a slow-moving pastel gradient (cyan → violet). Each pixel
+      # Aurora Drift: a slow-moving gradient (cyan → violet). Each pixel
       # gets a phase offset, so the three rings show slightly different hues —
       # the cloud appears to have depth.
       - addressable_lambda:
           name: "Aurora Drift"
           update_interval: 60ms
           lambda: |-
-            const Color a(40, 200, 220);    // pastel cyan
-            const Color b(140, 90, 235);    // pastel violet
+            // Saturated endpoints so the two hues are clearly distinguishable
+            // (the previous pastel pair washed out into near-uniform blue).
+            const Color a(0, 230, 210);     // vivid teal-cyan
+            const Color b(170, 30, 255);    // vivid violet
             float spd = id(effect_speed).state;
             if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
             if (spd > 100.0f) spd = 100.0f;

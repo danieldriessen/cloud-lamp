@@ -17,9 +17,10 @@ through a built-in web app.
   next effect, press-and-hold dims up/down (alternating, Hue-style). Holding the button
   while plugging the lamp in performs a factory reset (with a red countdown animation as
   warning).
-- **16 light effects** — solid colours (including Latte Brown / Milchkaffee-Braun matching
-  the case PLA) plus subtle animations (Sky Breathing, Aurora Drift, Candlelight, Night
-  Light, Rainbow, Twinkle, …), all tunable via substitutions in `effects.yaml`.
+- **18 light effects** — solid colours in spectrum order (including Latte Brown /
+  Milchkaffee-Braun matching the case PLA) plus special effects (Sky Breathing, Aurora
+  Drift, Candlelight, Night Light, Rainbow, Twinkle, …), all tunable via substitutions in
+  `effects.yaml`.
 - **Effect speed** — live 1–100 slider in the web app for animated effects (persisted;
   50 = the calm defaults). Solids and Night Light hide the control.
 - **iOS-style web app** — served directly from the lamp, no cloud, no app store.
@@ -104,6 +105,7 @@ To iterate on the web app without hardware, run `python3 tools/mock-device.py` a
 
 | Document | Contents |
 |---|---|
+| [docs/user-manual.md](docs/user-manual.md) | **End-user manual** — safety, button gestures, Wi-Fi setup, updates, troubleshooting. Permanent URL (linked from the web app's book icon and the sticker QR code) |
 | [docs/cloud-lamp-design.md](docs/cloud-lamp-design.md) | Architecture, behaviour reference (button/boot/web/MQTT), hardware, changelog |
 | [docs/device-credentials.md](docs/device-credentials.md) | Setup-hotspot naming, product sticker contents, credential handling |
 | [docs/firmware-updates.md](docs/firmware-updates.md) | Update paths, safety guarantees, release workflow |

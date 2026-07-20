@@ -17,6 +17,7 @@ Each lamp gets a sticker with everything the recipient needs for Wi-Fi setup:
 | Setup Wi-Fi | `Cloud-Lamp-XXXXXX` | Generated at runtime; XXXXXX = last 6 hex digits of the chip MAC, uppercase |
 | Wi-Fi password | `cloud-lamp` | Shared across all devices (see below) |
 | Web address | `http://cloud-lamp-<mac6>.local/` | Same six hex digits as the sticker serial, lowercase |
+| Manual QR code | `https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.md` | Same URL on every lamp — points at the user manual, which always describes the latest firmware |
 
 To read the serial for the sticker before assembly: boot the device once and check the log
 line `Setup hotspot SSID: Cloud-Lamp-XXXXXX`, or open `http://<lamp-ip>/device.json` (field
