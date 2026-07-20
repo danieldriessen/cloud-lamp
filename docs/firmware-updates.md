@@ -96,3 +96,8 @@ uses `verify_ssl: false`: transport is TLS-encrypted but the server certificate 
 validated. Integrity of the installed firmware is enforced end-to-end by the manifest MD5;
 an attacker able to spoof GitHub DNS could at worst offer a manifest the user must still
 manually install. Accepted trade-off for this device class.
+
+`packages/updates.yaml` also sets `tls_buffer_size_rx: 8192`. Without an enlarged buffer,
+fetches from `raw.githubusercontent.com` fail with BearSSL `BR_ERR_TOO_LARGE` (GitHub/Fastly
+use large TLS records; the ESP8266 default 512-byte buffer is too small). 16 KiB is the
+textbook size but OOMs on the MQTT-enabled bench build; 8 KiB is enough in practice here.

@@ -30,6 +30,13 @@ http_request:
   # BearSSL on the ESP8266 has no CA certificate store; transport is still
   # TLS-encrypted, and firmware integrity is enforced by the manifest MD5.
   verify_ssl: false
+  # GitHub / Fastly send full-size TLS records. The ESP8266 default (512)
+  # fails with BR_ERR_TOO_LARGE. ESPHome docs recommend 16384; that OOM's on
+  # the MQTT-enabled dev build, so we use 8192 as a practical middle ground
+  # that fits gift + bench lamps. If checks fail with BR_ERR_TOO_LARGE again,
+  # raise toward 16384 on gift builds (no MQTT) or host via a CDN with MFL.
+  tls_buffer_size_rx: 8192
+  tls_buffer_size_tx: 512
 
 ota:
   - platform: http_request

@@ -16,10 +16,11 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.1 — effect speed, Latte Brown, unified 6-hex serial, install-sheet polish.
+> **Phase:** v2.1.2 — effect speed, Latte Brown, unified 6-hex serial, install polish,
+> HTTPS update TLS buffer fix for GitHub.
 > **Still open:** intensity slider (per-effect mapping); test button gestures / captive
 > portal end-to-end; provisional app icon; product stickers; 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.1
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.2
 
 ---
 

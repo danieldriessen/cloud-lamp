@@ -44,7 +44,7 @@ substitutions:
   device_friendly_name: "Cloud-Lamp"   # Human-readable display name (web app title)
 
   # --- Firmware version (bump for every release; used by the online updater) ---
-  project_version: "2.1.1"
+  project_version: "2.1.2"
 
   # --- LED ring count ---
   # ring_count is informational only — it is never referenced directly in the firmware.
