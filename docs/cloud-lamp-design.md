@@ -226,7 +226,7 @@ substitution at the top of the file.
 | Aurora Drift | animated | Slow-moving pastel cyan→violet gradient with per-ring depth |
 | Candlelight | animated | Warm white with soft per-ring flicker |
 | Night Light | solid | Very dim warm glow, gentle even at 100 % brightness |
-| Twinkle | animated | Sparse white sparks over a faint blue floor (calmer than v1) |
+| Twinkle | animated | Quiet starfield — ~1 soft spark/s, long fade; baby-lamp defaults |
 | Color Wipe | animated | Soft sky colours, very slow sweep |
 | Rainbow | animated | Full spectrum, slow drift (speed 4, was 20) |
 | Pulse | animated | Breathing between 20 % and 85 % (never fully dark) |

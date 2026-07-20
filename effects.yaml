@@ -12,10 +12,13 @@
 # ==============================================================================
 
 substitutions:
-  # --- Twinkle ("starfield") ---
-  twinkle_ignite_chance: "40"   # 1-in-N chance per pixel per frame to ignite (higher = calmer)
-  twinkle_fade_step:     "10"   # Fade-out per frame (255 / step * interval ≈ fade time)
-  twinkle_interval:      "80ms"
+  # --- Twinkle ("starfield") — baby-lamp defaults: sparse, slow, soft ---
+  # With 24 LEDs @ 140 ms: ~1 new spark per second across the whole cloud,
+  # each fading over ~9 s. Raise chance / lower fade_step for even calmer.
+  twinkle_ignite_chance: "160"  # 1-in-N chance per pixel per frame (higher = calmer)
+  twinkle_fade_step:     "4"    # Fade-out per frame (lower = longer, softer trails)
+  twinkle_interval:      "140ms"
+  twinkle_peak:          "170"  # Soft max spark brightness (was hard 255 — too sharp)
 
   # --- Pulse ("breathing") ---
   pulse_min_brightness: "20%"   # Never fully dark — 0% looks like a fault
@@ -153,8 +156,8 @@ light:
                              (uint8_t)(${night_light_level} * 0.55f),
                              (uint8_t)(${night_light_level} * 0.25f));
 
-      # Twinkle: sparse white sparks igniting and fading slowly — a starfield
-      # behind the cloud. Tuned much calmer than v1 (fewer, slower stars).
+      # Twinkle: sparse soft sparks — a quiet starfield behind the cloud.
+      # Defaults are deliberately slow for a baby lamp (see substitutions).
       - addressable_lambda:
           name: "Twinkle"
           update_interval: ${twinkle_interval}
@@ -162,13 +165,14 @@ light:
             static uint8_t state[${led_count}] = {};
             for (int i = 0; i < it.size(); i++) {
               if (state[i] == 0 && (random_uint32() % ${twinkle_ignite_chance}) == 0) {
-                state[i] = 255;
+                // Soft peak with a little variation — never a hard white flash
+                state[i] = ${twinkle_peak} - (random_uint32() % 40);
               } else if (state[i] > 0) {
                 state[i] = state[i] > ${twinkle_fade_step} ? state[i] - ${twinkle_fade_step} : 0;
               }
               uint8_t v = state[i];
-              // Faint blue floor so the cloud never goes fully dark between stars
-              it[i] = Color(v > 8 ? v : 8, v > 8 ? v : 8, v > 24 ? v : 24);
+              // Very faint blue floor so the cloud never goes fully dark between stars
+              it[i] = Color(v > 6 ? v : 6, v > 6 ? v : 6, v > 18 ? v : 18);
             }
 
       # Color Wipe: soft cloud colours, very slow sweep. Each colour fills the
