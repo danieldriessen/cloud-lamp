@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0b0f18" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#0b0f18">
+  <!-- No theme-color on purpose: iOS Safari (15+) then samples the page itself
+       to tint its top/bottom bars, so the background gradient visually reaches
+       the display edges. A fixed theme-color painted flat dark bands instead.
+       (The PWA manifest keeps its own background/theme colours for the
+       standalone app and Android.) -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Cloud Lamp">
@@ -37,20 +40,25 @@
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     [hidden]{display:none !important}
-    /* Full-bleed canvas on iOS (PWA / black-translucent status bar):
-       paint the same base colour on html+body, and a fixed layer that
-       deliberately extends past the visual viewport / safe areas so rubber-
-       band bounce and notch/home-indicator bands never flash a different colour. */
+    /* Full-bleed canvas on iOS:
+       - html carries the same gradient as the fixed layer, so the areas Safari
+         paints itself (behind its bars, rubber-band overscroll, letterboxing)
+         continue the design instead of flashing a flat colour;
+       - the fixed layer is sized against the LARGE viewport (100lvh) and
+         heavily oversized, so collapsed/expanded browser bars and safe areas
+         never reveal a seam. */
     html{
       margin:0;padding:0;height:100%;
       background-color:var(--bg0);
+      background-image:
+        radial-gradient(1100px 650px at 15% 0%, rgba(108,178,255,.20), transparent 55%),
+        linear-gradient(180deg,var(--bg0),var(--bg1));
       -webkit-text-size-adjust:none;text-size-adjust:none;
     }
     body{
       margin:0;padding:0;
       min-height:100%;min-height:100svh;min-height:100dvh;min-height:-webkit-fill-available;
       font-family:var(--font);color:var(--text);
-      background-color:var(--bg0);
       overscroll-behavior:none;
       -webkit-user-select:none;user-select:none;
       -webkit-touch-callout:none;
@@ -58,9 +66,9 @@
     .app-bg{
       position:fixed;z-index:0;pointer-events:none;
       left:50%;top:50%;
-      width:100vw;height:100vh;height:100dvh;
-      /* Oversized so safe-area / bounce never reveals a seam */
-      min-width:120vw;min-height:140vh;min-height:140dvh;
+      width:100vw;height:100vh;height:100lvh;
+      /* Oversized so safe-area / browser bars / bounce never reveal a seam */
+      min-width:130vw;min-height:150vh;min-height:150lvh;
       transform:translate(-50%,-50%);
       background:
         radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),

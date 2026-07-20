@@ -17,15 +17,15 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.5 — colour-scale effect list (Red/Yellow/Green added, Indigo removed),
-> grouped web-app effect grid (Colors / Special effects), vivid Aurora Drift, update-badge
-> layout, user manual (docs/user-manual.md) + header manual button.
-> Before that: update-UI fix, Check for updates now, header brand, effect speed.
+> **Phase:** v2.1.6 — true full-bleed iOS background (no fixed theme-color; Safari samples
+> the page gradient for its bars). v2.1.5: colour-scale effect list (Red/Yellow/Green
+> added, Indigo removed), grouped effect grid (Colors / Special effects), vivid Aurora
+> Drift, update-badge layout, user manual (docs/user-manual.md) + header manual button.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; product stickers; 3D print
 > files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.5
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.6
 
 ---
 
