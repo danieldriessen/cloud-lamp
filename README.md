@@ -17,15 +17,17 @@ through a built-in web app.
   next effect, press-and-hold dims up/down (alternating, Hue-style). Holding the button
   while plugging the lamp in performs a factory reset (with a red countdown animation as
   warning).
-- **16 light effects** — solid colours plus subtle animations (Sky Breathing, Aurora
-  Drift, Candlelight, Night Light, Thunderstorm, Rainbow, Twinkle, …), all tunable via
-  substitutions in `effects.yaml`.
+- **16 light effects** — solid colours (including Latte Brown / Milchkaffee-Braun matching
+  the case PLA) plus subtle animations (Sky Breathing, Aurora Drift, Candlelight, Night
+  Light, Rainbow, Twinkle, …), all tunable via substitutions in `effects.yaml`.
+- **Effect speed** — live 1–100 slider in the web app for animated effects (persisted;
+  50 = the calm defaults). Solids and Night Light hide the control.
 - **iOS-style web app** — served directly from the lamp, no cloud, no app store.
   Progressive Web App: open the lamp's address in Safari, "Add to Home Screen", and it
-  behaves like a native app. Power, brightness, effect selection, settings and firmware
-  updates; localised in English, German, Spanish and French.
+  behaves like a native app. Power, brightness, speed, effect selection, settings and
+  firmware updates; localised in English, German, Spanish and French.
 - **Simple Wi-Fi onboarding** — if the lamp doesn't know the local Wi-Fi it opens its own
-  hotspot (`Cloud-Lamp-XXXX`) with a captive portal to enter credentials. No flashing or
+  hotspot (`Cloud-Lamp-XXXXXX`) with a captive portal to enter credentials. No flashing or
   tooling needed to move the lamp to a new home; credentials survive firmware updates.
 - **Safe over-the-air updates** — the lamp periodically checks this repository for new
   firmware and offers updates in the web app. Downloads are MD5-verified and written to a
@@ -74,7 +76,7 @@ esphome run cloud-lamp.yaml
 After flashing:
 
 1. Power the lamp — it works immediately from the button.
-2. Connect a phone to the lamp's setup hotspot `Cloud-Lamp-XXXX` and enter your Wi-Fi
+2. Connect a phone to the lamp's setup hotspot `Cloud-Lamp-XXXXXX` and enter your Wi-Fi
    credentials in the captive portal that opens.
 3. Open `http://cloud-lamp.local/` (or the lamp's IP) for the web app, and optionally add
    it to the home screen.

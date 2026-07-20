@@ -14,20 +14,20 @@ Each lamp gets a sticker with everything the recipient needs for Wi-Fi setup:
 | Field | Value | Where it comes from |
 |---|---|---|
 | Device name | `Cloud-Lamp` | Generic on purpose — lamps are personalised only by the physical front text |
-| Setup Wi-Fi | `Cloud-Lamp-XXXX` | Generated at runtime; XXXX = last 4 hex digits of the chip MAC, uppercase |
+| Setup Wi-Fi | `Cloud-Lamp-XXXXXX` | Generated at runtime; XXXXXX = last 6 hex digits of the chip MAC, uppercase |
 | Wi-Fi password | `cloud-lamp` | Shared across all devices (see below) |
-| Web address | `http://cloud-lamp-<mac6>.local/` | Unique per chip (last 6 MAC hex). Sticker serial XXXX is the last 4 of those 6. |
+| Web address | `http://cloud-lamp-<mac6>.local/` | Same six hex digits as the sticker serial, lowercase |
 
 To read the serial for the sticker before assembly: boot the device once and check the log
-line `Setup hotspot SSID: Cloud-Lamp-XXXX`, or open `http://<lamp-ip>/device.json` (field
-`serial`). The same serial is shown in the web app under Settings → About. The unique
+line `Setup hotspot SSID: Cloud-Lamp-XXXXXX`, or open `http://<lamp-ip>/device.json` (field
+`serial`). The same serial is shown in the web app header and under Settings → About. The
 hostname is in the same JSON (`hostname`) and under Settings → About → Hostname.
 
-**Uniqueness:** the four-digit sticker serial is the last two MAC bytes → 65 536 values —
-fine for gift batches, not globally unique. The **mDNS hostname** uses the last **six**
-MAC hex digits (`cloud-lamp-cfb911.local`), so multiple lamps on one network do not collide.
-The full MAC (Settings → About) remains the definitive unique ID. Captive-portal onboarding
-still uses the sticker hotspot `Cloud-Lamp-XXXX` / `192.168.4.1` and is unchanged.
+**One parent code:** sticker AP, web-app header and `.local` address all use the same last
+six MAC hex digits (e.g. `Cloud-Lamp-CFB911` ↔ `cloud-lamp-cfb911.local`). That is
+16 777 216 values — enough that multiple lamps on one network do not collide. The full MAC
+(Settings → About) remains the definitive unique ID. Captive-portal onboarding still uses
+the sticker hotspot / `192.168.4.1`.
 
 ---
 
@@ -35,7 +35,7 @@ still uses the sticker hotspot `Cloud-Lamp-XXXX` / `192.168.4.1` and is unchange
 
 If the lamp cannot connect to any known Wi-Fi network, it opens its own access point:
 
-- **SSID:** `Cloud-Lamp-XXXX` (per-device, printed on the sticker)
+- **SSID:** `Cloud-Lamp-XXXXXX` (per-device, printed on the sticker)
 - **Password:** `cloud-lamp` (same on every device, printed on the sticker)
 
 **Setup / recovery steps for the end user:**
@@ -50,10 +50,10 @@ If the lamp cannot connect to any known Wi-Fi network, it opens its own access p
 The lamp keeps working as a normal lamp (button control) the entire time — it never
 reboots or blocks because Wi-Fi is unavailable.
 
-> **iOS note (required once per phone):** before *Add to Home Screen*, disable
+> **iOS / iPadOS note (required once per device):** before *Add to Home Screen*, disable
 > *Settings → Apps → Safari → Not Secure Connection Warning*, then open the lamp by
-> typing `http://cloud-lamp.local/` (with `http://`) in Safari and add it from there.
-> Leaving that Safari setting on makes iOS refuse the home-screen app with an
+> typing its `http://cloud-lamp-….local/` address (with `http://`) in Safari and add it
+> from there. Leaving that Safari setting on makes iOS refuse the home-screen app with an
 > "HTTPS-Only" / "HTTP is only" error — the lamp cannot serve HTTPS (see the design doc).
 
 The AP password is stored in the `wifi_ap_password` substitution in `cloud-lamp.yaml`

@@ -3,7 +3,7 @@
 #
 #  THIS CONFIG IS PUBLIC-SAFE: it contains no personal names, no Wi-Fi
 #  networks and no MQTT credentials. Wi-Fi is configured exclusively by the
-#  recipient via the captive portal ("Cloud-Lamp-XXXX" setup hotspot).
+#  recipient via the captive portal ("Cloud-Lamp-XXXXXX" setup hotspot).
 #  Binaries built from this file are published to the public update channel
 #  (firmware-dist/), so NOTHING device- or person-specific may be added here.
 #  The only embedded shared credentials are the sticker AP password and the
@@ -38,13 +38,13 @@ substitutions:
 
   # --- Device identity ---
   # Generic on purpose: lamps are personalised only by the physical text on
-  # the front. Devices are told apart by their serial (AP name Cloud-Lamp-XXXX,
-  # web app Settings -> About).
+  # the front. Devices are told apart by their serial (AP / header / .local all
+  # share the same 6-hex MAC suffix, e.g. Cloud-Lamp-CFB911).
   device_name:          "cloud-lamp"   # ESPHome internal name (lowercase, hyphens only)
   device_friendly_name: "Cloud-Lamp"   # Human-readable display name (web app title)
 
   # --- Firmware version (bump for every release; used by the online updater) ---
-  project_version: "2.0.0"
+  project_version: "2.1.1"
 
   # --- LED ring count ---
   # ring_count is informational only — it is never referenced directly in the firmware.
@@ -67,9 +67,10 @@ substitutions:
                              # (web/app.html, BRI_MIN constant).
 
   # --- Wi-Fi setup hotspot (captive portal) ---
-  # SSID is generated at runtime as "Cloud-Lamp-XXXX" (XXXX = last 4 hex digits
-  # of the chip MAC, uppercase). Printed on the product sticker together with
-  # this password. Not a secret — it is public on every sticker.
+  # SSID is generated at runtime as "Cloud-Lamp-XXXXXX" (XXXXXX = last 6 hex
+  # digits of the chip MAC, uppercase — same parent as the .local hostname).
+  # Printed on the product sticker together with this password. Not a secret —
+  # it is public on every sticker.
   wifi_ap_password: "cloud-lamp"
 
   # --- Online updates ---
@@ -112,10 +113,9 @@ packages:
 #  CORE ESPHOME CONFIG
 # ================================================================
 esphome:
-  # Hostname becomes cloud-lamp-<last6 MAC hex>, e.g. cloud-lamp-cfb911.local —
-  # unique per chip so several lamps on one network don't fight over one mDNS name.
-  # The sticker serial stays the shorter last-4 form (Cloud-Lamp-B911); both share
-  # the same MAC ending. Captive-portal onboarding is unchanged (AP SSID / 192.168.4.1).
+  # Hostname becomes cloud-lamp-<last6 MAC hex>, e.g. cloud-lamp-cfb911.local.
+  # The same six digits (uppercase) are the sticker / AP / header serial
+  # (Cloud-Lamp-CFB911). Captive-portal onboarding still uses 192.168.4.1.
   name: ${device_name}
   friendly_name: ${device_friendly_name}
   name_add_mac_suffix: true
@@ -125,13 +125,13 @@ esphome:
 
   on_boot:
     # ---- Stage 1 (priority 600): set the setup-hotspot SSID to
-    # "Cloud-Lamp-XXXX" (XXXX = last 4 hex digits of the MAC, uppercase)
-    # before the Wi-Fi component starts.
+    # "Cloud-Lamp-XXXXXX" (XXXXXX = last 6 hex digits of the MAC, uppercase)
+    # before the Wi-Fi component starts — same parent as the .local name.
     - priority: 600
       then:
         - lambda: |-
             std::string mac = get_mac_address();  // 12 lowercase hex chars
-            std::string serial = mac.substr(mac.size() - 4);
+            std::string serial = mac.substr(mac.size() - 6);
             for (auto &c : serial) c = ::toupper(c);
             wifi::WiFiAP ap;
             ap.set_ssid("Cloud-Lamp-" + serial);
@@ -174,7 +174,7 @@ wifi:
   # captive portal; those credentials are stored in flash (survive updates).
   # The builder's dev build (cloud-lamp-dev.yaml) adds compiled-in networks.
   ap:
-    # Placeholder — replaced at runtime in on_boot stage 1 with "Cloud-Lamp-XXXX".
+    # Placeholder — replaced at runtime in on_boot stage 1 with "Cloud-Lamp-XXXXXX".
     ssid: "Cloud-Lamp"
     password: "${wifi_ap_password}"
     # How long STA must be down before the setup hotspot appears. Kept short
@@ -514,6 +514,22 @@ binary_sensor:
 # ================================================================
 #  SETTINGS ENTITIES — exposed to the web app via the REST API
 # ================================================================
+number:
+  # Global animation speed for effects that move (1 = calm, 50 = default,
+  # 100 = lively). Solid colours and Night Light ignore this. Lambdas read
+  # id(effect_speed).state live — no reflash needed to tune.
+  - platform: template
+    name: "Effect Speed"         # REST object_id: effect_speed
+    id: effect_speed
+    min_value: 1
+    max_value: 100
+    step: 1
+    initial_value: 50
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    mode: slider
+
 select:
   - platform: template
     name: "Power Behavior"       # REST object_id: power_behavior
@@ -538,7 +554,7 @@ button:
     entity_category: diagnostic
 
   # Forget the current home Wi-Fi and reopen the setup hotspot
-  # (Cloud-Lamp-XXXX). Never disables the radio and never clears the AP
+  # (Cloud-Lamp-XXXXXX). Never disables the radio and never clears the AP
   # password — the sticker credentials always remain a way back in.
   - platform: template
     name: "Reset WiFi"           # REST object_id: reset_wifi
@@ -554,7 +570,7 @@ button:
           wifi::global_wifi_component->clear_sta();
           // 3) Re-assert the per-device AP identity (same as on_boot).
           std::string mac = get_mac_address();
-          std::string serial = mac.substr(mac.size() - 4);
+          std::string serial = mac.substr(mac.size() - 6);
           for (auto &c : serial) c = ::toupper(c);
           wifi::WiFiAP ap;
           ap.set_ssid("Cloud-Lamp-" + serial);

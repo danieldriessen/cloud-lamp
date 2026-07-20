@@ -15,10 +15,12 @@ namespace cloud_lamp_web {
 
 static const char *const TAG = "cloud_lamp_web";
 
-// Serial = last two MAC bytes, uppercase hex -> 4 characters, e.g. "3F2A".
+// Serial = last three MAC bytes, uppercase hex -> 6 characters, e.g. "CFB911".
+// Same suffix as the mDNS hostname (cloud-lamp-cfb911) and the setup AP
+// (Cloud-Lamp-CFB911) so every user-facing identity uses one parent code.
 static std::string device_serial() {
   std::string mac = get_mac_address();  // 12 lowercase hex chars
-  std::string serial = mac.substr(mac.size() - 4);
+  std::string serial = mac.substr(mac.size() - 6);
   for (auto &c : serial)
     c = ::toupper(c);
   return serial;
@@ -121,7 +123,7 @@ void CloudLampWeb::handle_png_(AsyncWebServerRequest *request, const uint8_t *da
 }
 
 void CloudLampWeb::handle_device_info_(AsyncWebServerRequest *request) {
-  // name = unique mDNS hostname (cloud-lamp-<mac6>); serial = sticker XXXX (last 4).
+  // name/hostname = cloud-lamp-<mac6>; serial = same six hex digits, uppercase.
   std::string json = "{\"name\":\"" + App.get_name() +
                      "\",\"friendly_name\":\"" + App.get_friendly_name() +
                      "\",\"serial\":\"" + device_serial() +

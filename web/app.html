@@ -37,24 +37,31 @@
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     [hidden]{display:none !important}
-    /* Full-bleed canvas on iOS: avoid background-attachment:fixed (broken on
-       Safari) and paint past the safe areas / bounce zones so nothing clips. */
+    /* Full-bleed canvas on iOS (PWA / black-translucent status bar):
+       paint the same base colour on html+body, and a fixed layer that
+       deliberately extends past the visual viewport / safe areas so rubber-
+       band bounce and notch/home-indicator bands never flash a different colour. */
     html{
-      margin:0;height:100%;background:var(--bg1);
+      margin:0;padding:0;height:100%;
+      background-color:var(--bg0);
       -webkit-text-size-adjust:none;text-size-adjust:none;
     }
     body{
-      margin:0;min-height:100%;min-height:100dvh;min-height:-webkit-fill-available;
+      margin:0;padding:0;
+      min-height:100%;min-height:100svh;min-height:100dvh;min-height:-webkit-fill-available;
       font-family:var(--font);color:var(--text);
-      background:var(--bg1);
+      background-color:var(--bg0);
       overscroll-behavior:none;
       -webkit-user-select:none;user-select:none;
       -webkit-touch-callout:none;
     }
-    body::before{
-      content:"";position:fixed;z-index:0;pointer-events:none;
-      left:0;right:0;top:calc(-1 * env(safe-area-inset-top, 0px) - 40vh);
-      bottom:calc(-1 * env(safe-area-inset-bottom, 0px) - 40vh);
+    .app-bg{
+      position:fixed;z-index:0;pointer-events:none;
+      left:50%;top:50%;
+      width:100vw;height:100vh;height:100dvh;
+      /* Oversized so safe-area / bounce never reveals a seam */
+      min-width:120vw;min-height:140vh;min-height:140dvh;
+      transform:translate(-50%,-50%);
       background:
         radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),
         radial-gradient(850px 550px at 95% 18%, rgba(124,240,201,.08), transparent 60%),
@@ -63,7 +70,7 @@
     }
     .wrap{
       position:relative;z-index:1;max-width:520px;margin:0 auto;
-      min-height:100dvh;min-height:-webkit-fill-available;
+      min-height:100svh;min-height:100dvh;min-height:-webkit-fill-available;
       padding:calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
     }
 
@@ -180,9 +187,9 @@
       display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;
       padding:22px 0 4px;
     }
-    .maker img{height:26px;opacity:.55;transition:opacity .2s}
+    .maker img{height:34px;opacity:.55;transition:opacity .2s}
     .maker img:active{opacity:.85}
-    .maker .copy{font-size:12px;color:var(--muted);opacity:.80;letter-spacing:.3px;margin-top:2px}
+    .maker .copy{font-size:10px;color:var(--muted);opacity:.75;letter-spacing:.3px;margin-top:2px}
 
     /* Install-app entry (replaces the old always-on tip banner) */
     .install-entry .btn{font-size:14px;font-weight:700;min-height:44px}
@@ -207,7 +214,6 @@
       font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
       word-break:break-all;color:#cfe4ff;user-select:text;-webkit-user-select:text;
     }
-    .install-note{font-size:12.5px;color:var(--muted);line-height:1.45;padding:12px 14px}
 
     /* Sheet (settings) — centred bottom sheet, same max width as the main view.
        Body scroll is locked while open (see openSettings/closeSettings). */
@@ -307,6 +313,7 @@
   </style>
 </head>
 <body role="application">
+  <div class="app-bg" aria-hidden="true"></div>
   <div class="wrap">
     <header>
       <div class="brand">
@@ -353,6 +360,19 @@
         </svg>
         <input type="range" id="briSlider" min="10" max="100" value="70">
         <div class="bri-val" id="briVal">—</div>
+      </div>
+    </div>
+
+    <div class="card" id="speedCard" hidden>
+      <div class="sec-label" data-i18n="speed">Speed</div>
+      <div class="bri-row">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 12l4.5-4.5"/>
+          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+        </svg>
+        <input type="range" id="spdSlider" min="1" max="100" value="50">
+        <div class="bri-val" id="spdVal">—</div>
       </div>
     </div>
 
@@ -471,20 +491,16 @@
         <div class="g-card">
           <ol class="install-steps">
             <li>
-              <span data-i18n="install_step1">On this iPhone, open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.</span>
+              <span data-i18n="install_step1">Open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.</span>
             </li>
             <li>
-              <span data-i18n="install_step2">In Safari, open this lamp’s address (type it with http:// — do not use a search link):</span>
+              <span data-i18n="install_step2">In Safari, open this lamp’s address (type it with http:// — do not search for it):</span>
               <span class="url" id="installUrlCanonical">http://cloud-lamp.local/</span>
             </li>
             <li>
               <span data-i18n="install_step3">Tap Share → Add to Home Screen → Add. The lamp then opens like an app.</span>
             </li>
           </ol>
-          <div class="install-note">
-            <span data-i18n="install_note_multi">Each lamp has its own address (hostname ends with part of the chip serial). Use the address for this lamp only — not a shared name.</span>
-            <span class="url" id="installUrlCurrent" style="margin-top:8px"></span>
-          </div>
         </div>
       </div>
     </div>
@@ -520,7 +536,7 @@
     { code:"fr", flag:"🇫🇷", name:"Français" },
   ];
   const I18N = {
-    en:{brightness:"Brightness",effects:"Effects",settings:"Settings",general:"General",language:"Language",
+    en:{brightness:"Brightness",speed:"Speed",effects:"Effects",settings:"Settings",general:"General",language:"Language",
       power_behavior:"After power cut",power_behavior_d:"Behaviour when power returns",
       beh_off:"Start switched off",beh_restore:"Restore last state",network:"Network",wifi_network:"Wi-Fi network",
       signal:"Signal",ip_address:"IP address",uptime:"Uptime",mqtt_enabled:"MQTT enabled",
@@ -532,19 +548,17 @@
       offline:"Offline",update_available:"Update available",up_to_date:"Up to date",installing:"Installing… the lamp restarts by itself",
       restart_q:"Restart the lamp?",restart_s:"The lamp will be back in about 10 seconds. Your settings are kept.",
       factory_q:"Reset everything?",factory_s:"Deletes the saved Wi-Fi network and all settings. The lamp then opens its setup hotspot again (see sticker on the back).",
-      wifi_q:"Change Wi-Fi network?",wifi_s:"The lamp leaves this network and opens its setup hotspot (Cloud-Lamp-XXXX on the sticker). Other settings stay. Connect to that hotspot to choose a new network — you cannot stay in this page after confirming.",
+      wifi_q:"Change Wi-Fi network?",wifi_s:"The lamp leaves this network and opens its setup hotspot (Cloud-Lamp-XXXXXX on the sticker). Other settings stay. Connect to that hotspot to choose a new network — you cannot stay in this page after confirming.",
       wifi_done:"Opening setup hotspot…",
       restarting:"Restarting…",done:"Done",failed:"Action failed",fw_checks:"The lamp checks for updates every 6 hours (and shortly after power-on).",
       install_app_btn:"Create a remote control app",
       install_app_title:"Remote control app",
       install_app_how:"How to add it",
-      install_step1:"On this iPhone, open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.",
-      install_step2:"In Safari, open this lamp’s own address (type it with http:// — do not search for it):",
+      install_step1:"Open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.",
+      install_step2:"In Safari, open this lamp’s address (type it with http:// — do not search for it):",
       install_step3:"Tap Share → Add to Home Screen → Add. The lamp then opens like an app.",
-      install_note_multi:"Each lamp has its own .local address (unique per chip). Use the address shown above for this lamp only. The setup hotspot on the sticker (Cloud-Lamp-XXXX) is unchanged for Wi-Fi onboarding.",
-      install_current:"Address you are using now:",
       day:"d",hour:"h",min:"m"},
-    de:{brightness:"Helligkeit",effects:"Effekte",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
+    de:{brightness:"Helligkeit",speed:"Geschwindigkeit",effects:"Effekte",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
       power_behavior:"Nach Stromausfall",power_behavior_d:"Verhalten, wenn der Strom zurückkehrt",
       beh_off:"Ausgeschaltet starten",beh_restore:"Letzten Zustand wiederherstellen",network:"Netzwerk",wifi_network:"WLAN-Netzwerk",
       signal:"Signal",ip_address:"IP-Adresse",uptime:"Laufzeit",mqtt_enabled:"MQTT aktiviert",
@@ -556,19 +570,17 @@
       offline:"Offline",update_available:"Update verfügbar",up_to_date:"Aktuell",installing:"Wird installiert… die Lampe startet selbst neu",
       restart_q:"Lampe neu starten?",restart_s:"Die Lampe ist in ca. 10 Sekunden wieder da. Einstellungen bleiben erhalten.",
       factory_q:"Alles zurücksetzen?",factory_s:"Löscht das gespeicherte WLAN und alle Einstellungen. Die Lampe öffnet danach wieder ihren Einrichtungs-Hotspot (siehe Aufkleber auf der Rückseite).",
-      wifi_q:"WLAN wechseln?",wifi_s:"Die Lampe verlässt dieses Netz und öffnet ihren Einrichtungs-Hotspot (Cloud-Lamp-XXXX auf dem Aufkleber). Andere Einstellungen bleiben. Verbinde dich mit dem Hotspot, um ein neues Netz zu wählen — diese Seite ist danach nicht mehr erreichbar.",
+      wifi_q:"WLAN wechseln?",wifi_s:"Die Lampe verlässt dieses Netz und öffnet ihren Einrichtungs-Hotspot (Cloud-Lamp-XXXXXX auf dem Aufkleber). Andere Einstellungen bleiben. Verbinde dich mit dem Hotspot, um ein neues Netz zu wählen — diese Seite ist danach nicht mehr erreichbar.",
       wifi_done:"Einrichtungs-Hotspot wird geöffnet…",
       restarting:"Neustart…",done:"Fertig",failed:"Aktion fehlgeschlagen",fw_checks:"Die Lampe sucht alle 6 Stunden (und kurz nach dem Einschalten) nach Updates.",
       install_app_btn:"Fernbedienungs-App erstellen",
       install_app_title:"Fernbedienungs-App",
       install_app_how:"So fügst du sie hinzu",
-      install_step1:"Öffne auf diesem iPhone Einstellungen → Apps → Safari und schalte „Warnung bei unsicherer Verbindung“ aus.",
-      install_step2:"Öffne in Safari die eigene Adresse dieser Lampe (mit http:// eintippen — nicht über die Suche):",
+      install_step1:"Öffne Einstellungen → Apps → Safari und schalte „Warnung bei unsicherer Verbindung“ aus.",
+      install_step2:"Öffne in Safari die Adresse dieser Lampe (mit http:// eintippen — nicht über die Suche):",
       install_step3:"Tippe auf Teilen → Zum Home-Bildschirm → Hinzufügen. Die Lampe öffnet sich danach wie eine App.",
-      install_note_multi:"Jede Lampe hat ihre eigene .local-Adresse (eindeutig pro Chip). Nutze nur die Adresse oben für genau diese Lampe. Der Einrichtungs-Hotspot auf dem Aufkleber (Cloud-Lamp-XXXX) bleibt für die WLAN-Einrichtung unverändert.",
-      install_current:"Adresse, die du gerade nutzt:",
       day:"T",hour:"Std",min:"Min"},
-    es:{brightness:"Brillo",effects:"Efectos",settings:"Ajustes",general:"General",language:"Idioma",
+    es:{brightness:"Brillo",speed:"Velocidad",effects:"Efectos",settings:"Ajustes",general:"General",language:"Idioma",
       power_behavior:"Tras un corte de luz",power_behavior_d:"Comportamiento al volver la corriente",
       beh_off:"Arrancar apagada",beh_restore:"Restaurar el último estado",network:"Red",wifi_network:"Red Wi-Fi",
       signal:"Señal",ip_address:"Dirección IP",uptime:"Tiempo encendida",mqtt_enabled:"MQTT activado",
@@ -580,19 +592,17 @@
       offline:"Sin conexión",update_available:"Actualización disponible",up_to_date:"Actualizado",installing:"Instalando… la lámpara se reinicia sola",
       restart_q:"¿Reiniciar la lámpara?",restart_s:"La lámpara volverá en unos 10 segundos. Se conservan los ajustes.",
       factory_q:"¿Restablecer todo?",factory_s:"Borra la red Wi-Fi guardada y todos los ajustes. Después, la lámpara vuelve a abrir su punto de acceso de configuración (ver etiqueta trasera).",
-      wifi_q:"¿Cambiar la red Wi-Fi?",wifi_s:"La lámpara sale de esta red y abre su punto de acceso de configuración (Cloud-Lamp-XXXX en la etiqueta). El resto de ajustes se conservan. Conéctate a ese punto de acceso para elegir una red nueva: esta página dejará de estar disponible.",
+      wifi_q:"¿Cambiar la red Wi-Fi?",wifi_s:"La lámpara sale de esta red y abre su punto de acceso de configuración (Cloud-Lamp-XXXXXX en la etiqueta). El resto de ajustes se conservan. Conéctate a ese punto de acceso para elegir una red nueva: esta página dejará de estar disponible.",
       wifi_done:"Abriendo el punto de acceso…",
       restarting:"Reiniciando…",done:"Hecho",failed:"La acción falló",fw_checks:"La lámpara busca actualizaciones cada 6 horas (y poco después de encenderse).",
       install_app_btn:"Crear una app de control",
       install_app_title:"App de control",
       install_app_how:"Cómo añadirla",
-      install_step1:"En este iPhone, ve a Ajustes → Apps → Safari y desactiva «Aviso de conexión no segura».",
-      install_step2:"En Safari, abre la dirección propia de esta lámpara (escríbela con http:// — no la busques):",
+      install_step1:"Ve a Ajustes → Apps → Safari y desactiva «Aviso de conexión no segura».",
+      install_step2:"En Safari, abre la dirección de esta lámpara (escríbela con http:// — no la busques):",
       install_step3:"Toca Compartir → Añadir a pantalla de inicio → Añadir. La lámpara se abrirá como una app.",
-      install_note_multi:"Cada lámpara tiene su propia dirección .local (única por chip). Usa solo la dirección de arriba para esta lámpara. El punto de acceso de la etiqueta (Cloud-Lamp-XXXX) no cambia para la configuración Wi-Fi.",
-      install_current:"Dirección que estás usando ahora:",
       day:"d",hour:"h",min:"min"},
-    fr:{brightness:"Luminosité",effects:"Effets",settings:"Réglages",general:"Général",language:"Langue",
+    fr:{brightness:"Luminosité",speed:"Vitesse",effects:"Effets",settings:"Réglages",general:"Général",language:"Langue",
       power_behavior:"Après une coupure",power_behavior_d:"Comportement au retour du courant",
       beh_off:"Démarrer éteinte",beh_restore:"Restaurer le dernier état",network:"Réseau",wifi_network:"Réseau Wi-Fi",
       signal:"Signal",ip_address:"Adresse IP",uptime:"En marche depuis",mqtt_enabled:"MQTT activé",
@@ -604,38 +614,36 @@
       offline:"Hors ligne",update_available:"Mise à jour disponible",up_to_date:"À jour",installing:"Installation… la lampe redémarre toute seule",
       restart_q:"Redémarrer la lampe ?",restart_s:"La lampe revient dans environ 10 secondes. Les réglages sont conservés.",
       factory_q:"Tout réinitialiser ?",factory_s:"Efface le réseau Wi-Fi enregistré et tous les réglages. La lampe rouvre ensuite son point d'accès de configuration (voir l'étiquette au dos).",
-      wifi_q:"Changer de réseau Wi-Fi ?",wifi_s:"La lampe quitte ce réseau et ouvre son point d'accès de configuration (Cloud-Lamp-XXXX sur l'étiquette). Les autres réglages sont conservés. Connectez-vous à ce point d'accès pour choisir un nouveau réseau — cette page ne sera plus accessible.",
+      wifi_q:"Changer de réseau Wi-Fi ?",wifi_s:"La lampe quitte ce réseau et ouvre son point d'accès de configuration (Cloud-Lamp-XXXXXX sur l'étiquette). Les autres réglages sont conservés. Connectez-vous à ce point d'accès pour choisir un nouveau réseau — cette page ne sera plus accessible.",
       wifi_done:"Ouverture du point d'accès…",
       restarting:"Redémarrage…",done:"Terminé",failed:"L'action a échoué",fw_checks:"La lampe recherche les mises à jour toutes les 6 heures (et peu après la mise sous tension).",
       install_app_btn:"Créer une appli de télécommande",
       install_app_title:"Appli de télécommande",
       install_app_how:"Comment l'ajouter",
-      install_step1:"Sur cet iPhone, ouvrez Réglages → Apps → Safari et désactivez « Alerte de connexion non sécurisée ».",
-      install_step2:"Dans Safari, ouvrez l'adresse propre à cette lampe (tapez-la avec http:// — ne passez pas par la recherche) :",
+      install_step1:"Ouvrez Réglages → Apps → Safari et désactivez « Alerte de connexion non sécurisée ».",
+      install_step2:"Dans Safari, ouvrez l'adresse de cette lampe (tapez-la avec http:// — ne passez pas par la recherche) :",
       install_step3:"Touchez Partager → Sur l'écran d'accueil → Ajouter. La lampe s'ouvre alors comme une appli.",
-      install_note_multi:"Chaque lampe a sa propre adresse .local (unique par puce). Utilisez uniquement l'adresse ci-dessus pour cette lampe. Le point d'accès de l'étiquette (Cloud-Lamp-XXXX) reste inchangé pour le Wi-Fi.",
-      install_current:"Adresse que vous utilisez maintenant :",
       day:"j",hour:"h",min:"min"},
   };
   // Effect display names per language (fallback: raw firmware name)
   const FX_NAMES = {
     en:{}, // firmware names are English already
-    de:{"Warm White":"Warmweiß","White":"Weiß","Sky Blue":"Himmelblau","Cyan":"Cyan","Blue":"Blau",
+    de:{"Warm White":"Warmweiß","White":"Weiß","Latte Brown":"Milchkaffee-Braun","Sky Blue":"Himmelblau","Cyan":"Cyan","Blue":"Blau",
         "Indigo":"Indigo","Violet":"Violett","Sky Breathing":"Himmel-Atmen","Aurora Drift":"Aurora",
         "Candlelight":"Kerzenlicht","Night Light":"Nachtlicht","Twinkle":"Sternenfunkeln",
-        "Color Wipe":"Farbverlauf","Rainbow":"Regenbogen","Pulse":"Pulsieren","Thunderstorm":"Gewitter"},
-    es:{"Warm White":"Blanco cálido","White":"Blanco","Sky Blue":"Azul cielo","Cyan":"Cian","Blue":"Azul",
+        "Color Wipe":"Farbverlauf","Rainbow":"Regenbogen","Pulse":"Pulsieren"},
+    es:{"Warm White":"Blanco cálido","White":"Blanco","Latte Brown":"Marrón Latte","Sky Blue":"Azul cielo","Cyan":"Cian","Blue":"Azul",
         "Indigo":"Índigo","Violet":"Violeta","Sky Breathing":"Cielo respirante","Aurora Drift":"Aurora",
         "Candlelight":"Luz de vela","Night Light":"Luz nocturna","Twinkle":"Destellos",
-        "Color Wipe":"Barrido de color","Rainbow":"Arcoíris","Pulse":"Pulso","Thunderstorm":"Tormenta"},
-    fr:{"Warm White":"Blanc chaud","White":"Blanc","Sky Blue":"Bleu ciel","Cyan":"Cyan","Blue":"Bleu",
+        "Color Wipe":"Barrido de color","Rainbow":"Arcoíris","Pulse":"Pulso"},
+    fr:{"Warm White":"Blanc chaud","White":"Blanc","Latte Brown":"Café au lait","Sky Blue":"Bleu ciel","Cyan":"Cyan","Blue":"Bleu",
         "Indigo":"Indigo","Violet":"Violet","Sky Breathing":"Ciel respirant","Aurora Drift":"Aurore",
         "Candlelight":"Bougie","Night Light":"Veilleuse","Twinkle":"Scintillement",
-        "Color Wipe":"Balayage de couleur","Rainbow":"Arc-en-ciel","Pulse":"Pulsation","Thunderstorm":"Orage"},
+        "Color Wipe":"Balayage de couleur","Rainbow":"Arc-en-ciel","Pulse":"Pulsation"},
   };
   // Swatch colours for known effects (CSS backgrounds)
   const FX_SWATCH = {
-    "Warm White":"#ffd9a0","White":"#f4f7ff","Sky Blue":"#5aaaff","Cyan":"#19e3e3","Blue":"#2b50ff",
+    "Warm White":"#ffd9a0","White":"#f4f7ff","Latte Brown":"#D3B7A7","Sky Blue":"#5aaaff","Cyan":"#19e3e3","Blue":"#2b50ff",
     "Indigo":"#4b0082","Violet":"#8a2be2",
     "Sky Breathing":"linear-gradient(135deg,#4696ff,#0ad2eb)",
     "Aurora Drift":"linear-gradient(135deg,#28c8dc,#8c5aeb)",
@@ -644,7 +652,6 @@
     "Color Wipe":"linear-gradient(135deg,#008cff,#5940ff,#00bfe6)",
     "Rainbow":"linear-gradient(135deg,#ff4040,#ffc040,#40ff70,#40c8ff,#a040ff)",
     "Pulse":"radial-gradient(circle,#cfe4ff 20%,#3a5a8c 100%)",
-    "Thunderstorm":"linear-gradient(135deg,#1c2640,#8ea4d0)",
   };
 
   // English is the default; other languages are an explicit user choice.
@@ -659,6 +666,8 @@
     });
     renderEffects();
     renderPower();
+    renderBrightness();
+    renderSpeed();
     renderConn();
     renderUpdate();
     renderNet();
@@ -670,14 +679,20 @@
   // Lower brightness limit in % — keep in sync with the firmware's
   // brightness_min substitution (cloud-lamp.yaml) and the slider's min above.
   const BRI_MIN = 10;
+  // Effects that honour the Effect Speed number entity (solids / Night Light do not).
+  const SPEED_FX = new Set([
+    "Sky Breathing","Aurora Drift","Candlelight","Twinkle",
+    "Color Wipe","Rainbow","Pulse",
+  ]);
   const st = {
-    connected:false, on:false, brightness:70, effect:"None", effects:[],
+    connected:false, on:false, brightness:70, speed:50, effect:"None", effects:[],
     ssid:"—", rssi:null, ip:"—", uptime:null,
     hostname:"", serial:"",
     fwCur:"—", fwLatest:null, fwInstalling:false, fwProgress:null,
     mqttPresent:false, mqttOn:false,
   };
   let briDragging = false;
+  let spdDragging = false;
 
   /* ---------------- Rendering ---------------- */
   function renderConn(){
@@ -697,6 +712,19 @@
     s.value = st.brightness;
     s.style.setProperty("--fill", ((st.brightness - BRI_MIN) / (100 - BRI_MIN) * 100) + "%");
     $("briVal").textContent = st.brightness + " %";
+  }
+  function effectSupportsSpeed(name){
+    return !!(name && SPEED_FX.has(name));
+  }
+  function renderSpeed(){
+    const card = $("speedCard");
+    const show = st.on && effectSupportsSpeed(st.effect);
+    card.hidden = !show;
+    if (!show || spdDragging) return;
+    const s = $("spdSlider");
+    s.value = st.speed;
+    s.style.setProperty("--fill", ((st.speed - 1) / 99 * 100) + "%");
+    $("spdVal").textContent = String(st.speed);
   }
   // Rebuild the grid only when the effect list or language changes; selection
   // highlighting is a cheap class toggle so taps feel instant on iOS.
@@ -783,24 +811,29 @@
   // Other phones still catch up from the event stream within ~1 s.
   function setOn(){
     st.on = true;
-    renderPower(); renderEffects();
+    renderPower(); renderEffects(); renderSpeed();
     act(() => post(`/light/${LIGHT_ID}/turn_on`)).catch(() => {});
   }
   function setOff(){
     st.on = false;
-    renderPower(); renderEffects();
+    renderPower(); renderEffects(); renderSpeed();
     act(() => post(`/light/${LIGHT_ID}/turn_off`)).catch(() => {});
   }
   function setEffect(name){
     st.on = true;
     st.effect = name;
-    renderPower(); renderEffects();
+    renderPower(); renderEffects(); renderSpeed();
     act(() => post(`/light/${LIGHT_ID}/turn_on?effect=${encodeURIComponent(name)}`)).catch(() => {});
   }
   function setBrightness(pct){
     st.brightness = pct;
     renderBrightness();
     act(() => post(`/light/${LIGHT_ID}/turn_on?brightness=${Math.round(pct*255/100)}`)).catch(() => {});
+  }
+  function setSpeed(pct){
+    st.speed = pct;
+    renderSpeed();
+    act(() => post(`/number/effect_speed/set?value=${pct}`)).catch(() => {});
   }
 
   /* ---------------- SSE / state ingestion ---------------- */
@@ -819,8 +852,15 @@
         st.on = nextOn;
         st.effect = nextFx;
         st.brightness = nextBri;
-        if (onChanged || fxChanged) { renderPower(); renderEffects(); }
+        if (onChanged || fxChanged) { renderPower(); renderEffects(); renderSpeed(); }
         if (briChanged) renderBrightness();
+        break;
+      }
+      case "number-effect_speed": {
+        const v = typeof data.value === "number" ? data.value : parseFloat(data.value);
+        if (!Number.isFinite(v)) break;
+        const next = Math.max(1, Math.min(100, Math.round(v)));
+        if (next !== st.speed) { st.speed = next; renderSpeed(); }
         break;
       }
       case "select-power_behavior":
@@ -912,9 +952,14 @@
       if (r.ok) { const j = await r.json(); if (j.value) $("pwrBehSel").value = j.value; }
     } catch {}
     try {
+      const r = await fetch("/number/effect_speed", { cache:"no-store" });
+      if (r.ok) ingest(Object.assign({ id:"number-effect_speed" }, await r.json()));
+    } catch {}
+    try {
       const r = await fetch("/update/firmware", { cache:"no-store" });
       if (r.ok) ingest(Object.assign({ id:"update-firmware" }, await r.json()));
     } catch {}
+    renderSpeed();
   }
 
   /* ---------------- UI events ---------------- */
@@ -932,6 +977,20 @@
     briDragging = false;
     st.brightness = v;
     setBrightness(v);
+  });
+
+  const spdSlider = $("spdSlider");
+  spdSlider.addEventListener("input", () => {
+    spdDragging = true;
+    const v = parseInt(spdSlider.value, 10);
+    spdSlider.style.setProperty("--fill", ((v - 1) / 99 * 100) + "%");
+    $("spdVal").textContent = String(v);
+  });
+  spdSlider.addEventListener("change", () => {
+    const v = parseInt(spdSlider.value, 10);
+    spdDragging = false;
+    st.speed = v;
+    setSpeed(v);
   });
 
   // Modal helpers — lock background scroll while any sheet is open
@@ -959,8 +1018,6 @@
     const host = st.hostname || location.hostname.replace(/\.local$/i, "");
     const canonical = host ? `http://${host}.local/` : `http://${location.host}/`;
     $("installUrlCanonical").textContent = canonical;
-    const cur = $("installUrlCurrent");
-    cur.textContent = `${t("install_current")} http://${location.host}/`;
   }
   function openInstall(){
     renderInstallUrls();
@@ -1048,9 +1105,30 @@
     act(() => post("/update/firmware/install"));
   });
 
-  // Show the install entry when not already running as a home-screen app
-  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
-  $("installEntry").hidden = !!isStandalone;
+  // "Create a remote control app" — iPhone / iPad only, and only while this
+  // device has not already launched the home-screen PWA at least once.
+  // Gate on `navigator.standalone` being a boolean: that property exists only
+  // in iOS / iPadOS WebKit. Desktop Chrome/Safari leave it undefined, so Mac
+  // never matches (unlike the old MacIntel+maxTouchPoints heuristic).
+  const PWA_INSTALLED_KEY = "cl.pwaInstalled";
+  function isIosOrIpadOs(){
+    return typeof navigator.standalone === "boolean";
+  }
+  function isStandalonePwa(){
+    return navigator.standalone === true ||
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: fullscreen)").matches;
+  }
+  if (isStandalonePwa()) {
+    try { localStorage.setItem(PWA_INSTALLED_KEY, "1"); } catch {}
+  }
+  function shouldShowInstallEntry(){
+    if (!isIosOrIpadOs()) return false;
+    if (isStandalonePwa()) return false;
+    try { if (localStorage.getItem(PWA_INSTALLED_KEY) === "1") return false; } catch {}
+    return true;
+  }
+  $("installEntry").hidden = !shouldShowInstallEntry();
 
   /* ---------------- Start ---------------- */
   applyI18n();

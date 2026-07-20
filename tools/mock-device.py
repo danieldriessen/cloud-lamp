@@ -20,14 +20,15 @@ from pathlib import Path
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8932
 ROOT = Path(__file__).resolve().parent.parent
 
-EFFECTS = ["Warm White", "White", "Sky Blue", "Cyan", "Blue", "Indigo", "Violet",
+EFFECTS = ["White", "Warm White", "Latte Brown", "Sky Blue", "Cyan", "Blue", "Indigo", "Violet",
            "Sky Breathing", "Aurora Drift", "Candlelight", "Night Light",
-           "Twinkle", "Color Wipe", "Rainbow", "Pulse", "Thunderstorm"]
+           "Twinkle", "Color Wipe", "Rainbow", "Pulse"]
 
 state = {
     "on": False,
     "brightness": 178,   # 0-255
     "effect": "Sky Breathing",
+    "speed": 50,         # effect_speed 1–100
     "power_behavior": "Start Off",
     "mqtt": True,
     "fw_installing": False,
@@ -53,8 +54,8 @@ def update_json():
     return {
         "id": "update-firmware",
         "state": "INSTALLING" if state["fw_installing"] else "AVAILABLE",
-        "current_version": "2.0.0",
-        "latest_version": "2.1.0",
+        "current_version": "2.1.1",
+        "latest_version": "2.1.1",
         "has_progress": state["fw_installing"],
         "progress": state["fw_progress"],
     }
@@ -99,14 +100,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/device.json":
             self._send(200, json.dumps({
                 "name": "cloud-lamp-dd3f2a", "friendly_name": "Cloud-Lamp-dd3f2a",
-                "hostname": "cloud-lamp-dd3f2a", "serial": "3F2A",
-                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.0.0",
+                "hostname": "cloud-lamp-dd3f2a", "serial": "DD3F2A",
+                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.1",
             }).encode())
         elif path == "/manifest.json":
             self._send(200, json.dumps({"name": "Cloud-Lamp", "display": "standalone"}).encode())
         elif path == "/light/cloud_light":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._send(200, json.dumps(light_json(q.get("detail") == ["all"])).encode())
+        elif path == "/number/effect_speed":
+            self._send(200, json.dumps({"id": "number-effect_speed", "value": state["speed"],
+                                        "min_value": 1, "max_value": 100, "step": 1}).encode())
         elif path == "/select/power_behavior":
             self._send(200, json.dumps({"id": "select-power_behavior", "value": state["power_behavior"]}).encode())
         elif path == "/switch/mqtt_enabled":
@@ -127,6 +131,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         {"id": "sensor-uptime", "value": 93784},
                         {"id": "text_sensor-ip_address", "value": "192.168.2.117"},
                         {"id": "text_sensor-connected_ssid", "value": "MyHomeWiFi"},
+                        {"id": "number-effect_speed", "value": state["speed"]},
                         {"id": "select-power_behavior", "value": state["power_behavior"]},
                         {"id": "switch-mqtt_enabled", "state": "ON" if state["mqtt"] else "OFF"}):
                 self.wfile.write(f"event: state\ndata: {json.dumps(obj)}\n\n".encode())
@@ -151,6 +156,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             state["on"] = False
             self._send(200)
             broadcast(light_json())
+        elif path == "/number/effect_speed/set":
+            state["speed"] = max(1, min(100, int(float(q.get("value", ["50"])[0]))))
+            self._send(200)
+            broadcast({"id": "number-effect_speed", "value": state["speed"]})
         elif path == "/select/power_behavior/set":
             state["power_behavior"] = q.get("option", ["Start Off"])[0]
             self._send(200)

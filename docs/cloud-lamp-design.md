@@ -16,12 +16,10 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.0.0 deployed to hardware. Verified on-device: boot, Wi-Fi, web app
-> (HTML/icon/logo/device.json), MQTT connect + state publishing, push OTA.
-> **Still open:** test button gestures, captive-portal flow and online update end-to-end
-> on the real lamp; review effects (one v1 effect slated for removal); possibly replace
-> the provisional app icon; print product stickers; publish the 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.0.0
+> **Phase:** v2.1.1 — effect speed, Latte Brown, unified 6-hex serial, install-sheet polish.
+> **Still open:** intensity slider (per-effect mapping); test button gestures / captive
+> portal end-to-end; provisional app icon; product stickers; 3D print files.
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.1
 
 ---
 
@@ -116,7 +114,7 @@ Two ways, both deliberate:
 
 ### Boot sequence
 
-1. **Priority 600:** the setup-hotspot SSID is set to `Cloud-Lamp-XXXX` (XXXX = last 4 hex
+1. **Priority 600:** the setup-hotspot SSID is set to `Cloud-Lamp-XXXXXX` (XXXXXX = last 6 hex
    digits of the chip MAC, uppercase) before Wi-Fi starts. This is the name printed on the
    product sticker.
 2. **Priority −100 (end of boot):** if the button is held → factory-reset countdown.
@@ -136,7 +134,7 @@ guarantee no LED can stay lit from an undefined boot state.
   portal (stored in flash, survives updates). The builder's dev build
   (`cloud-lamp-dev.yaml`) adds two compiled-in networks from `secrets.yaml` — see
   [device-credentials.md](./device-credentials.md).
-- If no network connects, the lamp opens the setup hotspot `Cloud-Lamp-XXXX` (password on
+- If no network connects, the lamp opens the setup hotspot `Cloud-Lamp-XXXXXX` (password on
   the sticker) with a captive portal for entering home Wi-Fi credentials. The lamp keeps
   working as a lamp the whole time; `reboot_timeout: 0s` means it never reboots over Wi-Fi.
 
@@ -156,8 +154,12 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   black). Inside the app it is displayed with CSS corner rounding (header brand).
 - **PWA:** a top-of-page button *Create a remote control app* opens a structured sheet with
   step-by-step iOS home-screen instructions (including the lamp’s own unique
-  `http://cloud-lamp-<mac6>.local/` address). Already-installed home-screen apps hide that
-  button. Onboarding via the setup hotspot is unchanged.
+  `http://cloud-lamp-<serial>.local/` address — same six-hex serial as the header). The button is shown only when
+  `typeof navigator.standalone === "boolean"` (iOS / iPadOS WebKit only — desktop Chrome
+  and Safari leave it undefined) and this device has not yet launched the home-screen app
+  (`standalone === true` or `display-mode: standalone`, remembered in `localStorage`).
+  Android, desktop browsers, and an already-installed PWA never see it. Onboarding via the
+  setup hotspot is unchanged.
 - **iOS "HTTPS-Only" errors:** since iOS 18.2, Safari hard-blocks *home-screen links* to
   plain-HTTP pages when *Settings → Apps → Safari → Not Secure Connection Warning* is on
   (German: *„Die Steuerung ist fehlgeschlagen… HTTP-URL mit aktiviertem Modus HTTP is
@@ -184,7 +186,7 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   reset, device info). The settings sheet is a bottom sheet capped at the same max width
   as the main view (`520px`), locks background scroll while open, and keeps extra right /
   bottom padding so the scroll indicator and home-indicator area stay clear.
-- **Change Wi-Fi:** clears saved STA credentials, re-asserts the `Cloud-Lamp-XXXX` AP, and
+- **Change Wi-Fi:** clears saved STA credentials, re-asserts the `Cloud-Lamp-XXXXXX` AP, and
   restarts the radio into AP + captive portal. The AP password is never changed or
   cleared — the sticker always remains a way back in. Other lamp settings are kept.
 - **i18n:** English (default), German, Spanish, French — language dropdown with flags,
@@ -222,20 +224,26 @@ substitution at the top of the file.
 
 | Effect | Type | Character |
 |---|---|---|
-| White / Warm White / Sky Blue / Cyan / Blue / Indigo / Violet | solid | Static colours, 250 ms refresh (White first = default cycle start) |
+| White / Warm White / Latte Brown / Sky Blue / Cyan / Blue / Indigo / Violet | solid | Static colours, 250 ms refresh (White first = default cycle start). Latte Brown = case PLA (Bambu Lab Matte `#D3B7A7`; DE Milchkaffee-Braun, ES Marrón Latte, FR Café au lait). Speed slider hidden. |
 | Sky Breathing | animated | Very slow blue↔cyan crossfade — the signature calm effect |
 | Aurora Drift | animated | Slow-moving pastel cyan→violet gradient with per-ring depth |
 | Candlelight | animated | Warm white with soft per-ring flicker |
-| Night Light | solid | Very dim warm glow, gentle even at 100 % brightness |
+| Night Light | solid | Very dim warm glow, gentle even at 100 % brightness. Speed slider hidden. |
 | Twinkle | animated | Quiet starfield — ~1 soft spark/s, long fade; baby-lamp defaults |
 | Color Wipe | animated | Soft sky colours, very slow sweep |
-| Rainbow | animated | Full spectrum, slow drift (speed 4, was 20) |
-| Pulse | animated | Breathing between 20 % and 85 % (never fully dark) |
-| Thunderstorm | animated | Dim stormy blue-grey with occasional soft lightning in one ring |
+| Rainbow | animated | Full spectrum, slow hue drift |
+| Pulse | animated | Pixel-level breathing between ~20 % and ~85 % (never overwrites saved brightness) |
+
+### Effect Speed (`number.effect_speed`)
+
+A persisted template number **1–100** (default **50** = substitution defaults in
+`effects.yaml`). The web app shows a Speed slider only while an animated effect that
+honours speed is active. Higher values shorten periods / increase spark rate; lower
+values calm the motion. Solids and Night Light ignore it.
 
 Effect names are case-sensitive canonical identifiers used by MQTT (`Set/Effect` /
 `State/Effect`) and the REST API. When renaming an effect, update the display-name maps in
-`web/app.html` (`FX_NAMES`, `FX_SWATCH`) as well.
+`web/app.html` (`FX_NAMES`, `FX_SWATCH`, `SPEED_FX`) as well.
 
 ---
 
@@ -347,10 +355,10 @@ restructure around the standalone-first principle. Key changes:
 | `Set/Reboot` | Unguarded (retained `true` = reboot loop) | Retained-clear + 15 s connect grace period |
 | Web interface | None | Full iOS-style PWA + REST/SSE |
 | Updates | Push OTA from builder only | + browser-upload OTA + pull updates from GitHub Pages with MD5 verification |
-| Provisioning AP | `"Cloud-Lamp Backup WiFi"` | `"Cloud-Lamp-XXXX"` (MAC serial, matches sticker) |
+| Provisioning AP | `"Cloud-Lamp Backup WiFi"` | `"Cloud-Lamp-XXXXXX"` (6-hex MAC serial, matches sticker + `.local`) |
 | Factory reset | None | Power-on-hold gesture + web app button |
 
 The old effect set (Cyan, Blue, White, Indigo, Violet, Rainbow, Color Wipe, Twinkle, Pulse)
-was retuned (much slower/calmer) and extended with Warm White, Sky Blue, Sky Breathing,
-Aurora Drift, Candlelight, Night Light and Thunderstorm. One user-disliked v1 effect is to
-be identified and removed during on-device testing.
+was retuned (much slower/calmer) and extended with Warm White, Latte Brown (case PLA),
+Sky Blue, Sky Breathing, Aurora Drift, Candlelight, Night Light. Thunderstorm was removed
+after on-device review.

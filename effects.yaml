@@ -9,6 +9,9 @@
 #  TUNING: every magic number lives in the substitutions block below.
 #  Edit a value, reflash, done. Colours are raw pixel values BEFORE the
 #  light's color_correct is applied.
+#
+#  RUNTIME SPEED: animated effects read id(effect_speed) (1–100, default 50 =
+#  the substitution defaults below). Solids and Night Light ignore it.
 # ==============================================================================
 
 substitutions:
@@ -20,34 +23,30 @@ substitutions:
   twinkle_interval:      "140ms"
   twinkle_peak:          "170"  # Soft max spark brightness (was hard 255 — too sharp)
 
-  # --- Pulse ("breathing") ---
-  pulse_min_brightness: "20%"   # Never fully dark — 0% looks like a fault
-  pulse_max_brightness: "85%"
-  pulse_transition:     "4s"    # One direction; full cycle = 2× this
+  # --- Pulse ("breathing") — pixel-level so it never overwrites brightness_pct ---
+  pulse_min_level: "51"         # ~20% of 255
+  pulse_max_level: "217"        # ~85% of 255
+  pulse_period_ms: "8000"       # Full there-and-back cycle at speed 50
 
   # --- Rainbow ---
-  rainbow_speed: "4"            # Was 20 — clearly visible motion; 4 = slow ambient drift
   rainbow_width: "24"           # One full spectrum across all 3 rings
+  rainbow_period_ms: "12000"    # Full hue lap at speed 50
 
   # --- Color Wipe (soft sky colours) ---
-  wipe_led_interval: "400ms"    # Per-LED step; 24 LEDs ≈ 9.6 s per colour
+  wipe_led_interval_ms: "400"   # Per-LED step at speed 50; 24 LEDs ≈ 9.6 s per colour
 
   # --- Sky Breathing (slow crossfade between two sky tones) ---
-  sky_breath_period_s: "14"     # Seconds for a full there-and-back crossfade
+  sky_breath_period_s: "14"     # Seconds for a full there-and-back crossfade at speed 50
 
   # --- Aurora Drift (moving pastel gradient, per-ring depth) ---
-  aurora_period_s: "22"         # Seconds for one full drift cycle
+  aurora_period_s: "22"         # Seconds for one full drift cycle at speed 50
 
   # --- Candlelight ---
-  candle_interval: "90ms"       # Flicker update rate
-  candle_depth:    "28"         # Max flicker dip (0-255); higher = more nervous flame
+  candle_interval_ms: "90"      # Flicker update rate at speed 50
+  candle_depth:       "28"      # Max flicker dip (0-255); higher = more nervous flame
 
   # --- Night Light ---
   night_light_level: "26"       # Pixel value ceiling (0-255); very dim warm glow
-
-  # --- Thunderstorm ---
-  storm_min_gap_s: "6"          # Minimum seconds between lightning strikes
-  storm_max_gap_s: "18"         # Maximum seconds between lightning strikes
 
 light:
   - id: !extend led_rings
@@ -66,6 +65,11 @@ light:
           name: "Warm White"
           update_interval: 250ms
           lambda: 'it.all() = Color(255, 180, 107);'
+      # Case PLA colour — Bambu Lab Matte "Latte Brown" (#D3B7A7)
+      - addressable_lambda:
+          name: "Latte Brown"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xD3, 0xB7, 0xA7);'
       - addressable_lambda:
           name: "Sky Blue"
           update_interval: 250ms
@@ -89,6 +93,7 @@ light:
 
       # ------------------------------------------------------------
       # Calm animated effects (the "cloud character" set)
+      # Speed: id(effect_speed) 1–100; 50 = substitution defaults.
       # ------------------------------------------------------------
 
       # Sky Breathing: very slow sinusoidal crossfade between a daylight blue
@@ -99,8 +104,12 @@ light:
           lambda: |-
             const Color a(70, 150, 255);   // daylight blue
             const Color b(10, 210, 235);   // soft cyan
-            float t = (millis() % (uint32_t)(${sky_breath_period_s} * 1000.0f)) /
-                      (${sky_breath_period_s} * 1000.0f);
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t period = (uint32_t)(${sky_breath_period_s} * 1000.0f * 50.0f / spd);
+            if (period < 800) period = 800;
+            float t = (millis() % period) / (float) period;
             float m = 0.5f - 0.5f * cosf(t * 2.0f * (float) M_PI);  // 0..1..0
             it.all() = Color(
               (uint8_t)(a.r + (b.r - a.r) * m),
@@ -116,7 +125,11 @@ light:
           lambda: |-
             const Color a(40, 200, 220);    // pastel cyan
             const Color b(140, 90, 235);    // pastel violet
-            uint32_t period = (uint32_t)(${aurora_period_s} * 1000.0f);
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t period = (uint32_t)(${aurora_period_s} * 1000.0f * 50.0f / spd);
+            if (period < 800) period = 800;
             float t = (millis() % period) / (float) period;
             for (int i = 0; i < it.size(); i++) {
               float phase = t * 2.0f * (float) M_PI + (i * 2.0f * (float) M_PI / it.size());
@@ -131,14 +144,25 @@ light:
       # (8 LEDs each), like a flame behind frosted glass.
       - addressable_lambda:
           name: "Candlelight"
-          update_interval: ${candle_interval}
+          update_interval: 40ms
           lambda: |-
             static uint8_t dip[3] = {0, 0, 0};
+            static uint32_t last_step = 0;
             const Color base(255, 147, 41);   // classic candle colour
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t interval = (uint32_t)(${candle_interval_ms} * 50.0f / spd);
+            if (interval < 20) interval = 20;
+            uint32_t now = millis();
+            if (last_step == 0 || now - last_step >= interval) {
+              last_step = now;
+              for (int r = 0; r < 3; r++) {
+                uint8_t target = random_uint32() % ${candle_depth};
+                dip[r] = (dip[r] * 3 + target) / 4;
+              }
+            }
             for (int r = 0; r < 3; r++) {
-              // Random walk towards a new dip value; small steps = soft flicker
-              uint8_t target = random_uint32() % ${candle_depth};
-              dip[r] = (dip[r] * 3 + target) / 4;
               uint8_t scale = 255 - dip[r];
               Color c((base.r * scale) >> 8, (base.g * scale) >> 8, (base.b * scale) >> 8);
               for (int i = r * 8; i < (r + 1) * 8 && i < it.size(); i++)
@@ -163,12 +187,19 @@ light:
           update_interval: ${twinkle_interval}
           lambda: |-
             static uint8_t state[${led_count}] = {};
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t chance = (uint32_t)(${twinkle_ignite_chance} * 50.0f / spd);
+            if (chance < 24) chance = 24;
+            uint8_t fade = (uint8_t)(${twinkle_fade_step} * spd / 50.0f);
+            if (fade < 1) fade = 1;
             for (int i = 0; i < it.size(); i++) {
-              if (state[i] == 0 && (random_uint32() % ${twinkle_ignite_chance}) == 0) {
+              if (state[i] == 0 && (random_uint32() % chance) == 0) {
                 // Soft peak with a little variation — never a hard white flash
                 state[i] = ${twinkle_peak} - (random_uint32() % 40);
               } else if (state[i] > 0) {
-                state[i] = state[i] > ${twinkle_fade_step} ? state[i] - ${twinkle_fade_step} : 0;
+                state[i] = state[i] > fade ? state[i] - fade : 0;
               }
               uint8_t v = state[i];
               // Very faint blue floor so the cloud never goes fully dark between stars
@@ -177,64 +208,69 @@ light:
 
       # Color Wipe: soft cloud colours, very slow sweep. Each colour fills the
       # whole strip before the next one wipes across.
-      - addressable_color_wipe:
-          name: "Color Wipe"
-          colors:
-            - red: 0%
-              green: 55%
-              blue: 100%
-              num_leds: 24
-            - red: 35%
-              green: 25%
-              blue: 100%
-              num_leds: 24
-            - red: 0%
-              green: 75%
-              blue: 90%
-              num_leds: 24
-          add_led_interval: ${wipe_led_interval}
-          reverse: false
-
-      # Rainbow: full spectrum across the three rings, drifting slowly.
-      - addressable_rainbow:
-          name: "Rainbow"
-          speed: ${rainbow_speed}
-          width: ${rainbow_width}
-
-      # Pulse: gentle breathing between two comfortable levels. Never fully
-      # dark (0% reads as a fault) and never harsh full power.
-      - pulse:
-          name: "Pulse"
-          transition_length: ${pulse_transition}
-          update_interval: 0.5s
-          min_brightness: ${pulse_min_brightness}
-          max_brightness: ${pulse_max_brightness}
-
-      # Thunderstorm: dim blue-grey cloud with an occasional soft lightning
-      # flicker inside one ring. On-theme showpiece; not a sleep effect.
       - addressable_lambda:
-          name: "Thunderstorm"
+          name: "Color Wipe"
           update_interval: 40ms
           lambda: |-
-            static uint32_t next_strike = 0;
-            static uint8_t flash_step = 0;
-            static int flash_ring = 0;
-            const Color base(28, 38, 60);      // dim stormy blue-grey
+            static int pos = 0;
+            static int col = 0;
+            static uint32_t last_step = 0;
+            const Color colors[3] = {
+              Color(0, 140, 255),     // sky blue
+              Color(89, 64, 255),    // soft indigo
+              Color(0, 191, 230),    // cyan
+            };
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t interval = (uint32_t)(${wipe_led_interval_ms} * 50.0f / spd);
+            if (interval < 30) interval = 30;
             uint32_t now = millis();
-            if (next_strike == 0)
-              next_strike = now + 2000;
-            it.all() = base;
-            if (flash_step > 0) {
-              // Flash decays over a few frames, confined to one ring
-              uint8_t v = flash_step * 36 > 255 ? 255 : flash_step * 36;
-              Color flash(v, v, (uint8_t) std::min(255, v + 30));
-              for (int i = flash_ring * 8; i < (flash_ring + 1) * 8 && i < it.size(); i++)
-                it[i] = flash;
-              flash_step--;
-            } else if (now >= next_strike) {
-              flash_ring = random_uint32() % 3;
-              flash_step = 4 + (random_uint32() % 4);   // 4-7 decay frames
-              uint32_t gap = (${storm_min_gap_s} +
-                (random_uint32() % (${storm_max_gap_s} - ${storm_min_gap_s} + 1))) * 1000;
-              next_strike = now + gap;
+            if (last_step == 0) last_step = now;
+            while (now - last_step >= interval) {
+              last_step += interval;
+              pos++;
+              if (pos > it.size()) {
+                pos = 1;
+                col = (col + 1) % 3;
+              }
             }
+            Color cur = colors[col];
+            Color prev = colors[(col + 2) % 3];
+            for (int i = 0; i < it.size(); i++)
+              it[i] = (i < pos) ? cur : prev;
+
+      # Rainbow: full spectrum across the three rings, drifting slowly.
+      - addressable_lambda:
+          name: "Rainbow"
+          update_interval: 40ms
+          lambda: |-
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t period = (uint32_t)(${rainbow_period_ms} * 50.0f / spd);
+            if (period < 600) period = 600;
+            float t = (millis() % period) / (float) period;
+            uint8_t base_hue = (uint8_t)(t * 255.0f);
+            for (int i = 0; i < it.size(); i++) {
+              uint8_t hue = base_hue + (uint8_t)(i * 255 / ${rainbow_width});
+              it[i] = ESPHSVColor(hue, 255, 255).to_rgb();
+            }
+
+      # Pulse: gentle breathing between two comfortable pixel levels. Never
+      # fully dark and never harsh full power. Implemented as an addressable
+      # effect (not the built-in brightness pulse) so it cannot overwrite the
+      # user's saved brightness_pct via on_state.
+      - addressable_lambda:
+          name: "Pulse"
+          update_interval: 50ms
+          lambda: |-
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t period = (uint32_t)(${pulse_period_ms} * 50.0f / spd);
+            if (period < 800) period = 800;
+            float t = (millis() % period) / (float) period;
+            float m = 0.5f - 0.5f * cosf(t * 2.0f * (float) M_PI);  // 0..1..0
+            uint8_t v = (uint8_t)(${pulse_min_level} + (${pulse_max_level} - ${pulse_min_level}) * m);
+            it.all() = Color(v, v, v);
