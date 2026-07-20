@@ -112,7 +112,7 @@ To iterate on the web app without hardware, run `python3 tools/mock-device.py` a
 |---|---|
 | [docs/user-manual.md](docs/user-manual.md) | **End-user manual** — safety, button gestures, Wi-Fi setup, updates, troubleshooting. Permanent URL (linked from the web app's book icon and the sticker QR code) |
 | [docs/cloud-lamp-design.md](docs/cloud-lamp-design.md) | Architecture, behaviour reference (button/boot/web/MQTT), hardware, changelog |
-| [docs/device-credentials.md](docs/device-credentials.md) | Setup-hotspot naming, product sticker contents, credential handling |
+| [docs/device-credentials.md](docs/device-credentials.md) | Setup-hotspot naming, product sticker contents (required/optional fields for `docs/Label.lbx`), credential handling |
 | [docs/firmware-updates.md](docs/firmware-updates.md) | Update paths, safety guarantees, release workflow |
 | [docs/hand-lamp-reference.md](docs/hand-lamp-reference.md) | Predecessor project reference (historical) |
 
@@ -131,5 +131,6 @@ web/brand.png              transparent header mark (embedded as /brand.png)
 web/icon.png               home-screen / PWA icon (embedded as /icon.png)
 firmware-dist/             published firmware releases (online update channel)
 docs/                      project documentation
+docs/Label.lbx             P-Touch label template for the sticker on the back
 tools/                     development and release helpers
 ```

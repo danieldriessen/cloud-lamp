@@ -9,15 +9,37 @@ appear literally in this document; everything else lives in the git-ignored
 
 ## Product sticker (back of every lamp)
 
-Each lamp gets a sticker with everything the recipient needs for Wi-Fi setup:
+The printable label is maintained in [`Label.lbx`](./Label.lbx) (Brother P-Touch Editor
+file). Keep it in sync with the field lists below; the user manual's sticker table
+(user-manual.md §2) must match whatever the printed label actually contains.
 
-| Field | Value | Where it comes from |
+### Required — without these a recipient cannot recover the lamp
+
+| Field | Value | Why it must be printed |
 |---|---|---|
-| Device name | `Cloud-Lamp` | Generic on purpose — lamps are personalised only by the physical front text |
-| Setup Wi-Fi | `Cloud-Lamp-XXXXXX` | Generated at runtime; XXXXXX = last 6 hex digits of the chip MAC, uppercase |
-| Wi-Fi password | `cloud-lamp` | Shared across all devices (see below) |
-| Web address | `http://cloud-lamp-<mac6>.local/` | Same six hex digits as the sticker serial, lowercase |
-| Manual QR code | `https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.md` | Same URL on every lamp — points at the user manual, which always describes the latest firmware |
+| Setup Wi-Fi | `Cloud-Lamp-XXXXXX` | The only onboarding path when the lamp has no network; XXXXXX (last 6 hex digits of the chip MAC, uppercase) doubles as the serial number |
+| Wi-Fi password | `cloud-lamp` | Shared across all devices (see below) — not discoverable anywhere else |
+| Web address | `http://cloud-lamp-<mac6>.local/` | Same six hex digits, lowercase. Print it **with** the `http://` prefix — iOS requires typing it exactly |
+| Manual QR code | `https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.md` | Safety information, button gestures and troubleshooting when the web app is unreachable. Same URL on every lamp; the manual always describes the latest firmware |
+
+### Recommended
+
+| Field | Value | Why |
+|---|---|---|
+| Device name | `Cloud-Lamp` (as heading) | Identifies the sticker; generic on purpose — lamps are personalised only by the physical front text |
+| Power rating | `5 V ⎓ USB, min. 2 A` | Standard practice for powered devices; prevents wrong-charger damage |
+
+### Optional (nice to have, all recoverable elsewhere)
+
+- Builder / contact line (e.g. `DD Productions`) — the manual says "contact the builder"
+- Production date or lamp number
+- Full MAC address — visible in the web app under Settings → About
+- A separate "Serial" line — redundant, the serial is already inside the setup-Wi-Fi name
+
+### Leave off
+
+- **Firmware version** — goes stale with the first OTA update (the web app shows it)
+- **Any non-public credential** (OTA password, MQTT, builder Wi-Fi)
 
 To read the serial for the sticker before assembly: boot the device once and check the log
 line `Setup hotspot SSID: Cloud-Lamp-XXXXXX`, or open `http://<lamp-ip>/device.json` (field

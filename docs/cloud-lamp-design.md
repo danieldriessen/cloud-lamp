@@ -27,8 +27,9 @@ Related documents:
 > manual (docs/user-manual.md) + header manual button.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
-> mapping); test button gestures / captive portal end-to-end; product stickers; 3D print
-> files.
+> mapping); test button gestures / captive portal end-to-end; print + apply the product
+> sticker (P-Touch template exists: docs/Label.lbx, field checklist in
+> device-credentials.md); 3D print files.
 > **Firmware:** ESPHome 2026.6.0, project version 2.1.8
 
 ---
@@ -80,6 +81,8 @@ cloud-lamp/
 │   ├── release.sh                # Build + package a firmware release for the updater
 │   └── mock-device.py            # Local mock of the device API for web app development
 └── docs/                         # This folder
+    └── Label.lbx                 # Brother P-Touch template for the back sticker
+                                  #   (required/optional fields: device-credentials.md)
 ```
 
 The `packages:` block at the top of `cloud-lamp.yaml` controls which optional modules are
@@ -181,7 +184,7 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   ESP8266 has neither the RAM for a TLS server nor a publicly trusted certificate for a
   private-network address (same limitation as FRITZ!, Shelly, WLED, …). Mitigations we
   ship: no HSTS (`Strict-Transport-Security: max-age=0`), relative PWA `start_url`, and a
-  four-language in-app tip that tells recipients to (1) disable that Safari setting and
+  localised in-app tip that tells recipients to (1) disable that Safari setting and
   (2) type `http://cloud-lamp-<serial>.local/` explicitly before *Add to Home Screen*
   (same six-hex serial as the sticker / header). There is no firmware-only way to make
   iOS accept a local HTTP home-screen app while that setting stays enabled.
