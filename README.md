@@ -30,7 +30,8 @@ through a built-in web app.
 - **iOS-style web app** — served directly from the lamp, no cloud, no app store.
   Progressive Web App: open the lamp's address in Safari, "Add to Home Screen", and it
   behaves like a native app. Power, brightness, speed, effect selection, settings and
-  firmware updates; localised in English, German, Spanish and French.
+  firmware updates; localised in ten languages (English, German, Spanish, French,
+  Italian, Dutch, Polish, Portuguese, Turkish, Russian).
 - **Simple Wi-Fi onboarding** — if the lamp doesn't know the local Wi-Fi it opens its own
   hotspot (`Cloud-Lamp-XXXXXX`) with a captive portal to enter credentials. No flashing or
   tooling needed to move the lamp to a new home; credentials survive firmware updates.

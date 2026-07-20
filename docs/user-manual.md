@@ -99,7 +99,8 @@ phone's browser — type it exactly, including `http://`. You can:
 - adjust the speed of animated effects,
 - change settings and install firmware updates.
 
-The app is available in **English, German, Spanish and French** (language menu in
+The app is available in **English, German, Spanish, French, Italian, Dutch, Polish,
+Portuguese, Turkish and Russian** (language menu in
 Settings).
 
 **iPhone / iPad — install as an app:** the page offers a *"Create a remote control app"*
@@ -163,7 +164,7 @@ afterwards the lamp opens its setup hotspot again (sticker).
 | Power supply | 5 V USB, at least 2 A |
 | Light source | 24 addressable RGB LEDs (WS2812) |
 | Radio | Wi-Fi 2.4 GHz (802.11 b/g/n) — 5 GHz-only networks are not supported |
-| Controls | 1 push-button, web app (English, German, Spanish, French) |
+| Controls | 1 push-button, web app (10 languages) |
 | Effects | 18 (solid colours + special effects) plus a free colour picker in the web app |
 | Firmware | Open source: `github.com/danieldriessen/cloud-lamp` |
 

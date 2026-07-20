@@ -17,17 +17,19 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.7 — custom colour picker (native OS colour picker in the web app's
-> *Effect Presets* section; the picked colour persists like an effect and survives power
-> cuts). v2.1.6: true full-bleed iOS background (no fixed theme-color; Safari samples
-> the page gradient for its bars). v2.1.5: colour-scale effect list (Red/Yellow/Green
-> added, Indigo removed), grouped effect grid (Colors / Special effects), vivid Aurora
-> Drift, update-badge layout, user manual (docs/user-manual.md) + header manual button.
+> **Phase:** v2.1.8 — ten web-app languages (Italian, Dutch, Polish, Portuguese,
+> Turkish, Russian added; English now uses the US flag). v2.1.7: custom colour picker
+> (native OS colour picker in the web app's *Effect Presets* section; the picked colour
+> persists like an effect and survives power cuts). v2.1.6: true full-bleed iOS
+> background (no fixed theme-color; Safari samples the page gradient for its bars).
+> v2.1.5: colour-scale effect list (Red/Yellow/Green added, Indigo removed), grouped
+> effect grid (Colors / Special effects), vivid Aurora Drift, update-badge layout, user
+> manual (docs/user-manual.md) + header manual button.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; product stickers; 3D print
 > files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.7
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.8
 
 ---
 
@@ -210,7 +212,8 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
 - **Change Wi-Fi:** clears saved STA credentials, re-asserts the `Cloud-Lamp-XXXXXX` AP, and
   restarts the radio into AP + captive portal. The AP password is never changed or
   cleared — the sticker always remains a way back in. Other lamp settings are kept.
-- **i18n:** English (default), German, Spanish, French — language dropdown with flags,
+- **i18n:** English (default, US flag), German, Spanish, French, Italian, Dutch, Polish,
+  Portuguese, Turkish, Russian — language dropdown with flags,
   persisted in the browser's localStorage. Effect names are localised via a display-name
   map in the app; the firmware always uses the English names as canonical identifiers.
 - **Handler precedence:** `cloud_lamp_web` registers just before `web_server`, so it wins
