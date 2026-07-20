@@ -81,8 +81,11 @@ void CloudLampWeb::handle_app_(AsyncWebServerRequest *request) {
   }
   AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", this->html_, this->html_size_);
   response->addHeader("Content-Encoding", "gzip");
-  // The app itself is tiny; always revalidate so firmware updates show the new UI immediately.
+  // Always revalidate so firmware updates show the new UI immediately.
   response->addHeader("Cache-Control", "no-cache");
+  // Never advertise HTTPS. Clears any accidental HSTS for this host and
+  // avoids Safari "upgrading" the home-screen shortcut to https://…
+  response->addHeader("Strict-Transport-Security", "max-age=0");
   request->send(response);
 }
 
@@ -90,15 +93,21 @@ void CloudLampWeb::handle_manifest_(AsyncWebServerRequest *request) {
   std::string name = App.get_friendly_name();
   if (name.empty())
     name = "Cloud Lamp";
+  // start_url stays relative ("/") so the home-screen shortcut keeps the
+  // scheme the user typed (must be http:// — see design doc / iOS tip).
   std::string manifest = "{\"name\":\"" + name +
                          "\",\"short_name\":\"" + name +
                          "\",\"start_url\":\"/\",\"scope\":\"/\",\"display\":\"standalone\","
+                         "\"display_override\":[\"standalone\",\"fullscreen\"],"
                          "\"background_color\":\"#0b0f18\",\"theme_color\":\"#0b0f18\"";
   if (this->icon_ != nullptr) {
-    manifest += ",\"icons\":[{\"src\":\"/icon.png\",\"sizes\":\"512x512\",\"type\":\"image/png\"}]";
+    manifest += ",\"icons\":[{\"src\":\"/icon.png\",\"sizes\":\"256x256\",\"type\":\"image/png\",\"purpose\":\"any\"}]";
   }
   manifest += "}";
-  request->send(200, "application/manifest+json", manifest.c_str());
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/manifest+json", manifest.c_str());
+  response->addHeader("Cache-Control", "no-cache");
+  response->addHeader("Strict-Transport-Security", "max-age=0");
+  request->send(response);
 }
 
 void CloudLampWeb::handle_png_(AsyncWebServerRequest *request, const uint8_t *data, size_t size) {

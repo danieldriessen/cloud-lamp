@@ -42,6 +42,12 @@ If the lamp cannot connect to any known Wi-Fi network, it opens its own access p
 The lamp keeps working as a normal lamp (button control) the entire time — it never
 reboots or blocks because Wi-Fi is unavailable.
 
+> **iOS note (required once per phone):** before *Add to Home Screen*, disable
+> *Settings → Apps → Safari → Not Secure Connection Warning*, then open the lamp by
+> typing `http://cloud-lamp.local/` (with `http://`) in Safari and add it from there.
+> Leaving that Safari setting on makes iOS refuse the home-screen app with an
+> "HTTPS-Only" / "HTTP is only" error — the lamp cannot serve HTTPS (see the design doc).
+
 The AP password is stored in the `wifi_ap_password` substitution in `cloud-lamp.yaml`
 (deliberately not in `secrets.yaml` — it is public on every sticker).
 

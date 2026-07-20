@@ -156,6 +156,22 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
 - **PWA:** recipients open the page in Safari and use *Share → Add to Home Screen*; the app
   then launches full-screen like a native app. A dismissible hint in the app explains this
   on iOS.
+- **iOS "HTTPS-Only" errors:** since iOS 18.2, Safari hard-blocks *home-screen links* to
+  plain-HTTP pages when *Settings → Apps → Safari → Not Secure Connection Warning* is on
+  (German: *„Die Steuerung ist fehlgeschlagen… HTTP-URL mit aktiviertem Modus HTTP is
+  only“*). The lamp **cannot** serve HTTPS: ESPHome's web server is HTTP-only, and an
+  ESP8266 has neither the RAM for a TLS server nor a publicly trusted certificate for a
+  private-network address (same limitation as FRITZ!, Shelly, WLED, …). Mitigations we
+  ship: no HSTS (`Strict-Transport-Security: max-age=0`), relative PWA `start_url`, and a
+  four-language in-app tip that tells recipients to (1) disable that Safari setting and
+  (2) type `http://cloud-lamp.local/` explicitly before *Add to Home Screen*. There is no
+  firmware-only way to make iOS accept a local HTTP home-screen app while that setting
+  stays enabled.
+- **Safari "ᴬA" / font-size menu:** appears when the page is opened *inside Safari*. The
+  app uses `role="application"`, disables text-size adjustment, and is a proper
+  standalone PWA — once installed from the home screen it runs full-screen without that
+  chrome. If the icon still opens Safari with the menu, delete the icon and re-add it
+  after the HTTPS tip above.
 - **API:** the app talks to the standard ESPHome `web_server` REST API (`/light/...`,
   `/select/...`, `/switch/...`, `/button/...`, `/update/...`) and receives live state via
   the `/events` server-sent-events stream, with a 5 s polling fallback. All state shown is
@@ -198,7 +214,7 @@ substitution at the top of the file.
 
 | Effect | Type | Character |
 |---|---|---|
-| Warm White / White / Sky Blue / Cyan / Blue / Indigo / Violet | solid | Static colours, 250 ms refresh |
+| White / Warm White / Sky Blue / Cyan / Blue / Indigo / Violet | solid | Static colours, 250 ms refresh (White first = default cycle start) |
 | Sky Breathing | animated | Very slow blue↔cyan crossfade — the signature calm effect |
 | Aurora Drift | animated | Slow-moving pastel cyan→violet gradient with per-ring depth |
 | Candlelight | animated | Warm white with soft per-ring flicker |

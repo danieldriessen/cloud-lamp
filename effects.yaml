@@ -53,15 +53,16 @@ light:
       # Solid colours (slow refresh; brightness/colour-correction is
       # applied by the light component at output time, so no fast
       # redraw is needed).
+      # Order is the UI / button cycle order: White first, then Warm White.
       # ------------------------------------------------------------
-      - addressable_lambda:
-          name: "Warm White"
-          update_interval: 250ms
-          lambda: 'it.all() = Color(255, 180, 107);'
       - addressable_lambda:
           name: "White"
           update_interval: 250ms
           lambda: 'it.all() = Color(255, 255, 255);'
+      - addressable_lambda:
+          name: "Warm White"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(255, 180, 107);'
       - addressable_lambda:
           name: "Sky Blue"
           update_interval: 250ms
