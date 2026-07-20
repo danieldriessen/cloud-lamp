@@ -4,8 +4,8 @@ Welcome! Your Cloud-Lamp is a small decorative LED lamp that works entirely on i
 no internet, no app and no account required. If you want more, it also has a built-in
 remote control web app for your phone.
 
-> **Permanent address of this manual:**
-> `https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.md`
+> **Permanent address of this manual (PDF):**
+> `https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.pdf`
 > (also reachable via the QR code on the sticker on the back of the lamp and the
 > book icon in the lamp's web app)
 

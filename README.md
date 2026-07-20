@@ -110,7 +110,7 @@ To iterate on the web app without hardware, run `python3 tools/mock-device.py` a
 
 | Document | Contents |
 |---|---|
-| [docs/user-manual.md](docs/user-manual.md) | **End-user manual** — safety, button gestures, Wi-Fi setup, updates, troubleshooting. Permanent URL (linked from the web app's book icon and the sticker QR code) |
+| [docs/user-manual.pdf](docs/user-manual.pdf) | **End-user manual (PDF)** — safety, button gestures, Wi-Fi setup, updates, troubleshooting. Permanent URL (linked from the web app's book icon and the sticker QR code). Generated from [docs/user-manual.md](docs/user-manual.md) by `tools/build-manual.py` |
 | [docs/cloud-lamp-design.md](docs/cloud-lamp-design.md) | Architecture, behaviour reference (button/boot/web/MQTT), hardware, changelog |
 | [docs/device-credentials.md](docs/device-credentials.md) | Setup-hotspot naming, product sticker contents (required/optional fields for `docs/Label.lbx`), credential handling |
 | [docs/firmware-updates.md](docs/firmware-updates.md) | Update paths, safety guarantees, release workflow |

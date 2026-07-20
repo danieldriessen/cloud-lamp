@@ -9,7 +9,7 @@ summarised in [the changelog section](#v1--v2-changelog) at the end.
 Related documents:
 
 - [README.md](../README.md) — public project overview, features, getting started
-- [user-manual.md](./user-manual.md) — end-user manual (permanent URL: sticker QR code + web-app book icon)
+- [user-manual.pdf](./user-manual.pdf) — end-user manual, PDF (permanent URL: sticker QR code + web-app book icon); source: [user-manual.md](./user-manual.md), rebuilt with `tools/build-manual.py`
 - [device-credentials.md](./device-credentials.md) — shared passwords, AP naming, sticker contents
 - [firmware-updates.md](./firmware-updates.md) — online update workflow and release process
 
@@ -17,9 +17,11 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.2.0 — firmware update coach (full-screen install → reboot → reconnect
-> UI) plus longer HTTP OTA timeouts (60 s HTTP idle timeout) so silent mid-download
-> aborts are less likely; web REST still has no progress %, so the coach uses an
+> **Phase:** v2.2.1 — user manual is now a designed PDF (docs/user-manual.pdf, built from
+> user-manual.md by tools/build-manual.py); the permanent manual URL (sticker QR code +
+> web-app book icon) points at the PDF and must never change again. v2.2.0: firmware
+> update coach (full-screen install → reboot → reconnect UI) plus longer HTTP OTA
+> timeouts (60 s HTTP idle timeout); web REST has no progress %, so the coach uses an
 > indeterminate bar. v2.1.9: project wordmark logo. v2.1.8: ten languages. v2.1.7:
 > custom colour picker. v2.1.6: full-bleed iOS background. v2.1.5: effect list + manual.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
@@ -27,7 +29,7 @@ Related documents:
 > mapping); test button gestures / captive portal end-to-end; print + apply the product
 > sticker (P-Touch template exists: docs/Label.lbx, field checklist in
 > device-credentials.md); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.2.0
+> **Firmware:** ESPHome 2026.6.0, project version 2.2.1
 
 ---
 
@@ -76,8 +78,11 @@ cloud-lamp/
 ├── firmware-dist/                # Published releases (update channel, see firmware-updates.md)
 ├── tools/
 │   ├── release.sh                # Build + package a firmware release for the updater
+│   ├── build-manual.py           # Render docs/user-manual.md → docs/user-manual.pdf
 │   └── mock-device.py            # Local mock of the device API for web app development
 └── docs/                         # This folder
+    ├── user-manual.pdf           # End-user manual (permanent URL target of the sticker
+    │                             #   QR code; regenerate with tools/build-manual.py)
     └── Label.lbx                 # Brother P-Touch template for the back sticker
                                   #   (required/optional fields: device-credentials.md)
 ```
@@ -204,8 +209,8 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   `custom_color_active` + `custom_color_rgb`), so it survives power cuts and off/on;
   a button double-press leaves it and re-enters the effect cycle at the last-used
   effect. There is also a header book icon that opens the
-  [user manual](./user-manual.md) in a new tab (permanent GitHub URL, same target as the
-  sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
+  [user manual PDF](./user-manual.pdf) in a new tab (permanent GitHub URL, same target as
+  the sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
   *Change Wi-Fi network*, MQTT kill switch when present, firmware version/update with
   *Check for updates now*; Install opens a full-screen update coach through reboot/reconnect; restart, factory reset, device info). The
   settings sheet is a bottom sheet capped at the same max width
