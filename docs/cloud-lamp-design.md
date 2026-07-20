@@ -17,20 +17,19 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.8 — ten web-app languages (Italian, Dutch, Polish, Portuguese,
-> Turkish, Russian added; English now uses the US flag). v2.1.7: custom colour picker
-> (native OS colour picker in the web app's *Effect Presets* section; the picked colour
-> persists like an effect and survives power cuts). v2.1.6: true full-bleed iOS
-> background (no fixed theme-color; Safari samples the page gradient for its bars).
-> v2.1.5: colour-scale effect list (Red/Yellow/Green added, Indigo removed), grouped
-> effect grid (Colors / Special effects), vivid Aurora Drift, update-badge layout, user
-> manual (docs/user-manual.md) + header manual button.
+> **Phase:** v2.1.9 — project wordmark logo (rainbow cloud + "Lamp") as README hero,
+> web-app header brand and (transparently) the PWA / home-screen icon — iOS may still
+> fill transparent apple-touch-icon pixels black; check on a real device after Add to
+> Home Screen. v2.1.8: ten web-app languages (Italian, Dutch, Polish, Portuguese,
+> Turkish, Russian added; English now uses the US flag). v2.1.7: custom colour picker.
+> v2.1.6: true full-bleed iOS background. v2.1.5: colour-scale effect list, grouped
+> effect grid, user manual + header manual button.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the product
 > sticker (P-Touch template exists: docs/Label.lbx, field checklist in
 > device-credentials.md); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.8
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.9
 
 ---
 
@@ -72,10 +71,10 @@ cloud-lamp/
 │   └── cloud_lamp_web/           # Custom ESPHome component serving the web app
 ├── web/
 │   ├── app.html                  # Single-file iOS-style web app (gzipped into firmware)
-│   ├── icon.png                  # Home-screen / PWA icon (embedded, served at /icon.png)
-│   ├── brand.png                 # Transparent header cloud mark (embedded, /brand.png)
+│   ├── icon.png                  # Home-screen / PWA icon (wordmark, transparent)
+│   ├── brand.png                 # Header wordmark (transparent, /brand.png)
 │   └── logo.png                  # DD Productions logo (embedded, served at /logo.png)
-├── assets/                       # Original artwork sources (icon, brand, logo variants)
+├── assets/                       # Artwork sources (cloud-lamp-logo.png = project wordmark)
 ├── firmware-dist/                # Published releases (update channel, see firmware-updates.md)
 ├── tools/
 │   ├── release.sh                # Build + package a firmware release for the updater
@@ -163,12 +162,14 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   `/manifest.json` (PWA manifest, name = friendly name), `/icon.png` (home-screen / PWA
   icon), `/brand.png` (transparent cloud mark in the app header), `/logo.png` (DD
   Productions maker logo in the footer) and `/device.json` (name, serial, MAC, version).
-- **PWA icon (`/icon.png`):** kept square on purpose — iOS rounds home-screen icons
-  automatically, and `apple-touch-icon` does not support transparency (transparent
-  corners would render black). Used only for Add to Home Screen / manifest icons.
-- **Header brand (`/brand.png`):** transparent cloud artwork for the in-app header only;
-  sized larger than the previous tile and shown with `object-fit: contain` (no blue
-  background box).
+- **PWA icon (`/icon.png`):** the project wordmark on a square transparent canvas
+  (512×512). Used for Add to Home Screen / manifest icons. iOS may still fill
+  transparent `apple-touch-icon` pixels with black — check on a real device after each
+  artwork change; if it looks wrong, composite the wordmark onto the PWA
+  `background_color` (`#0b0f18`) instead.
+- **Header brand (`/brand.png`):** the same wordmark, cropped landscape, for the in-app
+  header only (`object-fit: contain`, no background box; not used as the home-screen
+  icon).
 - **PWA:** a top-of-page button *Create a remote control app* opens a structured sheet with
   step-by-step iOS home-screen instructions (including the lamp’s own unique
   `http://cloud-lamp-<serial>.local/` address — same six-hex serial as the header). The button is shown only when

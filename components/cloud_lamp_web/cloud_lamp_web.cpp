@@ -107,7 +107,7 @@ void CloudLampWeb::handle_manifest_(AsyncWebServerRequest *request) {
                          "\"display_override\":[\"standalone\",\"fullscreen\"],"
                          "\"background_color\":\"#0b0f18\",\"theme_color\":\"#0b0f18\"";
   if (this->icon_ != nullptr) {
-    manifest += ",\"icons\":[{\"src\":\"/icon.png\",\"sizes\":\"256x256\",\"type\":\"image/png\",\"purpose\":\"any\"}]";
+    manifest += ",\"icons\":[{\"src\":\"/icon.png\",\"sizes\":\"512x512\",\"type\":\"image/png\",\"purpose\":\"any\"}]";
   }
   manifest += "}";
   AsyncWebServerResponse *response = request->beginResponse(200, "application/manifest+json", manifest.c_str());

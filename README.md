@@ -6,7 +6,7 @@ gift — for example with a child's name and birth details printed on the front 
 fully usable as a standalone lamp with a single push-button, with optional Wi-Fi control
 through a built-in web app.
 
-![Cloud-Lamp app icon](assets/cloud-lamp-icon.png)
+![Cloud-Lamp logo](assets/cloud-lamp-logo.png)
 
 ## Features
 
@@ -126,9 +126,10 @@ secrets.example.yaml       template for the required secrets.yaml
 packages/                  feature modules: web app, updates, MQTT, temperature sensor
 components/cloud_lamp_web/ custom ESPHome component serving the web app
 web/                       web app source (embedded into the firmware at build time)
-assets/                    artwork sources (PWA icon, header brand, logos)
-web/brand.png              transparent header mark (embedded as /brand.png)
-web/icon.png               home-screen / PWA icon (embedded as /icon.png)
+assets/                    artwork sources (project wordmark, PWA/header derivatives, logos)
+assets/cloud-lamp-logo.png project wordmark (README hero + source for web/brand + web/icon)
+web/brand.png              header wordmark (embedded as /brand.png)
+web/icon.png               home-screen / PWA icon (embedded as /icon.png; transparent trial)
 firmware-dist/             published firmware releases (online update channel)
 docs/                      project documentation
 docs/Label.lbx             P-Touch label template for the sticker on the back

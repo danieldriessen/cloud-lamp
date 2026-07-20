@@ -84,9 +84,10 @@
 
     header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
     .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    /* Wordmark logo (cloud + "Lamp") — landscape slot, transparent PNG. */
     .brand .cloud{
       position:relative;overflow:visible;
-      width:48px;height:48px;border-radius:0;flex:0 0 auto;
+      width:112px;height:56px;border-radius:0;flex:0 0 auto;
       display:flex;align-items:center;justify-content:center;
       background:transparent;border:none;
     }
@@ -94,6 +95,7 @@
     .brand .cloud img{
       position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
     }
+    .brand .cloud:has(img) svg{display:none}
     .brand h1{margin:0;font-size:18px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .brand .sub{font-size:11px;color:var(--muted);margin-top:1px}
     .hdr-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}

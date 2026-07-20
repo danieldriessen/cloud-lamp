@@ -30,11 +30,12 @@ ota:
 
 cloud_lamp_web:
   html_file: web/app.html
-  # Home-screen / PWA icon. Kept square on purpose: iOS rounds home-screen
-  # icons itself, and apple-touch-icon does not support transparency
-  # (transparent corners would render black).
+  # Home-screen / PWA icon (square wordmark). Transparent on purpose so we can
+  # see how iOS/Android treat alpha — iOS historically fills transparent
+  # apple-touch-icon pixels with black; switch to a dark solid backdrop if that
+  # looks wrong on a real device after Add to Home Screen.
   icon_file: web/icon.png
-  # Transparent cloud mark for the in-app header (not used as apple-touch-icon).
+  # Transparent wordmark for the in-app header (not used as apple-touch-icon).
   brand_file: web/brand.png
   # DD Productions logo (transparent PNG), shown in the app footer.
   logo_file: web/logo.png

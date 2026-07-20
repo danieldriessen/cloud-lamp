@@ -56,13 +56,13 @@ def light_json(detail_all=False):
 
 def update_json():
     # Match ESPHome web_server shape: latest version is in `value`.
-    latest = "2.1.8"
+    latest = "2.1.9"
     installing = state["fw_installing"]
     return {
         "id": "update-firmware",
         "value": latest,
         "state": "INSTALLING" if installing else "NO UPDATE",
-        "current_version": "2.1.8",
+        "current_version": "2.1.9",
         "title": "Cloud Lamp (cloud-lamp)",
         "summary": f"Cloud-Lamp firmware {latest}",
         "has_progress": installing,
@@ -110,7 +110,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(200, json.dumps({
                 "name": "cloud-lamp-dd3f2a", "friendly_name": "Cloud-Lamp-dd3f2a",
                 "hostname": "cloud-lamp-dd3f2a", "serial": "DD3F2A",
-                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.8",
+                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.9",
             }).encode())
         elif path == "/manifest.json":
             self._send(200, json.dumps({"name": "Cloud-Lamp", "display": "standalone"}).encode())
