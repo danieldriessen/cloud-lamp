@@ -9,7 +9,7 @@ them. Configured in `packages/updates.yaml`; user-facing UI in the web app's set
 
 | Path | Who | How |
 |---|---|---|
-| **Online update** (primary) | End user, one tap | Web app → Settings → Firmware → *Install update* |
+| **Online update** (primary) | End user | Web app → Settings → Firmware → *Check for updates now* / *Install update* |
 | Browser upload | Builder / power user | `http://<lamp-ip>/update` (stock ESPHome page), upload a `.bin` |
 | Push OTA | Builder, same network | `esphome run cloud-lamp.yaml` (uses the shared OTA password) |
 
@@ -26,7 +26,9 @@ GitHub Pages setup or separate repo needed.
 
 1. Every 6 hours (and shortly after boot) the lamp downloads its manifest from
    `https://raw.githubusercontent.com/danieldriessen/cloud-lamp/main/firmware-dist/cloud-lamp/manifest.json`
-   (the `update_manifest_url` substitution).
+   (the `update_manifest_url` substitution). The same check can be triggered on demand from
+   Settings → Firmware → **Check for updates now** (REST: `POST /button/check_for_updates/press`,
+   which runs `update.check` — the web-server API only exposes install, not check).
 2. If the manifest version differs from the installed `${project_version}`, the web app
    shows an **Update available** badge and an **Install** button.
 3. On install, the lamp downloads the firmware image (the `path` in the manifest is

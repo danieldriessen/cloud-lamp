@@ -45,7 +45,7 @@ If the lamp cannot connect to any known Wi-Fi network, it opens its own access p
 3. A configuration page opens automatically (or go to `192.168.4.1`)
 4. Enter the home Wi-Fi credentials and save
 5. The lamp connects; the web app is then reachable at the lamp's IP (or via
-   `http://<device_name>.local/`)
+   `http://cloud-lamp-<mac6>.local/`, same serial as the sticker)
 
 The lamp keeps working as a normal lamp (button control) the entire time — it never
 reboots or blocks because Wi-Fi is unavailable.

@@ -1,13 +1,13 @@
 {
   "name": "Cloud Lamp (cloud-lamp)",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "builds": [
     {
       "chipFamily": "ESP8266",
       "ota": {
-        "path": "cloud-lamp-2.1.3.bin",
-        "md5": "2795f17cb93f4effdf9acae205c44ca5",
-        "summary": "Cloud-Lamp firmware 2.1.3"
+        "path": "cloud-lamp-2.1.4.bin",
+        "md5": "54f5f63cc5ca7edc28dbfd4f30177b8f",
+        "summary": "Cloud-Lamp firmware 2.1.4"
       }
     }
   ]

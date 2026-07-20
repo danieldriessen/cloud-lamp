@@ -29,10 +29,11 @@ through a built-in web app.
 - **Simple Wi-Fi onboarding** — if the lamp doesn't know the local Wi-Fi it opens its own
   hotspot (`Cloud-Lamp-XXXXXX`) with a captive portal to enter credentials. No flashing or
   tooling needed to move the lamp to a new home; credentials survive firmware updates.
-- **Safe over-the-air updates** — the lamp periodically checks this repository for new
-  firmware and offers updates in the web app. Downloads are MD5-verified and written to a
-  separate flash region; a failed or interrupted update leaves the running firmware
-  untouched, and a boot-loop triggers ESPHome safe mode.
+- **Safe over-the-air updates** — the lamp checks this repository for new firmware
+  (automatically every 6 hours, and on demand from Settings) and offers updates in the
+  web app. Downloads are MD5-verified and written to a separate flash region; a failed or
+  interrupted update leaves the running firmware untouched, and a boot-loop triggers
+  ESPHome safe mode.
 - **Optional MQTT integration** — for ioBroker / Home Assistant setups, as a separate
   build that adds broker connectivity without affecting standalone behaviour.
 - **Optional thermal protection** — a DS18B20 sensor package that shuts the LEDs off if
@@ -76,10 +77,12 @@ esphome run cloud-lamp.yaml
 After flashing:
 
 1. Power the lamp — it works immediately from the button.
-2. Connect a phone to the lamp's setup hotspot `Cloud-Lamp-XXXXXX` and enter your Wi-Fi
-   credentials in the captive portal that opens.
-3. Open `http://cloud-lamp.local/` (or the lamp's IP) for the web app, and optionally add
-   it to the home screen.
+2. Connect a phone to the lamp's setup hotspot `Cloud-Lamp-XXXXXX` (XXXXXX = last 6 hex
+   digits of the chip MAC, on the sticker) and enter your Wi-Fi credentials in the
+   captive portal that opens.
+3. Open the web app at `http://cloud-lamp-<serial>.local/` (same six hex digits,
+   lowercase — e.g. `http://cloud-lamp-cfb911.local/`) or at the lamp's IP. On iPhone /
+   iPad you can optionally add it to the home screen from Safari.
 
 Two build configurations exist:
 

@@ -448,6 +448,7 @@
           </div>
           <div class="stack" id="fwActions">
             <div class="v" id="fwStatus" style="font-size:12.5px;color:var(--muted)"></div>
+            <button class="btn" id="fwCheck" data-i18n="check_updates">Check for updates now</button>
             <button class="btn primary" id="fwInstall" hidden data-i18n="install_update">Install update</button>
             <div class="progress" id="fwProg" hidden><div class="bar" id="fwBar"></div></div>
           </div>
@@ -539,7 +540,8 @@
       beh_off:"Start switched off",beh_restore:"Restore last state",network:"Network",wifi_network:"Wi-Fi network",
       signal:"Signal",ip_address:"IP address",uptime:"Uptime",mqtt_enabled:"MQTT enabled",
       mqtt_d:"Smart-home integration (optional)",firmware:"Firmware",installed_version:"Installed version",
-      latest_version:"Latest version",install_update:"Install update",maintenance:"Maintenance",
+      latest_version:"Latest version",check_updates:"Check for updates now",checking_updates:"Checking for updates…",
+      install_update:"Install update",maintenance:"Maintenance",
       restart:"Restart lamp",factory_reset:"Factory reset…",change_wifi:"Change Wi-Fi network…",
       about:"About",device_name:"Device name",hostname:"Hostname",serial:"Serial",
       cancel:"Cancel",confirm:"Confirm",loading:"Loading…",on:"On",off:"Off",connected:"Connected",
@@ -548,7 +550,8 @@
       factory_q:"Reset everything?",factory_s:"Deletes the saved Wi-Fi network and all settings. The lamp then opens its setup hotspot again (see sticker on the back).",
       wifi_q:"Change Wi-Fi network?",wifi_s:"The lamp leaves this network and opens its setup hotspot (Cloud-Lamp-XXXXXX on the sticker). Other settings stay. Connect to that hotspot to choose a new network — you cannot stay in this page after confirming.",
       wifi_done:"Opening setup hotspot…",
-      restarting:"Restarting…",done:"Done",failed:"Action failed",fw_checks:"The lamp checks for updates every 6 hours (and shortly after power-on).",
+      restarting:"Restarting…",done:"Done",failed:"Action failed",
+      fw_checks:"Automatic checks run every 6 hours and shortly after power-on. You can also check manually below.",
       install_app_btn:"Create a remote control app",
       install_app_title:"Remote control app",
       install_app_how:"How to add it",
@@ -561,7 +564,8 @@
       beh_off:"Ausgeschaltet starten",beh_restore:"Letzten Zustand wiederherstellen",network:"Netzwerk",wifi_network:"WLAN-Netzwerk",
       signal:"Signal",ip_address:"IP-Adresse",uptime:"Laufzeit",mqtt_enabled:"MQTT aktiviert",
       mqtt_d:"Smart-Home-Anbindung (optional)",firmware:"Firmware",installed_version:"Installierte Version",
-      latest_version:"Neueste Version",install_update:"Update installieren",maintenance:"Wartung",
+      latest_version:"Neueste Version",check_updates:"Jetzt nach Updates suchen",checking_updates:"Suche nach Updates…",
+      install_update:"Update installieren",maintenance:"Wartung",
       restart:"Lampe neu starten",factory_reset:"Werkseinstellungen…",change_wifi:"WLAN wechseln…",
       about:"Info",device_name:"Gerätename",hostname:"Hostname",serial:"Seriennummer",
       cancel:"Abbrechen",confirm:"Bestätigen",loading:"Laden…",on:"Ein",off:"Aus",connected:"Verbunden",
@@ -570,7 +574,8 @@
       factory_q:"Alles zurücksetzen?",factory_s:"Löscht das gespeicherte WLAN und alle Einstellungen. Die Lampe öffnet danach wieder ihren Einrichtungs-Hotspot (siehe Aufkleber auf der Rückseite).",
       wifi_q:"WLAN wechseln?",wifi_s:"Die Lampe verlässt dieses Netz und öffnet ihren Einrichtungs-Hotspot (Cloud-Lamp-XXXXXX auf dem Aufkleber). Andere Einstellungen bleiben. Verbinde dich mit dem Hotspot, um ein neues Netz zu wählen — diese Seite ist danach nicht mehr erreichbar.",
       wifi_done:"Einrichtungs-Hotspot wird geöffnet…",
-      restarting:"Neustart…",done:"Fertig",failed:"Aktion fehlgeschlagen",fw_checks:"Die Lampe sucht alle 6 Stunden (und kurz nach dem Einschalten) nach Updates.",
+      restarting:"Neustart…",done:"Fertig",failed:"Aktion fehlgeschlagen",
+      fw_checks:"Automatische Prüfung alle 6 Stunden und kurz nach dem Einschalten. Manuell kannst du unten prüfen.",
       install_app_btn:"Fernbedienungs-App erstellen",
       install_app_title:"Fernbedienungs-App",
       install_app_how:"So fügst du sie hinzu",
@@ -583,7 +588,8 @@
       beh_off:"Arrancar apagada",beh_restore:"Restaurar el último estado",network:"Red",wifi_network:"Red Wi-Fi",
       signal:"Señal",ip_address:"Dirección IP",uptime:"Tiempo encendida",mqtt_enabled:"MQTT activado",
       mqtt_d:"Integración domótica (opcional)",firmware:"Firmware",installed_version:"Versión instalada",
-      latest_version:"Última versión",install_update:"Instalar actualización",maintenance:"Mantenimiento",
+      latest_version:"Última versión",check_updates:"Buscar actualizaciones ahora",checking_updates:"Buscando actualizaciones…",
+      install_update:"Instalar actualización",maintenance:"Mantenimiento",
       restart:"Reiniciar lámpara",factory_reset:"Restablecer de fábrica…",change_wifi:"Cambiar red Wi-Fi…",
       about:"Información",device_name:"Nombre del dispositivo",hostname:"Nombre de host",serial:"Número de serie",
       cancel:"Cancelar",confirm:"Confirmar",loading:"Cargando…",on:"Encendida",off:"Apagada",connected:"Conectado",
@@ -592,7 +598,8 @@
       factory_q:"¿Restablecer todo?",factory_s:"Borra la red Wi-Fi guardada y todos los ajustes. Después, la lámpara vuelve a abrir su punto de acceso de configuración (ver etiqueta trasera).",
       wifi_q:"¿Cambiar la red Wi-Fi?",wifi_s:"La lámpara sale de esta red y abre su punto de acceso de configuración (Cloud-Lamp-XXXXXX en la etiqueta). El resto de ajustes se conservan. Conéctate a ese punto de acceso para elegir una red nueva: esta página dejará de estar disponible.",
       wifi_done:"Abriendo el punto de acceso…",
-      restarting:"Reiniciando…",done:"Hecho",failed:"La acción falló",fw_checks:"La lámpara busca actualizaciones cada 6 horas (y poco después de encenderse).",
+      restarting:"Reiniciando…",done:"Hecho",failed:"La acción falló",
+      fw_checks:"Comprobación automática cada 6 horas y poco después de encenderse. También puedes comprobar manualmente abajo.",
       install_app_btn:"Crear una app de control",
       install_app_title:"App de control",
       install_app_how:"Cómo añadirla",
@@ -605,7 +612,8 @@
       beh_off:"Démarrer éteinte",beh_restore:"Restaurer le dernier état",network:"Réseau",wifi_network:"Réseau Wi-Fi",
       signal:"Signal",ip_address:"Adresse IP",uptime:"En marche depuis",mqtt_enabled:"MQTT activé",
       mqtt_d:"Intégration domotique (optionnel)",firmware:"Micrologiciel",installed_version:"Version installée",
-      latest_version:"Dernière version",install_update:"Installer la mise à jour",maintenance:"Maintenance",
+      latest_version:"Dernière version",check_updates:"Vérifier les mises à jour maintenant",checking_updates:"Recherche de mises à jour…",
+      install_update:"Installer la mise à jour",maintenance:"Maintenance",
       restart:"Redémarrer la lampe",factory_reset:"Réinitialisation d'usine…",change_wifi:"Changer de réseau Wi-Fi…",
       about:"À propos",device_name:"Nom de l'appareil",hostname:"Nom d'hôte",serial:"Numéro de série",
       cancel:"Annuler",confirm:"Confirmer",loading:"Chargement…",on:"Allumée",off:"Éteinte",connected:"Connecté",
@@ -614,7 +622,8 @@
       factory_q:"Tout réinitialiser ?",factory_s:"Efface le réseau Wi-Fi enregistré et tous les réglages. La lampe rouvre ensuite son point d'accès de configuration (voir l'étiquette au dos).",
       wifi_q:"Changer de réseau Wi-Fi ?",wifi_s:"La lampe quitte ce réseau et ouvre son point d'accès de configuration (Cloud-Lamp-XXXXXX sur l'étiquette). Les autres réglages sont conservés. Connectez-vous à ce point d'accès pour choisir un nouveau réseau — cette page ne sera plus accessible.",
       wifi_done:"Ouverture du point d'accès…",
-      restarting:"Redémarrage…",done:"Terminé",failed:"L'action a échoué",fw_checks:"La lampe recherche les mises à jour toutes les 6 heures (et peu après la mise sous tension).",
+      restarting:"Redémarrage…",done:"Terminé",failed:"L'action a échoué",
+      fw_checks:"Vérification automatique toutes les 6 heures et peu après la mise sous tension. Vous pouvez aussi vérifier manuellement ci-dessous.",
       install_app_btn:"Créer une appli de télécommande",
       install_app_title:"Appli de télécommande",
       install_app_how:"Comment l'ajouter",
@@ -686,7 +695,7 @@
     connected:false, on:false, brightness:70, speed:50, effect:"None", effects:[],
     ssid:"—", rssi:null, ip:"—", uptime:null,
     hostname:"", serial:"",
-    fwCur:"—", fwLatest:null, fwInstalling:false, fwProgress:null,
+    fwCur:"—", fwLatest:null, fwInstalling:false, fwChecking:false, fwProgress:null,
     mqttPresent:false, mqttOn:false,
   };
   let briDragging = false;
@@ -782,11 +791,14 @@
     badge.hidden = !st.fwLatest;
     badge.className = "upd-badge " + (hasUpd ? "avail" : "ok");
     badge.textContent = hasUpd ? t("update_available") : t("up_to_date");
+    $("fwCheck").disabled = st.fwInstalling || st.fwChecking;
     $("fwInstall").hidden = !hasUpd || st.fwInstalling;
     $("fwProg").hidden = !st.fwInstalling;
     if (st.fwInstalling && st.fwProgress != null)
       $("fwBar").style.width = st.fwProgress + "%";
-    $("fwStatus").textContent = st.fwInstalling ? t("installing") : t("fw_checks");
+    $("fwStatus").textContent = st.fwInstalling ? t("installing")
+      : st.fwChecking ? t("checking_updates")
+      : t("fw_checks");
   }
 
   /* ---------------- API ---------------- */
@@ -879,9 +891,18 @@
         st.ssid = data.value; renderNet(); break;
       case "update-firmware": {
         st.fwCur = data.current_version || st.fwCur;
-        st.fwLatest = data.latest_version || st.fwLatest;
+        // ESPHome's web API puts the latest version in `value` (not
+        // `latest_version`). Accept both for forward/backward compatibility.
+        st.fwLatest = data.latest_version || data.value || st.fwLatest;
         st.fwInstalling = data.state === "INSTALLING";
         st.fwProgress = data.has_progress ? Math.round(data.progress) : null;
+        // Ignore stale state right after pressing Check — the TLS fetch can
+        // take several seconds before the entity republishes.
+        if (st.fwChecking && data.state !== "INSTALLING" &&
+            st.fwCheckStarted && Date.now() - st.fwCheckStarted > 1500) {
+          st.fwChecking = false;
+          clearTimeout(st._fwCheckTimer);
+        }
         renderUpdate();
         break;
       }
@@ -954,7 +975,7 @@
       if (r.ok) ingest(Object.assign({ id:"number-effect_speed" }, await r.json()));
     } catch {}
     try {
-      const r = await fetch("/update/firmware", { cache:"no-store" });
+      const r = await fetch("/update/firmware?detail=all", { cache:"no-store" });
       if (r.ok) ingest(Object.assign({ id:"update-firmware" }, await r.json()));
     } catch {}
     renderSpeed();
@@ -1098,8 +1119,36 @@
       closeSettings();
     }));
 
+  $("fwCheck").addEventListener("click", async () => {
+    if (st.fwInstalling || st.fwChecking) return;
+    st.fwChecking = true;
+    st.fwCheckStarted = Date.now();
+    renderUpdate();
+    try {
+      await act(() => post("/button/check_for_updates/press"));
+    } catch {
+      st.fwChecking = false;
+      renderUpdate();
+      return;
+    }
+    // SSE clears "Checking…" when the update entity republishes; this is the
+    // fallback if the check fails quietly or the stream is down.
+    clearTimeout(st._fwCheckTimer);
+    st._fwCheckTimer = setTimeout(() => {
+      if (st.fwChecking) {
+        st.fwChecking = false;
+        renderUpdate();
+        // One last pull in case SSE missed the result.
+        fetch("/update/firmware?detail=all", { cache:"no-store" })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) ingest(Object.assign({ id:"update-firmware" }, d)); })
+          .catch(() => {});
+      }
+    }, 20000);
+  });
+
   $("fwInstall").addEventListener("click", () => {
-    st.fwInstalling = true; st.fwProgress = 0; renderUpdate();
+    st.fwInstalling = true; st.fwProgress = 0; st.fwChecking = false; renderUpdate();
     act(() => post("/update/firmware/install"));
   });
 

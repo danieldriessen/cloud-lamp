@@ -16,11 +16,11 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.1.3 — transparent header brand mark (PWA icon unchanged), effect speed,
-> Latte Brown, unified 6-hex serial, install polish, HTTPS update TLS buffer fix.
+> **Phase:** v2.1.4 — fix update UI (ESPHome puts latest version in `value`), Check for
+> updates now, transparent header brand, effect speed, Latte Brown, 6-hex serial.
 > **Still open:** intensity slider (per-effect mapping); test button gestures / captive
 > portal end-to-end; product stickers; 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.1.3
+> **Firmware:** ESPHome 2026.6.0, project version 2.1.4
 
 ---
 
@@ -173,9 +173,9 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   private-network address (same limitation as FRITZ!, Shelly, WLED, …). Mitigations we
   ship: no HSTS (`Strict-Transport-Security: max-age=0`), relative PWA `start_url`, and a
   four-language in-app tip that tells recipients to (1) disable that Safari setting and
-  (2) type `http://cloud-lamp.local/` explicitly before *Add to Home Screen*. There is no
-  firmware-only way to make iOS accept a local HTTP home-screen app while that setting
-  stays enabled.
+  (2) type `http://cloud-lamp-<serial>.local/` explicitly before *Add to Home Screen*
+  (same six-hex serial as the sticker / header). There is no firmware-only way to make
+  iOS accept a local HTTP home-screen app while that setting stays enabled.
 - **Safari "ᴬA" / font-size menu:** appears when the page is opened *inside Safari*. The
   app uses `role="application"`, disables text-size adjustment, and is a proper
   standalone PWA — once installed from the home screen it runs full-screen without that
@@ -187,8 +187,9 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   device-confirmed (no unverified optimistic UI).
 - **Features:** power toggle, brightness slider, effect grid with colour swatches, settings
   sheet (language, power-cut behaviour, network diagnostics, *Change Wi-Fi network*, MQTT
-  kill switch when present, firmware version/update with progress bar, restart, factory
-  reset, device info). The settings sheet is a bottom sheet capped at the same max width
+  kill switch when present, firmware version/update with *Check for updates now* and
+  install progress, restart, factory reset, device info). The settings sheet is a bottom
+  sheet capped at the same max width
   as the main view (`520px`), locks background scroll while open, and keeps extra right /
   bottom padding so the scroll indicator and home-indicator area stay clear.
 - **Change Wi-Fi:** clears saved STA credentials, re-asserts the `Cloud-Lamp-XXXXXX` AP, and
@@ -211,9 +212,10 @@ simulated device API on `http://127.0.0.1:8932/`.
 
 See [firmware-updates.md](./firmware-updates.md) for the full workflow. Summary: the lamp
 checks a manifest hosted in this GitHub repo (`firmware-dist/`, served via
-raw.githubusercontent.com) every 6 h; when a newer version is published the web app shows
-an *Install* button; the image is downloaded, MD5-verified and written to the inactive
-flash area while the lamp keeps running; `safe_mode` catches boot loops after a bad flash.
+raw.githubusercontent.com) every 6 h (or on demand via *Check for updates now*); when a
+newer version is published the web app shows an *Install* button; the image is downloaded,
+MD5-verified and written to the inactive flash area while the lamp keeps running;
+`safe_mode` catches boot loops after a bad flash.
 Settings are never touched by updates. Browser-upload OTA (`/update` on the stock ESPHome
 page) and push OTA from the builder's machine remain available as fallbacks.
 

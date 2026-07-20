@@ -51,12 +51,17 @@ def light_json(detail_all=False):
 
 
 def update_json():
+    # Match ESPHome web_server shape: latest version is in `value`.
+    latest = "2.1.4"
+    installing = state["fw_installing"]
     return {
         "id": "update-firmware",
-        "state": "INSTALLING" if state["fw_installing"] else "AVAILABLE",
-        "current_version": "2.1.3",
-        "latest_version": "2.1.3",
-        "has_progress": state["fw_installing"],
+        "value": latest,
+        "state": "INSTALLING" if installing else "NO UPDATE",
+        "current_version": "2.1.4",
+        "title": "Cloud Lamp (cloud-lamp)",
+        "summary": f"Cloud-Lamp firmware {latest}",
+        "has_progress": installing,
         "progress": state["fw_progress"],
     }
 
@@ -101,7 +106,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(200, json.dumps({
                 "name": "cloud-lamp-dd3f2a", "friendly_name": "Cloud-Lamp-dd3f2a",
                 "hostname": "cloud-lamp-dd3f2a", "serial": "DD3F2A",
-                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.3",
+                "mac": "AA:BB:CC:DD:3F:2A", "version": "2.1.4",
             }).encode())
         elif path == "/manifest.json":
             self._send(200, json.dumps({"name": "Cloud-Lamp", "display": "standalone"}).encode())
@@ -168,6 +173,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             state["mqtt"] = path.endswith("turn_on")
             self._send(200)
             broadcast({"id": "switch-mqtt_enabled", "state": "ON" if state["mqtt"] else "OFF"})
+        elif path == "/button/check_for_updates/press":
+            self._send(200)
+
+            def fake_check():
+                time.sleep(1.2)
+                broadcast(update_json())
+            threading.Thread(target=fake_check, daemon=True).start()
         elif path == "/update/firmware/install":
             self._send(200)
 

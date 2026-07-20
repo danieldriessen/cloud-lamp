@@ -48,3 +48,13 @@ update:
     name: "Firmware"             # REST object_id: firmware
     source: ${update_manifest_url}
     update_interval: 6h
+
+# Web-server REST has install, but not check — expose a button the web app can press.
+button:
+  - platform: template
+    name: "Check for Updates"    # REST object_id: check_for_updates
+    id: check_for_updates_btn
+    icon: "mdi:cloud-download"
+    entity_category: config
+    on_press:
+      - update.check: firmware_update
