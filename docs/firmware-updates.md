@@ -44,7 +44,13 @@ GitHub Pages setup or separate repo needed.
 
 An unreachable manifest URL is harmless — the check fails silently and the lamp keeps
 running (relevant for lamps in homes without internet, or before a device's first release
-is published).
+is published). "Silently" is literal: a failed check leaves the **Firmware** entity exactly
+as it was (current version, latest version, everything) — there is no error state exposed
+anywhere the web app can see, so it keeps showing whatever the *last successful* check
+found. Since v2.3.1, both the manual check and the periodic one guard against the one
+realistic cause of a check failing while the lamp is otherwise online — see the "Reliability
+note" in `packages/updates.yaml` and [below](#stuck-on-an-old-version-with-up-to-date-showing)
+if you hit this on a lamp still running an older firmware.
 
 ## Why an update cannot brick the lamp
 
@@ -97,6 +103,34 @@ on both builds and configured from the web app, not compiled in).
 
 `path` is resolved relative to the manifest URL. `release_url` and `summary` are optional
 and shown by the update entity where supported.
+
+## Stuck on an old version with "Up to date" showing
+
+If a lamp keeps reporting "Up to date" at an old version even though a newer release is
+published (confirmed live, e.g. with `curl` against the manifest URL above) and pressing
+**Check for updates now** doesn't change anything: the lamp is almost certainly running a
+firmware older than **v2.3.1**, which had a real bug — the manifest *check* silently failed
+due to ESP8266 heap contention with the web app's own open connection (see the v2.3.1
+changelog entry in [cloud-lamp-design.md](./cloud-lamp-design.md#project-status)) — and,
+critically, **a lamp already stuck like this cannot reliably fix itself via the web app**,
+because it is still running that same old, unfixed check logic until it actually updates.
+Recovery, in order of preference:
+
+1. **Power-cycle the lamp and wait ~1 minute *before* opening the web app.** The firmware
+   automatically checks for updates within the first minute after Wi-Fi connects — with no
+   browser tab open yet, there's no competing SSE connection, which is what made the bug
+   most likely to hit on a manual "Check for updates now" in the first place. Then open the
+   app; if the check succeeded, **Update available** should already be showing.
+2. **Browser upload OTA**, if step 1 doesn't help: download the latest `.bin` from
+   [`firmware-dist/cloud-lamp/`](../firmware-dist/cloud-lamp/) in this repo (the file named
+   in `manifest.json`'s `path`), then open `http://<lamp-ip-or-hostname>/update` (the stock
+   ESPHome upload page) and upload it there. This bypasses the online-update check
+   entirely, so it works regardless of the bug above.
+3. **Push OTA** (`esphome run cloud-lamp.yaml`, builder only, same network) — also bypasses
+   the check entirely.
+
+Once the lamp is running v2.3.1 or newer, both the automatic and manual checks are
+protected against this contention (see `packages/updates.yaml`) and this should not recur.
 
 ## TLS note
 

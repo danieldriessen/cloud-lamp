@@ -39,6 +39,23 @@
 #  suspended for the OTA's duration (regardless of the kill switch's state)
 #  via the ota_via_http entity's on_begin/on_error/on_abort hooks in
 #  packages/mqtt.yaml.
+#
+#  v2.3.1: the exact same contention was silently affecting the manifest
+#  *check* too, not just the firmware *install* — this went unnoticed until
+#  a real device stayed on "Up to date" after a new release had already
+#  gone live, because a manual "Check for updates now" is, by definition,
+#  always pressed from a page that has this exact SSE connection open, and
+#  http_request's update component only republishes (and only lets the web
+#  app see anything change) on a *successful* check — a failed one leaves
+#  the entity exactly as it was, with no error surfaced anywhere the web app
+#  can see. Fixed the same way: web/app.html's "Check for updates now"
+#  handler now closes its EventSource before POSTing the button press and
+#  reconnects right after (the press blocks server-side until the check
+#  finishes, so there's no live event to wait for in between); this file's
+#  check_for_updates_btn now also suspends/resumes MQTT around update.check,
+#  in that exact order, in the same on_press list (a second on_press merged
+#  in from packages/mqtt.yaml via `!extend`, as done for ota_via_http above,
+#  would not guarantee running before/after the existing update.check step).
 # ==============================================================================
 
 http_request:
@@ -77,4 +94,18 @@ button:
     icon: "mdi:cloud-download"
     entity_category: config
     on_press:
+      # Same heap-pressure guard as the OTA install (see the "Reliability
+      # note" above and packages/mqtt.yaml's ota_via_http on_begin/on_error/
+      # on_abort hooks): briefly suspend MQTT's own broker connection so it
+      # can't compete with the manifest fetch's TLS session for the
+      # ESP8266's tight contiguous heap. Unlike the install hooks this can't
+      # live in packages/mqtt.yaml via `!extend` — the disable/re-enable
+      # must run strictly before/after update.check in this exact list, and
+      # `!extend`-ing a second on_press onto the same button would not
+      # guarantee that ordering. Respects the persisted MQTT kill switch —
+      # never re-enables MQTT if the user had already turned it off.
+      - lambda: 'mqtt::global_mqtt_client->disable();'
       - update.check: firmware_update
+      - lambda: |-
+          if (id(mqtt_enabled).state)
+            mqtt::global_mqtt_client->enable();

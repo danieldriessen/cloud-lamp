@@ -1348,13 +1348,9 @@
         st.fwLatest = data.latest_version || data.value || st.fwLatest;
         st.fwInstalling = data.state === "INSTALLING";
         st.fwProgress = data.has_progress ? Math.round(data.progress) : null;
-        // Ignore stale state right after pressing Check — the TLS fetch can
-        // take several seconds before the entity republishes.
-        if (st.fwChecking && data.state !== "INSTALLING" &&
-            st.fwCheckStarted && Date.now() - st.fwCheckStarted > 1500) {
-          st.fwChecking = false;
-          clearTimeout(st._fwCheckTimer);
-        }
+        // st.fwChecking is only ever set/cleared by the "Check for updates
+        // now" click handler below (SSE is closed for its entire duration,
+        // so no push from here can race it).
         renderUpdate();
         break;
       }
@@ -1610,29 +1606,29 @@
   $("fwCheck").addEventListener("click", async () => {
     if (st.fwInstalling || st.fwChecking) return;
     st.fwChecking = true;
-    st.fwCheckStarted = Date.now();
     renderUpdate();
+    // Free our SSE socket (+ its BearSSL/TLS-adjacent heap) before the lamp
+    // opens its own HTTPS session to fetch the manifest — same reasoning as
+    // the install flow below, but this was previously missing here, which
+    // made a manual "Check for updates now" (always pressed from a page
+    // that necessarily has this exact SSE connection open) unreliable on
+    // the ESP8266's tight heap: the check would silently fail and the app
+    // would keep showing whatever the *last successful* check found, with
+    // no indication anything had gone wrong. The button press blocks
+    // server-side until the check finishes (or times out, up to 60 s), so
+    // there's no live push to wait for — reconnecting happens right after.
+    clearTimeout(reconnectTimer);
+    if (es) { es.close(); es = null; }
     try {
       await act(() => post("/button/check_for_updates/press"));
+      const r = await fetch("/update/firmware?detail=all", { cache:"no-store" });
+      if (r.ok) ingest(Object.assign({ id:"update-firmware" }, await r.json()));
     } catch {
-      st.fwChecking = false;
-      renderUpdate();
-      return;
+      // Fall through — still clear "Checking…" and reconnect below.
     }
-    // SSE clears "Checking…" when the update entity republishes; this is the
-    // fallback if the check fails quietly or the stream is down.
-    clearTimeout(st._fwCheckTimer);
-    st._fwCheckTimer = setTimeout(() => {
-      if (st.fwChecking) {
-        st.fwChecking = false;
-        renderUpdate();
-        // One last pull in case SSE missed the result.
-        fetch("/update/firmware?detail=all", { cache:"no-store" })
-          .then(r => r.ok ? r.json() : null)
-          .then(d => { if (d) ingest(Object.assign({ id:"update-firmware" }, d)); })
-          .catch(() => {});
-      }
-    }, 20000);
+    st.fwChecking = false;
+    renderUpdate();
+    connectSSE();
   });
 
   /* -------- Firmware update coach --------

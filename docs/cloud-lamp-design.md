@@ -17,6 +17,31 @@ Related documents:
 
 ## Project status
 
+> **Phase:** v2.3.1 — a real device stayed on "Up to date" / 2.2.5 shortly after v2.3.0
+> went live, even after explicitly pressing "Check for updates now". Root cause: the exact
+> same ESP8266 heap-contention bug already fixed for OTA **installs** in v2.2.5 was also
+> silently affecting the manifest **check** — never noticed before because nobody had
+> pressed "Check for updates now" from the web app (which necessarily has an SSE connection
+> open) since that fix went in. `http_request`'s update platform only republishes its state
+> on a *successful* check; a failed one (heap too fragmented for BearSSL's ~8.7 KB
+> contiguous TLS buffer, with the web app's own held-open `/events` connection as the
+> single biggest avoidable contributor) leaves the entity exactly as it was — current
+> version, latest version, everything — with no error exposed anywhere the web app can see.
+> So the app kept confidently showing the result of whatever check last happened to
+> succeed, which was before v2.3.0 was published. Fixed the same way as the install: (1)
+> `web/app.html`'s "Check for updates now" handler now closes its `EventSource` before
+> POSTing the button press and reconnects immediately after (the press blocks server-side
+> until the check finishes, so there's nothing to wait for in between — see
+> `packages/updates.yaml`'s reliability note); (2) `check_for_updates_btn` now also
+> suspends/resumes MQTT around `update.check`, in that exact order in one `on_press` list
+> (unlike the OTA install hooks, this can't be added via a second `on_press` merged in from
+> `packages/mqtt.yaml` with `!extend` — that wouldn't guarantee running before/after the
+> existing step). **A device already stuck on a stale "Up to date" cannot self-heal via
+> this fix alone**, since it is still running the old, unfixed web app until it updates —
+> see [firmware-updates.md](./firmware-updates.md#stuck-on-an-old-version-with-up-to-date-showing)
+> for the recovery steps (power-cycle without opening the web app, or manual browser-upload
+> OTA as a last resort).
+>
 > **Phase:** v2.3.0 — MQTT is now always compiled in (public gift build too) but OFF by
 > default on every new device (`RESTORE_DEFAULT_OFF`; previously the "MQTT Enabled" switch
 > itself defaulted to ON on the dev-only bench build). Broker address/port/username/password
