@@ -1,0 +1,35 @@
+---
+description: Keep the user manual + sticker docs verified on every firmware release
+globs: cloud-lamp.yaml,web/app.html,docs/user-manual.md,docs/device-credentials.md,tools/release.sh,tools/build-manual.py
+alwaysApply: false
+---
+
+# Manual & sticker docs must stay correct on every release
+
+Before publishing a release (bumping `project_version` in `cloud-lamp.yaml` and running
+`tools/release.sh`), re-verify `docs/user-manual.md` end-to-end against current behaviour:
+
+- Button gestures/timings (§4), Wi-Fi setup steps (§5) and firmware update flow (§7)
+  match the actual current firmware behaviour.
+- Sticker field table (§2) matches `docs/device-credentials.md`'s Required/Recommended
+  tables **and** the physically printed label (`docs/Label.lbx`) — if either changes,
+  update both docs and the table together.
+- Power-supply description, effect count/list, supported language list, and the
+  permanent manual URL are still accurate. The manual URL
+  (`https://danieldriessen.github.io/cloud-lamp/user-manual.pdf`) is printed on physical
+  stickers and in the QR code — NEVER change it.
+
+After any edit to `user-manual.md`, rebuild the PDF and commit both together:
+
+```bash
+python3 tools/build-manual.py
+git add docs/user-manual.md docs/user-manual.pdf
+```
+
+The cover page's "Describes firmware vX.Y.Z" line is read automatically from
+`cloud-lamp.yaml`'s `project_version` by `tools/build-manual.py` — never hardcode a
+version number in the markdown source or the build script.
+
+If a code change (button behaviour, Wi-Fi flow, update UI, effect list, supported
+languages, sticker layout) could make any manual section stale, treat updating
+`user-manual.md` as part of that change, not a follow-up task.

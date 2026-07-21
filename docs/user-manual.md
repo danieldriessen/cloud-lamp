@@ -43,7 +43,7 @@ On the **back of the lamp** you'll find a sticker with everything you need:
 |---|---|
 | **Model** | Product model (`CL-1`) |
 | **S/N** | Your lamp's serial number, e.g. `CFB911` — also identifies the setup Wi-Fi (below) |
-| **Hostname** | Your lamp's remote control address once it's on your home Wi-Fi — type `http://` in front of it in your browser, e.g. `http://cloud-lamp-cfb911.local/` |
+| **Hostname** | Your lamp's remote control address once it's on your home Wi-Fi, ready to type straight into your browser, e.g. `http://cloud-lamp-cfb911.local` |
 | **WiFi-Passw.** | Password for the lamp's own setup Wi-Fi hotspot (see [§5](#5-connecting-the-lamp-to-your-wi-fi)) |
 | **Power-Supply** | Rating of the included power adapter — see [§1](#1-safety-information--please-read-first) |
 | **QR code** ("Manual") | Opens this manual |
@@ -96,9 +96,8 @@ The lamp keeps working normally as a lamp during all of this.
 
 ## 6. The remote control app
 
-Open the **Hostname from the sticker** in your phone's browser, typing `http://` in front
-of it (e.g. `http://cloud-lamp-cfb911.local/`) — the sticker prints the hostname only, so
-you have to add the `http://` yourself. You can:
+Open the **Hostname from the sticker** in your phone's browser, exactly as printed (e.g.
+`http://cloud-lamp-cfb911.local`). You can:
 
 - turn the lamp on/off and dim it,
 - choose colours and special effects from the *Effect Presets* grid,
@@ -147,7 +146,7 @@ opens its setup hotspot again after ~1 minute — just repeat
 **Web page not reachable?**
 
 1. Make sure your phone is on the **same Wi-Fi** as the lamp.
-2. Type the Hostname exactly as on the sticker, with `http://` in front of it.
+2. Type the Hostname exactly as printed on the sticker.
 3. Unplug the lamp, wait 5 seconds, plug it back in, wait a minute.
 
 **Lamp doesn't react to the button?** Unplug and replug the power. The button works even

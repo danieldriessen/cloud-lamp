@@ -30,6 +30,7 @@ from weasyprint import HTML
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "docs" / "user-manual.md"
 OUT = ROOT / "docs" / "user-manual.pdf"
+CONFIG = ROOT / "cloud-lamp.yaml"
 LOGO = ROOT / "assets" / "cloud-lamp-logo.png"
 # Transparent, dark-ink "DD Productions" wordmark for the cover footer.
 # assets/dd-productions-logo-black.png has an OPAQUE black background and, despite
@@ -165,7 +166,7 @@ HTML_SHELL = """<!DOCTYPE html>
   <p class="subtitle">Decorative Wi-Fi LED lamp &middot; controlled by one button or your phone</p>
   <div class="footer">
     <img class="maker-logo" src="{maker_logo}" alt="DD Productions">
-    Revision {revision} &middot; always describes the latest firmware<br>
+    Describes firmware v{fw_version} &middot; {revision}<br>
     {manual_url}
   </div>
 </div>
@@ -178,6 +179,16 @@ HTML_SHELL = """<!DOCTYPE html>
 </div>
 </body>
 </html>"""
+
+
+def read_project_version() -> str:
+    """Read project_version straight from cloud-lamp.yaml's substitutions —
+    same value tools/release.sh stamps into the firmware manifest — so the
+    cover page can never drift from the actual shipped version."""
+    m = re.search(r'^\s*project_version:\s*"([^"]+)"', CONFIG.read_text(encoding="utf-8"), re.M)
+    if not m:
+        raise RuntimeError(f"could not find project_version in {CONFIG}")
+    return m.group(1)
 
 
 def main() -> None:
@@ -200,6 +211,7 @@ def main() -> None:
         css=CSS,
         logo=LOGO.as_uri(),
         maker_logo=MAKER_LOGO.as_uri(),
+        fw_version=read_project_version(),
         revision=datetime.date.today().strftime("%B %Y"),
         manual_url=MANUAL_URL,
         toc=toc_items,

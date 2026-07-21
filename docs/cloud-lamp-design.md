@@ -25,8 +25,15 @@ Related documents:
 > the actual DD Productions logo (icon + wordmark) instead of plain text — derived as a
 > transparent, dark-ink image from `assets/dd-productions-logo-white.png`, because
 > `assets/dd-productions-logo-black.png` turned out to contain no text glyphs at all
-> (icon only) despite its name. v2.2.3: the permanent manual URL was briefly the jsDelivr
-> CDN link. v2.2.2: branded Wi-Fi onboarding: the captive portal now serves our own
+> (icon only) despite its name. The manual cover also now shows "Describes firmware
+> vX.Y.Z", read automatically from `cloud-lamp.yaml`'s `project_version` by
+> `tools/build-manual.py` (never hardcoded). The final printed sticker prints `Hostname`
+> WITH the `http://` scheme already included (e.g. `http://cloud-lamp-cfb911.local`) —
+> user-manual.md and device-credentials.md updated accordingly (previously assumed the
+> bare hostname, with the manual telling recipients to add `http://` themselves). Added
+> `.cursor/rules/manual-release-check.mdc` so future releases re-verify the manual and
+> sticker docs against current behaviour before publishing. v2.2.3: the permanent manual
+> URL was briefly the jsDelivr CDN link. v2.2.2: branded Wi-Fi onboarding: the captive portal now serves our own
 > setup page (web/setup.html, same design language as the app, ten languages) instead of
 > ESPHome's stock page; scan/save still use the stock /config.json + /wifisave endpoints.
 > Icons are now served with `no-cache` (a 24 h max-age kept old logos on phones after

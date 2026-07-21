@@ -14,17 +14,17 @@ file). Keep it in sync with the field lists below; the user manual's sticker tab
 (user-manual.md §2) must match whatever the printed label actually contains.
 
 **Final layout** (as printed): a `DD Productions` / cloud-lamp wordmark header, then
-`Model: CL-1`, `S/N: <serial>`, `Hostname: cloud-lamp-<serial>.local`,
+`Model: CL-1`, `S/N: <serial>`, `Hostname: http://cloud-lamp-<serial>.local`,
 `WiFi-Passw.: cloud-lamp`, `Power-Supply: 5V ⎓ 2A` with a centre-positive barrel-jack
-polarity icon, and a QR code captioned `Manual`. Two consequences of this exact layout
-that the user manual has to compensate for (see user-manual.md §2 and §5–6):
+polarity icon, and a QR code captioned `Manual`. `Hostname` is printed with the `http://`
+scheme already included, so the recipient can type or read it straight off the sticker —
+required for iOS Safari to treat it as an address instead of a search, and one less thing
+to explain in the manual. One consequence of this exact layout that the user manual has
+to compensate for (see user-manual.md §2 and §5):
 
 - **No separate setup-hotspot line.** The setup Wi-Fi network name (`Cloud-Lamp-XXXXXX`)
   is not printed literally — only the bare serial (`S/N`). The manual instructs the
   recipient to prefix `Cloud-Lamp-` to the printed `S/N` themselves.
-- **`Hostname` is printed without the `http://` scheme.** The manual explicitly tells
-  the recipient to type `http://` in front of it — required for iOS Safari to treat it as
-  an address instead of a search.
 
 ### Required — without these a recipient cannot recover the lamp
 
@@ -32,7 +32,7 @@ that the user manual has to compensate for (see user-manual.md §2 and §5–6):
 |---|---|---|
 | `S/N` | last 6 hex digits of the chip MAC, uppercase (e.g. `CFB911`) | Doubles as the setup-hotspot SSID suffix (`Cloud-Lamp-CFB911`) and the `Hostname` suffix — the one parent code recipients need for onboarding and recovery |
 | `WiFi-Passw.` | `cloud-lamp` | Password for the setup hotspot; shared across all devices — not discoverable anywhere else |
-| `Hostname` | `cloud-lamp-<serial>.local` | The lamp's remote-control address once it's on the home Wi-Fi. The manual tells recipients to add the `http://` prefix themselves — printing the raw hostname keeps this line short and readable |
+| `Hostname` | `http://cloud-lamp-<serial>.local` | The lamp's remote-control address once it's on the home Wi-Fi, printed with the `http://` scheme so recipients can type it exactly as shown — required for iOS Safari to treat it as an address instead of a search |
 | `Manual` QR code | `https://danieldriessen.github.io/cloud-lamp/user-manual.pdf` | Safety information, button gestures and troubleshooting when the web app is unreachable. Same URL on every lamp; the manual (PDF) always describes the latest firmware. GitHub Pages serves the PDF directly in the browser with a real `application/pdf` type (GitHub's own blob/raw URLs either download it or wrap it in the GitHub UI) |
 
 ### Recommended
