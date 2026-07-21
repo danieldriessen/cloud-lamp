@@ -32,11 +32,16 @@ Related documents:
 > uses an indeterminate bar. v2.1.9: project wordmark logo. v2.1.8: ten languages.
 > v2.1.7: custom colour picker. v2.1.6: full-bleed iOS background. v2.1.5: effect list +
 > manual.
+> **Docs correction (no firmware change):** the manual, README and this document
+> previously mis-described the power supply as "5 V USB" — it is actually a 5 V/2 A DC
+> barrel-jack adapter (5.5×2.1 mm, centre-positive), now corrected everywhere. The sticker
+> design is finalised (docs/Label.lbx); user-manual.md §2 and device-credentials.md now
+> describe its actual fields (Model/S/N/Hostname/WiFi-Passw./Power-Supply/QR) instead of
+> the earlier, slightly different field set.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
-> mapping); test button gestures / captive portal end-to-end; print + apply the product
-> sticker (P-Touch template exists: docs/Label.lbx, field checklist in
-> device-credentials.md); 3D print files.
+> mapping); test button gestures / captive portal end-to-end; print + apply the finalised
+> product sticker (docs/Label.lbx); 3D print files.
 > **Firmware:** ESPHome 2026.6.0, project version 2.2.3
 
 ---
@@ -374,7 +379,7 @@ With the temperature package also enabled:
 | LED rings | 3× WS2812x rings (B09YRHLD8W), 24 LEDs total, GRB |
 | LED data pin | GPIO03 (RX) via 330 Ω series resistor |
 | Decoupling capacitor | 470 µF electrolytic across the 5 V rail |
-| Power supply | External 5 V / 2 A |
+| Power supply | External 5 V / 2 A DC adapter, barrel jack 5.5×2.1 mm, centre-positive (included with the lamp) |
 | User input | Momentary push-button on GPIO12 (D6), internal pull-up, to GND |
 | Optional | DS18B20 temperature sensor on GPIO4 (D2) |
 

@@ -55,7 +55,7 @@ through a built-in web app.
 | LED data | GPIO03 (RX) through a 330 Ω series resistor |
 | Capacitor | 470 µF electrolytic across the 5 V rail |
 | Button | Momentary push-button on GPIO12 (D6) to GND, internal pull-up |
-| Power | External 5 V / 2 A supply |
+| Power | External 5 V / 2 A DC adapter, barrel jack 5.5×2.1 mm, centre-positive |
 | Optional | DS18B20 temperature sensor on GPIO4 (D2) |
 
 The LED count, pins and other build parameters are substitutions at the top of

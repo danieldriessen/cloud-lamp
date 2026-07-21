@@ -13,28 +13,40 @@ The printable label is maintained in [`Label.lbx`](./Label.lbx) (Brother P-Touch
 file). Keep it in sync with the field lists below; the user manual's sticker table
 (user-manual.md §2) must match whatever the printed label actually contains.
 
+**Final layout** (as printed): a `DD Productions` / cloud-lamp wordmark header, then
+`Model: CL-1`, `S/N: <serial>`, `Hostname: cloud-lamp-<serial>.local`,
+`WiFi-Passw.: cloud-lamp`, `Power-Supply: 5V ⎓ 2A` with a centre-positive barrel-jack
+polarity icon, and a QR code captioned `Manual`. Two consequences of this exact layout
+that the user manual has to compensate for (see user-manual.md §2 and §5–6):
+
+- **No separate setup-hotspot line.** The setup Wi-Fi network name (`Cloud-Lamp-XXXXXX`)
+  is not printed literally — only the bare serial (`S/N`). The manual instructs the
+  recipient to prefix `Cloud-Lamp-` to the printed `S/N` themselves.
+- **`Hostname` is printed without the `http://` scheme.** The manual explicitly tells
+  the recipient to type `http://` in front of it — required for iOS Safari to treat it as
+  an address instead of a search.
+
 ### Required — without these a recipient cannot recover the lamp
 
-| Field | Value | Why it must be printed |
+| Field on the sticker | Value | Why it must be printed |
 |---|---|---|
-| Setup Wi-Fi | `Cloud-Lamp-XXXXXX` | The only onboarding path when the lamp has no network; XXXXXX (last 6 hex digits of the chip MAC, uppercase) doubles as the serial number |
-| Wi-Fi password | `cloud-lamp` | Shared across all devices (see below) — not discoverable anywhere else |
-| Web address | `http://cloud-lamp-<mac6>.local/` | Same six hex digits, lowercase. Print it **with** the `http://` prefix — iOS requires typing it exactly |
-| Manual QR code | `https://cdn.jsdelivr.net/gh/danieldriessen/cloud-lamp@main/docs/user-manual.pdf` | Safety information, button gestures and troubleshooting when the web app is unreachable. Same URL on every lamp; the manual (PDF) always describes the latest firmware. jsDelivr serves the PDF directly in the browser (GitHub's own URLs download it or wrap it in the GitHub UI) |
+| `S/N` | last 6 hex digits of the chip MAC, uppercase (e.g. `CFB911`) | Doubles as the setup-hotspot SSID suffix (`Cloud-Lamp-CFB911`) and the `Hostname` suffix — the one parent code recipients need for onboarding and recovery |
+| `WiFi-Passw.` | `cloud-lamp` | Password for the setup hotspot; shared across all devices — not discoverable anywhere else |
+| `Hostname` | `cloud-lamp-<serial>.local` | The lamp's remote-control address once it's on the home Wi-Fi. The manual tells recipients to add the `http://` prefix themselves — printing the raw hostname keeps this line short and readable |
+| `Manual` QR code | `https://cdn.jsdelivr.net/gh/danieldriessen/cloud-lamp@main/docs/user-manual.pdf` | Safety information, button gestures and troubleshooting when the web app is unreachable. Same URL on every lamp; the manual (PDF) always describes the latest firmware. jsDelivr serves the PDF directly in the browser (GitHub's own URLs download it or wrap it in the GitHub UI) |
 
 ### Recommended
 
-| Field | Value | Why |
+| Field on the sticker | Value | Why |
 |---|---|---|
-| Device name | `Cloud-Lamp` (as heading) | Identifies the sticker; generic on purpose — lamps are personalised only by the physical front text |
-| Power rating | `5 V ⎓ USB, min. 2 A` | Standard practice for powered devices; prevents wrong-charger damage |
+| `Model` | `CL-1` | Model designation for this product line; useful for support / future variants |
+| `DD Productions` header | wordmark + `© 2026 DD Productions` | Identifies the maker; the manual says "contact the builder" |
+| `Power-Supply` | `5V ⎓ 2A` + centre-positive barrel-jack polarity icon | Prevents a recipient from using the wrong replacement adapter (see the corrected power-supply description below — it is a DC barrel-jack adapter, not USB) |
 
 ### Optional (nice to have, all recoverable elsewhere)
 
-- Builder / contact line (e.g. `DD Productions`) — the manual says "contact the builder"
 - Production date or lamp number
 - Full MAC address — visible in the web app under Settings → About
-- A separate "Serial" line — redundant, the serial is already inside the setup-Wi-Fi name
 
 ### Leave off
 
@@ -58,13 +70,15 @@ the sticker hotspot / `192.168.4.1`.
 
 If the lamp cannot connect to any known Wi-Fi network, it opens its own access point:
 
-- **SSID:** `Cloud-Lamp-XXXXXX` (per-device, printed on the sticker)
-- **Password:** `cloud-lamp` (same on every device, printed on the sticker)
+- **SSID:** `Cloud-Lamp-XXXXXX` (per-device; `XXXXXX` = the `S/N` printed on the sticker,
+  with `Cloud-Lamp-` prefixed — the sticker does not print the full SSID as its own line)
+- **Password:** `cloud-lamp` (same on every device, printed on the sticker as `WiFi-Passw.`)
 
 **Setup / recovery steps for the end user:**
 
 1. Wait ~1 minute after powering on (or after the home Wi-Fi password changed)
-2. Connect a phone to the lamp's Wi-Fi using the password from the sticker
+2. Connect a phone to the lamp's Wi-Fi — `Cloud-Lamp-` followed by the `S/N` on the
+   sticker — using the `WiFi-Passw.` from the sticker
 3. A configuration page opens automatically (or go to `192.168.4.1`)
 4. Enter the home Wi-Fi credentials and save
 5. The lamp connects; the web app is then reachable at the lamp's IP (or via

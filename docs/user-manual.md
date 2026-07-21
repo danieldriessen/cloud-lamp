@@ -13,8 +13,10 @@ remote control web app for your phone.
 
 ## 1. Safety information — please read first
 
-- **Power supply:** use only a regulated **5 V USB power supply (2 A or more)**, such as a
-  common phone charger. Never connect the lamp to anything other than 5 V USB.
+- **Power supply:** use only the **5 V DC power adapter included with the lamp** (2 A,
+  barrel connector 5.5 × 2.1 mm, centre pin positive — matches the icon on the sticker).
+  Do not use USB phone chargers/cables or any adapter with a different voltage, polarity
+  or plug size — this can damage the lamp.
 - **Indoor use only.** Keep the lamp away from water, high humidity (bathrooms), heat
   sources and direct sunlight.
 - **Do not cover** the lamp while it is on, and do not operate it inside enclosed
@@ -39,17 +41,22 @@ On the **back of the lamp** you'll find a sticker with everything you need:
 
 | Sticker field | Meaning |
 |---|---|
-| **Setup Wi-Fi** (`Cloud-Lamp-XXXXXX`) | The lamp's own setup hotspot; `XXXXXX` is your lamp's serial |
-| **Wi-Fi password** | Password for that setup hotspot |
-| **Web address** (`http://cloud-lamp-xxxxxx.local/`) | Your lamp's remote control page (same serial, lowercase) |
-| **QR code** | Opens this manual |
+| **Model** | Product model (`CL-1`) |
+| **S/N** | Your lamp's serial number, e.g. `CFB911` — also identifies the setup Wi-Fi (below) |
+| **Hostname** | Your lamp's remote control address once it's on your home Wi-Fi — type `http://` in front of it in your browser, e.g. `http://cloud-lamp-cfb911.local/` |
+| **WiFi-Passw.** | Password for the lamp's own setup Wi-Fi hotspot (see [§5](#5-connecting-the-lamp-to-your-wi-fi)) |
+| **Power-Supply** | Rating of the included power adapter — see [§1](#1-safety-information--please-read-first) |
+| **QR code** ("Manual") | Opens this manual |
+
+> The setup Wi-Fi hotspot itself is named `Cloud-Lamp-` followed by your **S/N** — e.g. a
+> lamp with `S/N: CFB911` opens the hotspot `Cloud-Lamp-CFB911`.
 
 ---
 
 ## 3. Quick start
 
-1. Plug the lamp into a 5 V USB power supply. It is immediately usable with the button —
-   Wi-Fi is optional.
+1. Plug the lamp into its included 5 V power adapter. It is immediately usable with the
+   button — Wi-Fi is optional.
 2. Press the button once: the lamp turns on.
 3. That's it. If you also want phone control, continue with
    [Wi-Fi setup](#5-connecting-the-lamp-to-your-wi-fi).
@@ -77,7 +84,8 @@ You only need this once (and again if you move or change your Wi-Fi password):
 
 1. Plug the lamp in and wait about a minute.
 2. On your phone, open **Settings → Wi-Fi** and connect to the network named
-   **`Cloud-Lamp-XXXXXX`** (from the sticker), using the **Wi-Fi password on the sticker**.
+   **`Cloud-Lamp-`** followed by the **S/N** on the sticker (e.g. `Cloud-Lamp-CFB911`),
+   using the **WiFi-Passw. on the sticker**.
 3. A configuration page opens automatically (if not, open `192.168.4.1` in your browser).
 4. Choose your home Wi-Fi, enter its password, save.
 5. The lamp connects to your Wi-Fi. Reconnect your phone to your home Wi-Fi.
@@ -88,8 +96,9 @@ The lamp keeps working normally as a lamp during all of this.
 
 ## 6. The remote control app
 
-Open the **web address from the sticker** (e.g. `http://cloud-lamp-cfb911.local/`) in your
-phone's browser — type it exactly, including `http://`. You can:
+Open the **Hostname from the sticker** in your phone's browser, typing `http://` in front
+of it (e.g. `http://cloud-lamp-cfb911.local/`) — the sticker prints the hostname only, so
+you have to add the `http://` yourself. You can:
 
 - turn the lamp on/off and dim it,
 - choose colours and special effects from the *Effect Presets* grid,
@@ -138,7 +147,7 @@ opens its setup hotspot again after ~1 minute — just repeat
 **Web page not reachable?**
 
 1. Make sure your phone is on the **same Wi-Fi** as the lamp.
-2. Type the address exactly as on the sticker, including `http://`.
+2. Type the Hostname exactly as on the sticker, with `http://` in front of it.
 3. Unplug the lamp, wait 5 seconds, plug it back in, wait a minute.
 
 **Lamp doesn't react to the button?** Unplug and replug the power. The button works even
@@ -163,7 +172,7 @@ afterwards the lamp opens its setup hotspot again (sticker).
 
 | | |
 |---|---|
-| Power supply | 5 V USB, at least 2 A |
+| Power supply | 5 V DC / 2 A, barrel connector 5.5 × 2.1 mm, centre pin positive (included) |
 | Light source | 24 addressable RGB LEDs (WS2812) |
 | Radio | Wi-Fi 2.4 GHz (802.11 b/g/n) — 5 GHz-only networks are not supported |
 | Controls | 1 push-button, web app (10 languages) |
