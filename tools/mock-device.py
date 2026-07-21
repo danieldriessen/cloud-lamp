@@ -58,6 +58,37 @@ state = {
 listeners = []
 lock = threading.Lock()
 
+# Entity display Name -> REST object_id. Real firmware (ESPHome web_server)
+# matches REST paths by entity Name first, falling back to the legacy
+# object_id with a deprecation warning (removed entirely in 2026.7.0), so
+# app.html now sends Name-based paths (e.g. "/light/Cloud Light"). The
+# routes below are still keyed by object_id for brevity, so incoming
+# requests are normalised through this table before matching.
+NAME_TO_ID = {
+    "Cloud Light": "cloud_light",
+    "Effect Speed": "effect_speed",
+    "Power Behavior": "power_behavior",
+    "MQTT Enabled": "mqtt_enabled",
+    "MQTT Broker": "mqtt_broker_host",
+    "MQTT Username": "mqtt_broker_username",
+    "MQTT Password": "mqtt_broker_password",
+    "MQTT Port": "mqtt_broker_port",
+    "Firmware": "firmware",
+    "Restart": "restart",
+    "Factory Reset": "factory_reset",
+    "Reset WiFi": "reset_wifi",
+    "Check for Updates": "check_for_updates",
+}
+
+
+def normalize_path(path):
+    """Rewrite `/domain/Entity Name[/action]` to `/domain/object_id[/action]`."""
+    parts = path.split("/", 3)  # ["", domain, name, action?]
+    if len(parts) >= 3 and parts[2] in NAME_TO_ID:
+        parts[2] = NAME_TO_ID[parts[2]]
+        return "/".join(parts)
+    return path
+
 
 def light_json(detail_all=False):
     r, g, b = state["color"]
@@ -122,7 +153,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        path = urllib.parse.urlparse(self.path).path
+        path = normalize_path(urllib.parse.unquote(urllib.parse.urlparse(self.path).path))
         # Simulate lamp reboot blackout during OTA (web app coach waits for return).
         if state.get("fw_offline") and path not in ("/", "/app", "/brand.png", "/icon.png", "/logo.png", "/manifest.json"):
             self._send(503, b"{}")
@@ -216,7 +247,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
-        path, q = parsed.path, urllib.parse.parse_qs(parsed.query)
+        path = normalize_path(urllib.parse.unquote(parsed.path))
+        q = urllib.parse.parse_qs(parsed.query)
         if path == "/light/cloud_light/turn_on":
             state["on"] = True
             if "brightness" in q:

@@ -17,6 +17,23 @@ Related documents:
 
 ## Project status
 
+> **Phase:** v2.3.4 — fixed the web app's REST calls to use ESPHome's new entity-Name-based
+> URL format (e.g. `/light/Cloud Light`) instead of the legacy object_id form
+> (`/light/cloud_light`). The object_id form still works today but logs a
+> `[W][web_server]: Deprecated URL format: ...` warning on every request and is removed
+> entirely in ESPHome 2026.7.0 — left unfixed, the web app would have stopped working
+> outright on the next ESPHome upgrade. Every REST call the app makes (light, MQTT
+> switch/text/number fields, Power Behavior select, Effect Speed, Firmware
+> check/install, and the maintenance buttons) now builds its path from the entity's
+> display Name via a small `restPath()`/`P_*` constant table in `web/app.html`, matching
+> each entity's `name:` in the YAML. `tools/mock-device.py` was updated to accept both
+> the new Name-based paths and the legacy object_id ones (see its `NAME_TO_ID` table), so
+> it keeps working for anyone testing against an older bookmark/script. No user-visible
+> change — this is a backend/API-format fix only. See the **API** bullet under
+> [Web app](#web-app-packagesweb-remoteyaml--componentscloud_lamp_web--webapphtml) for the
+> parallel (later, 2026.8.0) deprecation of the SSE/REST JSON `id` field, which is not yet
+> addressed.
+>
 > **Phase:** v2.3.3 — three web-app UX improvements, no firmware/backend logic changes:
 > (1) the "Connected" pill moves back into the header's top row, pinned to the top-right
 > corner next to the logo (it had been moved into a second row in v2.3.0); (2) a new
@@ -104,7 +121,7 @@ Related documents:
 > still running" was traced to ESP8266 heap pressure during the download, not a bad
 > binary (committed binaries were verified byte-for-byte against their manifest MD5).
 > The web app now closes its SSE (`/events`) connection before POSTing
-> `/update/firmware/install` and only reconnects once the update coach reaches
+> `/update/Firmware/install` and only reconnects once the update coach reaches
 > done/fail; on the MQTT-enabled bench build, the MQTT client is suspended for the OTA's
 > duration via `ota_via_http`'s `on_begin`/`on_error`/`on_abort` hooks (added to
 > `packages/mqtt.yaml` with the `!extend` package syntax, which merges automation
@@ -199,7 +216,7 @@ Related documents:
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.3.0
+> **Firmware:** ESPHome 2026.6.0, project version 2.3.4
 
 ### GitHub Pages setup
 
@@ -408,7 +425,15 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
 - **API:** the app talks to the standard ESPHome `web_server` REST API (`/light/...`,
   `/select/...`, `/switch/...`, `/button/...`, `/update/...`) and receives live state via
   the `/events` server-sent-events stream, with a 5 s polling fallback. All state shown is
-  device-confirmed (no unverified optimistic UI).
+  device-confirmed (no unverified optimistic UI). REST paths address entities by their
+  display Name, URL-encoded (e.g. `/light/Cloud%20Light`, not the legacy object_id
+  `/light/cloud_light`) — see `restPath()`/`P_*` constants in `web/app.html`. ESPHome still
+  accepts object_id URLs today but logs a deprecation warning and removes them entirely in
+  2026.7.0. `tools/mock-device.py` accepts both forms (see its `NAME_TO_ID` table). Note this
+  is separate from the JSON payloads' `id` field (e.g. `"id":"light-cloud_light"`), which is
+  still the old object_id-based format for now — ESPHome already exposes the future format in
+  a parallel `name_id` field (e.g. `"light/Cloud Light"`) and `id` itself switches to it in
+  2026.8.0; the app doesn't consume `name_id` yet since `id` hasn't changed shape.
 - **Features:** power toggle, brightness slider, *Effect Presets* grid with colour
   swatches (grouped into *Colors* and *Special effects*) plus a *Custom color* section
   between them — a single full-width white button that opens the OS-native colour picker

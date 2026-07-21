@@ -27,8 +27,10 @@ GitHub Pages setup or separate repo needed.
 1. Every 6 hours (and shortly after boot) the lamp downloads its manifest from
    `https://raw.githubusercontent.com/danieldriessen/cloud-lamp/main/firmware-dist/cloud-lamp/manifest.json`
    (the `update_manifest_url` substitution). The same check can be triggered on demand from
-   Settings → Firmware → **Check for updates now** (REST: `POST /button/check_for_updates/press`,
-   which runs `update.check` — the web-server API only exposes install, not check).
+   Settings → Firmware → **Check for updates now** (REST: `POST /button/Check for Updates/press`,
+   which runs `update.check` — the web-server API only exposes install, not check). REST paths use
+   the entity's display Name, URL-encoded (e.g. `Check%20for%20Updates`) — the legacy object_id
+   form (`check_for_updates`) still works today but is deprecated and is removed in ESPHome 2026.7.0.
 2. If the manifest version differs from the installed `${project_version}`, the web app
    shows an **Update available** badge next to the "Connected" pill in the header (visible
    without opening Settings — tapping it jumps straight to Settings → Firmware), plus the
