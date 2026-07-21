@@ -17,6 +17,26 @@ Related documents:
 
 ## Project status
 
+> **Phase:** v2.3.2 — the update-failed screen had no way out except retrying. In
+> `setFwCoachPhase()`, the "Continue" button was hidden with `cont.hidden = phase ===
+> "fail"` — inverted: it hid Continue *specifically* on failure, the one phase where a
+> dismiss action is most needed, leaving only "Try again" with no way to back out of a
+> failed update without immediately retrying it. Found while testing the v2.3.1 check fix
+> on real hardware (the check now correctly found v2.3.1, but the *install* itself then
+> failed — separate, still-open issue, see below — and the coach's failure screen trapped
+> the user). Fixed by adding a dedicated **Cancel** button, shown only on `fail` (alongside
+> "Try again"), and correcting `cont.hidden` so **Continue** now only shows on `done`
+> (`web/app.html`, all 10 languages). `fw_hint_fail` was already accurate ("the previous
+> firmware is still running") — the modal itself just had no way out.
+>
+> **Still investigating:** the *install* failing outright (not just the check) on the same
+> real device, now running a much larger binary (~845 KB vs. 766 KB at v2.2.5 — the new
+> MQTT entities and expanded effect list). Likely the same heap-contention family as the
+> v2.2.5/v2.3.1 fixes, just a bigger download holding the TLS buffer open for longer, but
+> not yet confirmed without device logs. Recovery in the meantime: browser-upload OTA
+> bypasses the online updater entirely (see
+> [firmware-updates.md](./firmware-updates.md#stuck-on-an-old-version-with-up-to-date-showing)).
+>
 > **Phase:** v2.3.1 — a real device stayed on "Up to date" / 2.2.5 shortly after v2.3.0
 > went live, even after explicitly pressing "Check for updates now". Root cause: the exact
 > same ESP8266 heap-contention bug already fixed for OTA **installs** in v2.2.5 was also
