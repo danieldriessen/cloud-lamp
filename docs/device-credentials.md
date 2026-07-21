@@ -33,7 +33,7 @@ that the user manual has to compensate for (see user-manual.md §2 and §5–6):
 | `S/N` | last 6 hex digits of the chip MAC, uppercase (e.g. `CFB911`) | Doubles as the setup-hotspot SSID suffix (`Cloud-Lamp-CFB911`) and the `Hostname` suffix — the one parent code recipients need for onboarding and recovery |
 | `WiFi-Passw.` | `cloud-lamp` | Password for the setup hotspot; shared across all devices — not discoverable anywhere else |
 | `Hostname` | `cloud-lamp-<serial>.local` | The lamp's remote-control address once it's on the home Wi-Fi. The manual tells recipients to add the `http://` prefix themselves — printing the raw hostname keeps this line short and readable |
-| `Manual` QR code | `https://cdn.jsdelivr.net/gh/danieldriessen/cloud-lamp@main/docs/user-manual.pdf` | Safety information, button gestures and troubleshooting when the web app is unreachable. Same URL on every lamp; the manual (PDF) always describes the latest firmware. jsDelivr serves the PDF directly in the browser (GitHub's own URLs download it or wrap it in the GitHub UI) |
+| `Manual` QR code | `https://danieldriessen.github.io/cloud-lamp/user-manual.pdf` | Safety information, button gestures and troubleshooting when the web app is unreachable. Same URL on every lamp; the manual (PDF) always describes the latest firmware. GitHub Pages serves the PDF directly in the browser with a real `application/pdf` type (GitHub's own blob/raw URLs either download it or wrap it in the GitHub UI) |
 
 ### Recommended
 

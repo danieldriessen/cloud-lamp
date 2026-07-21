@@ -17,10 +17,16 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.2.3 — the permanent manual URL is now the jsDelivr CDN link (serves the
-> PDF inline with a real application/pdf content type; GitHub's blob/raw URLs wrap it in
-> the GitHub UI or force a download). This is the FINAL manual URL — it goes on printed
-> stickers. v2.2.2: branded Wi-Fi onboarding: the captive portal now serves our own
+> **Phase:** v2.2.4 — the permanent manual URL moved from the jsDelivr CDN to GitHub
+> Pages (`https://danieldriessen.github.io/cloud-lamp/user-manual.pdf`), first-party
+> hosting with no third-party CDN dependency; still serves the PDF inline with a real
+> application/pdf content type. This is the FINAL manual URL — it goes on printed
+> stickers (see [GitHub Pages setup](#github-pages-setup) below). The PDF cover now shows
+> the actual DD Productions logo (icon + wordmark) instead of plain text — derived as a
+> transparent, dark-ink image from `assets/dd-productions-logo-white.png`, because
+> `assets/dd-productions-logo-black.png` turned out to contain no text glyphs at all
+> (icon only) despite its name. v2.2.3: the permanent manual URL was briefly the jsDelivr
+> CDN link. v2.2.2: branded Wi-Fi onboarding: the captive portal now serves our own
 > setup page (web/setup.html, same design language as the app, ten languages) instead of
 > ESPHome's stock page; scan/save still use the stock /config.json + /wifisave endpoints.
 > Icons are now served with `no-cache` (a 24 h max-age kept old logos on phones after
@@ -42,7 +48,24 @@ Related documents:
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.2.3
+> **Firmware:** ESPHome 2026.6.0, project version 2.2.4
+
+### GitHub Pages setup
+
+The manual PDF is hosted on GitHub Pages instead of a third-party CDN (jsDelivr, used
+briefly in v2.2.3). One-time setup, already done for this repo:
+
+1. GitHub repo → **Settings → Pages** (left sidebar, under "Code and automation").
+2. **Build and deployment → Source:** "Deploy from a branch".
+3. **Branch:** `main`, folder **`/docs`** → **Save**.
+4. GitHub builds and publishes the site within a minute or two; the same Pages screen
+   then shows the live URL (`https://danieldriessen.github.io/cloud-lamp/`).
+5. `docs/.nojekyll` (committed alongside this change) tells GitHub Pages to serve the
+   `/docs` folder's files as-is instead of running them through Jekyll — required so the
+   PDF (and any future binary asset in `docs/`) is served byte-for-byte, unprocessed.
+
+No further action is needed after this: every push to `main` that touches `docs/`
+redeploys the Pages site automatically, so `docs/user-manual.pdf` stays current.
 
 ---
 
@@ -97,6 +120,7 @@ cloud-lamp/
 └── docs/                         # This folder
     ├── user-manual.pdf           # End-user manual (permanent URL target of the sticker
     │                             #   QR code; regenerate with tools/build-manual.py)
+    ├── .nojekyll                 # Tells GitHub Pages to serve this folder's files as-is
     └── Label.lbx                 # Brother P-Touch template for the back sticker
                                   #   (required/optional fields: device-credentials.md)
 ```
@@ -229,8 +253,8 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   `custom_color_active` + `custom_color_rgb`), so it survives power cuts and off/on;
   a button double-press leaves it and re-enters the effect cycle at the last-used
   effect. There is also a header book icon that opens the
-  [user manual PDF](./user-manual.pdf) in a new tab (permanent jsDelivr URL serving the
-  PDF straight from this repo — same target as the sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
+  [user manual PDF](./user-manual.pdf) in a new tab (permanent GitHub Pages URL serving
+  the PDF straight from this repo — same target as the sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
   *Change Wi-Fi network*, MQTT kill switch when present, firmware version/update with
   *Check for updates now*; Install opens a full-screen update coach through reboot/reconnect; restart, factory reset, device info). The
   settings sheet is a bottom sheet capped at the same max width

@@ -31,13 +31,22 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "docs" / "user-manual.md"
 OUT = ROOT / "docs" / "user-manual.pdf"
 LOGO = ROOT / "assets" / "cloud-lamp-logo.png"
+# Transparent, dark-ink "DD Productions" wordmark for the cover footer.
+# assets/dd-productions-logo-black.png has an OPAQUE black background and, despite
+# its name, contains no text glyphs at all (icon only) — unusable on a light page.
+# assets/dd-productions-logo-black-transparent.png fixes this: it's derived from
+# the white export's luminance (icon + "DD Productions" text) used as an alpha
+# mask, recoloured near-black — same technique as web/logo.png (white-on-transparent
+# for the app's dark footer), just inverted for use on a light background.
+MAKER_LOGO = ROOT / "assets" / "dd-productions-logo-black-transparent.png"
 
 # Permanent manual URL — must match web/app.html (MANUAL_URL), the sticker QR
 # code and docs/device-credentials.md. NEVER change it once stickers exist.
-# jsDelivr serves the file from the repo's main branch with a real
-# application/pdf content type, so browsers display it directly (GitHub's own
-# raw/blob URLs either download it or wrap it in the GitHub UI).
-MANUAL_URL = "https://cdn.jsdelivr.net/gh/danieldriessen/cloud-lamp@main/docs/user-manual.pdf"
+# Served via GitHub Pages (Settings → Pages → Deploy from branch → main /docs),
+# which serves the PDF with a real application/pdf content type so browsers
+# display it directly (GitHub's own raw/blob URLs either download it or wrap it
+# in the GitHub UI). First-party hosting — no third-party CDN dependency.
+MANUAL_URL = "https://danieldriessen.github.io/cloud-lamp/user-manual.pdf"
 
 CSS = """
 @page {
@@ -85,9 +94,8 @@ body {
   position: absolute; bottom: 16mm; left: 0; right: 0;
   font-size: 9pt; color: #6b7c8d;
 }
-.cover .footer .maker {
-  font-size: 12pt; font-weight: 600; color: #2b4763;
-  letter-spacing: 0.8pt; margin-bottom: 2.5mm;
+.cover .footer .maker-logo {
+  height: 9mm; margin-bottom: 3mm;
 }
 
 /* ---------- Table of contents ---------- */
@@ -156,7 +164,7 @@ HTML_SHELL = """<!DOCTYPE html>
   <h1>User Manual</h1>
   <p class="subtitle">Decorative Wi-Fi LED lamp &middot; controlled by one button or your phone</p>
   <div class="footer">
-    <div class="maker">DD Productions</div>
+    <img class="maker-logo" src="{maker_logo}" alt="DD Productions">
     Revision {revision} &middot; always describes the latest firmware<br>
     {manual_url}
   </div>
@@ -191,6 +199,7 @@ def main() -> None:
     html = HTML_SHELL.format(
         css=CSS,
         logo=LOGO.as_uri(),
+        maker_logo=MAKER_LOGO.as_uri(),
         revision=datetime.date.today().strftime("%B %Y"),
         manual_url=MANUAL_URL,
         toc=toc_items,
