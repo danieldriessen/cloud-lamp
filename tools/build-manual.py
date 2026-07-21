@@ -32,17 +32,16 @@ SRC = ROOT / "docs" / "user-manual.md"
 OUT = ROOT / "docs" / "user-manual.pdf"
 CONFIG = ROOT / "cloud-lamp.yaml"
 LOGO = ROOT / "assets" / "cloud-lamp-logo.png"
-# Transparent, dark-ink "DD Productions" wordmark for the cover footer.
-# assets/dd-productions-logo-black.png has an OPAQUE black background and, despite
-# its name, contains no text glyphs at all (icon only) — unusable on a light page.
-# assets/dd-productions-logo-black-transparent.png fixes this: it's derived from
-# the white export's luminance (icon + "DD Productions" text), binarised (not just
-# used as a raw alpha mask) and recoloured to the manual's navy accent (#133a5e) —
-# a raw luminance-as-alpha mask kept the white export's 3D chrome shading as visible
-# grey blending once composited onto the light cover, which looked glossy/muddy
-# instead of a crisp flat logo. Same base technique as web/logo.png (white-on
-# -transparent for the app's dark footer), just inverted + flattened for a light page.
-MAKER_LOGO = ROOT / "assets" / "dd-productions-logo-black-transparent.png"
+# "DD Productions" wordmark for the cover footer, on an opaque white background.
+# Earlier attempts derived a flat, single-colour silhouette from the white export's
+# luminance (icon + text as an alpha mask, recoloured navy) so it would composite
+# over the light cover — but that discarded the logo's actual chrome/metallic
+# shading entirely, so the icon no longer read as the real DD Productions mark.
+# This is a proper full-colour render (icon + text, correct chrome tones) supplied
+# pre-flattened onto white, saved as a JPEG since it has no transparency to lose —
+# the cover's footer area is already ~white by that point in the gradient (see
+# .cover background below), so the opaque bounding box is not visible.
+MAKER_LOGO = ROOT / "assets" / "dd-productions-logo-on-white.jpg"
 
 # Permanent manual URL — must match web/app.html (MANUAL_URL), the sticker QR
 # code and docs/device-credentials.md. NEVER change it once stickers exist.
@@ -98,11 +97,8 @@ body {
   position: absolute; bottom: 12mm; left: 0; right: 0;
   font-size: 9pt; color: #6b7c8d; text-align: center;
 }
-.cover .footer .footer-text { margin: 0 0 7mm; }
+.cover .footer .footer-text { margin: 0 0 17.5mm; }
 .cover .footer .maker-logo {
-  /* Taller than you'd expect: the source icon's fine crescent cutouts turn
-     into an indistinct blob below ~11mm once rasterised (verified visually —
-     see chat history around 2026-07-21). */
   display: block; height: 13mm; margin: 0 auto;
 }
 

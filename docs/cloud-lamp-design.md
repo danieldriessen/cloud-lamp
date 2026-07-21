@@ -56,6 +56,15 @@ Related documents:
 > uses an indeterminate bar. v2.1.9: project wordmark logo. v2.1.8: ten languages.
 > v2.1.7: custom colour picker. v2.1.6: full-bleed iOS background. v2.1.5: effect list +
 > manual.
+> **Manual cover fix (no firmware change):** the v2.2.4 approach of deriving a flat,
+> single-colour navy silhouette of the DD Productions icon (luminance-as-alpha mask,
+> binarised, recoloured) discarded the logo's actual chrome/metallic shading, so it no
+> longer read as the real mark. Replaced with a proper full-colour render (icon + text,
+> correct chrome tones) supplied pre-flattened onto an opaque white background and saved
+> as a JPEG — no transparency needed since the cover's footer sits on an already-white
+> part of the background gradient. `assets/dd-productions-logo-on-white.jpg` is now the
+> only maker-logo asset `tools/build-manual.py` uses; the superseded derived PNG
+> (`dd-productions-logo-black-transparent.png`) was removed.
 > **Docs correction (no firmware change):** the manual, README and this document
 > previously mis-described the power supply as "5 V USB" — it is actually a 5 V/2 A DC
 > barrel-jack adapter (5.5×2.1 mm, centre-positive), now corrected everywhere. The sticker
