@@ -17,7 +17,18 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.2.4 — the permanent manual URL moved from the jsDelivr CDN to GitHub
+> **Phase:** v2.2.5 — OTA reliability fix: a real "Update failed — previous firmware
+> still running" was traced to ESP8266 heap pressure during the download, not a bad
+> binary (committed binaries were verified byte-for-byte against their manifest MD5).
+> The web app now closes its SSE (`/events`) connection before POSTing
+> `/update/firmware/install` and only reconnects once the update coach reaches
+> done/fail; on the MQTT-enabled bench build, the MQTT client is suspended for the OTA's
+> duration via `ota_via_http`'s `on_begin`/`on_error`/`on_abort` hooks (added to
+> `packages/mqtt.yaml` with the `!extend` package syntax, which merges automation
+> triggers into an existing entity declared in another package by matching `id:`).
+> Respects the persisted MQTT kill switch — it won't re-enable MQTT on failure if the
+> user had already turned it off. See `packages/updates.yaml`'s "Reliability note" for
+> the full explanation. v2.2.4: the permanent manual URL moved from the jsDelivr CDN to GitHub
 > Pages (`https://danieldriessen.github.io/cloud-lamp/user-manual.pdf`), first-party
 > hosting with no third-party CDN dependency; still serves the PDF inline with a real
 > application/pdf content type. This is the FINAL manual URL — it goes on printed
@@ -55,7 +66,7 @@ Related documents:
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.2.4
+> **Firmware:** ESPHome 2026.6.0, project version 2.2.5
 
 ### GitHub Pages setup
 

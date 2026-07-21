@@ -23,6 +23,21 @@
 #  An unreachable manifest URL is harmless: the check fails silently and the
 #  lamp keeps running. Manual browser-upload OTA (web-remote.yaml) always
 #  remains available as a fallback.
+#
+#  Reliability note (RAM, not the binary): the ESP8266 has ~40 KB free heap
+#  in normal operation, and BearSSL needs an ~8.7 KB *contiguous* buffer for
+#  the OTA's own HTTPS session (see tls_buffer_size_rx/tx below) — on top of
+#  whatever else is holding a socket open at the time. A held-open web-app
+#  SSE connection and (on the MQTT-enabled bench build) the MQTT client's own
+#  broker connection are the two biggest avoidable competitors for that
+#  budget, and both were observed causing "update failed, previous firmware
+#  still running" on real hardware (the safety net worked correctly — the
+#  underlying cause was resource pressure, not a bad binary; committed
+#  binaries were verified byte-for-byte against their manifest MD5).
+#  Mitigations: web/app.html closes its EventSource before POSTing install
+#  and only reconnects once the update coach reaches done/fail; MQTT (when
+#  compiled in) is suspended for the OTA's duration via the ota_via_http
+#  entity's on_begin/on_error/on_abort hooks in packages/mqtt.yaml.
 # ==============================================================================
 
 http_request:

@@ -1558,6 +1558,9 @@
     cont.hidden = phase === "fail";
     cont.textContent = t("fw_continue");
     retry.textContent = t("fw_retry");
+    // Terminal state: the OTA's own connection is done with the lamp's heap
+    // either way, so it's safe to resume live updates now.
+    if ((phase === "done" || phase === "fail") && !es) connectSSE();
   }
 
   function openFwCoach(from, to){
@@ -1678,6 +1681,15 @@
     st.fwInstalling = true; st.fwProgress = 0; st.fwChecking = false;
     renderUpdate();
     closeSettings();
+    // Free our SSE socket (+ its BearSSL/TLS-adjacent heap) before the lamp
+    // starts its own HTTPS download: the ESP8266 has ~40 KB of free heap and
+    // BearSSL needs an ~8.7 KB *contiguous* buffer for the OTA's TLS session —
+    // a held-open EventSource is one of the few concurrent-connection costs
+    // this web app can actually remove, and doing so measurably reduces failed
+    // installs on memory-tight builds (e.g. the MQTT-enabled bench build).
+    // tickFwCoach() reconnects it once the coach reaches done/fail.
+    clearTimeout(reconnectTimer);
+    if (es) { es.close(); es = null; }
     openFwCoach(from, to);
     act(() => post("/update/firmware/install")).catch(() => {
       setFwCoachPhase("fail");

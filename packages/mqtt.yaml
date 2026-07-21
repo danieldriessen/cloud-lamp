@@ -274,6 +274,30 @@ script:
                 qos: 1
 
 # ================================================================
+#  Free heap for the OTA update — MQTT keeps a live broker connection
+#  (its own TCP socket + buffers) that competes with the OTA's own HTTPS
+#  download for the ESP8266's ~40 KB of free heap, right when BearSSL needs
+#  an ~8.7 KB *contiguous* buffer for the download's TLS session. Suspend
+#  MQTT for the duration (transient — does not touch the persisted
+#  "MQTT Enabled" switch state) and resume it if the update aborts; a
+#  successful update reboots into new firmware, which restores MQTT itself.
+# ================================================================
+ota:
+  - id: !extend ota_via_http
+    on_begin:
+      - lambda: 'mqtt::global_mqtt_client->disable();'
+    on_error:
+      # Only resume if the user hasn't explicitly turned MQTT off via the
+      # kill switch — this is a transient pause, not a state change.
+      - lambda: |-
+          if (id(mqtt_enabled).state)
+            mqtt::global_mqtt_client->enable();
+    on_abort:
+      - lambda: |-
+          if (id(mqtt_enabled).state)
+            mqtt::global_mqtt_client->enable();
+
+# ================================================================
 #  Runtime kill switch — visible in the web app's settings sheet.
 #  Persisted; OFF survives reboots, so a gift lamp that somehow got
 #  MQTT compiled in can be permanently silenced from the web UI.
