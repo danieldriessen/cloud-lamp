@@ -17,7 +17,10 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.2.2 — branded Wi-Fi onboarding: the captive portal now serves our own
+> **Phase:** v2.2.3 — the permanent manual URL is now the jsDelivr CDN link (serves the
+> PDF inline with a real application/pdf content type; GitHub's blob/raw URLs wrap it in
+> the GitHub UI or force a download). This is the FINAL manual URL — it goes on printed
+> stickers. v2.2.2: branded Wi-Fi onboarding: the captive portal now serves our own
 > setup page (web/setup.html, same design language as the app, ten languages) instead of
 > ESPHome's stock page; scan/save still use the stock /config.json + /wifisave endpoints.
 > Icons are now served with `no-cache` (a 24 h max-age kept old logos on phones after
@@ -34,7 +37,7 @@ Related documents:
 > mapping); test button gestures / captive portal end-to-end; print + apply the product
 > sticker (P-Touch template exists: docs/Label.lbx, field checklist in
 > device-credentials.md); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.2.2
+> **Firmware:** ESPHome 2026.6.0, project version 2.2.3
 
 ---
 
@@ -221,8 +224,8 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   `custom_color_active` + `custom_color_rgb`), so it survives power cuts and off/on;
   a button double-press leaves it and re-enters the effect cycle at the last-used
   effect. There is also a header book icon that opens the
-  [user manual PDF](./user-manual.pdf) in a new tab (permanent GitHub URL, same target as
-  the sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
+  [user manual PDF](./user-manual.pdf) in a new tab (permanent jsDelivr URL serving the
+  PDF straight from this repo — same target as the sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
   *Change Wi-Fi network*, MQTT kill switch when present, firmware version/update with
   *Check for updates now*; Install opens a full-screen update coach through reboot/reconnect; restart, factory reset, device info). The
   settings sheet is a bottom sheet capped at the same max width

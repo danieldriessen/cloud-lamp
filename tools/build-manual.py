@@ -34,7 +34,10 @@ LOGO = ROOT / "assets" / "cloud-lamp-logo.png"
 
 # Permanent manual URL — must match web/app.html (MANUAL_URL), the sticker QR
 # code and docs/device-credentials.md. NEVER change it once stickers exist.
-MANUAL_URL = "https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.pdf"
+# jsDelivr serves the file from the repo's main branch with a real
+# application/pdf content type, so browsers display it directly (GitHub's own
+# raw/blob URLs either download it or wrap it in the GitHub UI).
+MANUAL_URL = "https://cdn.jsdelivr.net/gh/danieldriessen/cloud-lamp@main/docs/user-manual.pdf"
 
 CSS = """
 @page {

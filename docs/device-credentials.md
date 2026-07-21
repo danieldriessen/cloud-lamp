@@ -20,7 +20,7 @@ file). Keep it in sync with the field lists below; the user manual's sticker tab
 | Setup Wi-Fi | `Cloud-Lamp-XXXXXX` | The only onboarding path when the lamp has no network; XXXXXX (last 6 hex digits of the chip MAC, uppercase) doubles as the serial number |
 | Wi-Fi password | `cloud-lamp` | Shared across all devices (see below) — not discoverable anywhere else |
 | Web address | `http://cloud-lamp-<mac6>.local/` | Same six hex digits, lowercase. Print it **with** the `http://` prefix — iOS requires typing it exactly |
-| Manual QR code | `https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.pdf` | Safety information, button gestures and troubleshooting when the web app is unreachable. Same URL on every lamp; the manual (PDF) always describes the latest firmware |
+| Manual QR code | `https://cdn.jsdelivr.net/gh/danieldriessen/cloud-lamp@main/docs/user-manual.pdf` | Safety information, button gestures and troubleshooting when the web app is unreachable. Same URL on every lamp; the manual (PDF) always describes the latest firmware. jsDelivr serves the PDF directly in the browser (GitHub's own URLs download it or wrap it in the GitHub UI) |
 
 ### Recommended
 

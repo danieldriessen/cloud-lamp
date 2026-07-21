@@ -1413,8 +1413,12 @@
   function closeInstall(){ installModal.hidden = true; unlockSheetScroll(); }
   $("btnSettings").addEventListener("click", openSettings);
 
-  // User manual (PDF) — permanent URL, also encoded in the QR code on the sticker.
-  const MANUAL_URL = "https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.pdf";
+  // User manual (PDF) — permanent URL, also encoded in the QR code on the
+  // sticker. jsDelivr serves docs/user-manual.pdf from the repo's main branch
+  // with a proper application/pdf content type, so the browser shows the PDF
+  // directly (no GitHub page around it). NEVER change this URL — it is
+  // printed on physical stickers.
+  const MANUAL_URL = "https://cdn.jsdelivr.net/gh/danieldriessen/cloud-lamp@main/docs/user-manual.pdf";
   $("btnManual").addEventListener("click", () => window.open(MANUAL_URL, "_blank", "noopener"));
   setModal.querySelectorAll("[data-close]").forEach(el =>
     el.addEventListener("click", closeSettings));

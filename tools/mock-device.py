@@ -39,8 +39,8 @@ state = {
     "mqtt": True,
     "fw_installing": False,
     "fw_progress": 0,
-    "fw_current": "2.2.1",
-    "fw_latest": "2.2.2",
+    "fw_current": "2.2.2",
+    "fw_latest": "2.2.3",
     "fw_offline": False,   # simulate reboot blackout during OTA
 }
 listeners = []

@@ -5,7 +5,7 @@ no internet, no app and no account required. If you want more, it also has a bui
 remote control web app for your phone.
 
 > **Permanent address of this manual (PDF):**
-> `https://github.com/danieldriessen/cloud-lamp/blob/main/docs/user-manual.pdf`
+> `https://cdn.jsdelivr.net/gh/danieldriessen/cloud-lamp@main/docs/user-manual.pdf`
 > (also reachable via the QR code on the sticker on the back of the lamp and the
 > book icon in the lamp's web app)
 
