@@ -36,9 +36,12 @@ LOGO = ROOT / "assets" / "cloud-lamp-logo.png"
 # assets/dd-productions-logo-black.png has an OPAQUE black background and, despite
 # its name, contains no text glyphs at all (icon only) — unusable on a light page.
 # assets/dd-productions-logo-black-transparent.png fixes this: it's derived from
-# the white export's luminance (icon + "DD Productions" text) used as an alpha
-# mask, recoloured near-black — same technique as web/logo.png (white-on-transparent
-# for the app's dark footer), just inverted for use on a light background.
+# the white export's luminance (icon + "DD Productions" text), binarised (not just
+# used as a raw alpha mask) and recoloured to the manual's navy accent (#133a5e) —
+# a raw luminance-as-alpha mask kept the white export's 3D chrome shading as visible
+# grey blending once composited onto the light cover, which looked glossy/muddy
+# instead of a crisp flat logo. Same base technique as web/logo.png (white-on
+# -transparent for the app's dark footer), just inverted + flattened for a light page.
 MAKER_LOGO = ROOT / "assets" / "dd-productions-logo-black-transparent.png"
 
 # Permanent manual URL — must match web/app.html (MANUAL_URL), the sticker QR
@@ -92,11 +95,12 @@ body {
 }
 .cover .subtitle { font-size: 12.5pt; color: #4a6076; margin: 0; }
 .cover .footer {
-  position: absolute; bottom: 16mm; left: 0; right: 0;
-  font-size: 9pt; color: #6b7c8d;
+  position: absolute; bottom: 12mm; left: 0; right: 0;
+  font-size: 9pt; color: #6b7c8d; text-align: center;
 }
+.cover .footer .footer-text { margin: 0 0 7mm; }
 .cover .footer .maker-logo {
-  height: 9mm; margin-bottom: 3mm;
+  display: block; height: 8mm; margin: 0 auto;
 }
 
 /* ---------- Table of contents ---------- */
@@ -165,9 +169,11 @@ HTML_SHELL = """<!DOCTYPE html>
   <h1>User Manual</h1>
   <p class="subtitle">Decorative Wi-Fi LED lamp &middot; controlled by one button or your phone</p>
   <div class="footer">
+    <div class="footer-text">
+      Describes firmware v{fw_version} &middot; {revision}<br>
+      {manual_url}
+    </div>
     <img class="maker-logo" src="{maker_logo}" alt="DD Productions">
-    Describes firmware v{fw_version} &middot; {revision}<br>
-    {manual_url}
   </div>
 </div>
 <nav class="toc">
