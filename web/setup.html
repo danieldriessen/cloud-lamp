@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="icon" type="image/png" href="/brand.png">
+  <title>Cloud Lamp — Wi-Fi Setup</title>
+  <!--
+    Wi-Fi onboarding page, shown by the captive portal (setup hotspot).
+    Served by the cloud_lamp_web component INSTEAD of ESPHome's stock captive
+    portal page; it talks to the stock captive_portal endpoints:
+      GET /config.json           -> device name + scanned networks
+      GET /wifisave?ssid=&psk=   -> save credentials, lamp connects
+    Design language mirrors web/app.html (same palette / cards / typography).
+  -->
+  <style>
+    :root{
+      --bg0:#070a10;
+      --bg1:#0b0f18;
+      --card:rgba(255,255,255,.06);
+      --text:#e9eefb;
+      --muted:rgba(233,238,251,.62);
+      --line:rgba(255,255,255,.09);
+      --accent:#6cb2ff;
+      --accent-soft:rgba(108,178,255,.16);
+      --good:#7cf0c9;
+      --danger:#ff5a7b;
+      --shadow:0 12px 40px rgba(0,0,0,.45);
+      --r:20px;
+      --tap:52px;
+      --font:ui-sans-serif,-apple-system,system-ui,"SF Pro Text",Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    [hidden]{display:none !important}
+    html{
+      margin:0;padding:0;height:100%;
+      background-color:var(--bg0);
+      background-image:
+        radial-gradient(1100px 650px at 15% 0%, rgba(108,178,255,.20), transparent 55%),
+        linear-gradient(180deg,var(--bg0),var(--bg1));
+      -webkit-text-size-adjust:none;text-size-adjust:none;
+    }
+    body{
+      margin:0;padding:0;min-height:100%;min-height:100svh;
+      font-family:var(--font);color:var(--text);
+      overscroll-behavior:none;
+    }
+    .app-bg{
+      position:fixed;z-index:0;pointer-events:none;left:50%;top:50%;
+      width:100vw;height:100vh;height:100lvh;
+      min-width:130vw;min-height:150vh;min-height:150lvh;
+      transform:translate(-50%,-50%);
+      background:
+        radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),
+        radial-gradient(850px 550px at 95% 18%, rgba(124,240,201,.08), transparent 60%),
+        linear-gradient(180deg,var(--bg0),var(--bg1));
+    }
+    .wrap{
+      position:relative;z-index:1;max-width:520px;margin:0 auto;
+      padding:calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
+    }
+
+    header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand .cloud{
+      width:112px;height:56px;flex:0 0 auto;position:relative;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .brand .cloud img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+    .pill{
+      display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;
+      background:rgba(0,0,0,.25);border:1px solid var(--line);font-size:12px;color:var(--muted);
+      white-space:nowrap;
+    }
+
+    .hero{margin:4px 2px 14px}
+    .hero h1{margin:0;font-size:24px;letter-spacing:.2px}
+    .hero p{margin:6px 0 0;font-size:14px;color:var(--muted);line-height:1.5}
+
+    .card{
+      background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+      box-shadow:var(--shadow);padding:16px;margin:12px 0;backdrop-filter:blur(10px);
+    }
+    .sec-label{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:2px 2px 10px;display:flex;justify-content:space-between;align-items:center}
+    .sec-label .rescan{
+      border:none;background:none;color:var(--accent);font-size:12px;font-weight:700;
+      cursor:pointer;padding:4px 2px;letter-spacing:.4px;text-transform:none;font-family:var(--font);
+    }
+
+    /* Network list */
+    .netlist{margin:0 -4px}
+    .net{
+      display:flex;align-items:center;gap:12px;min-height:var(--tap);
+      padding:8px 10px;border-radius:14px;cursor:pointer;border:1px solid transparent;
+    }
+    .net:active{background:rgba(255,255,255,.05)}
+    .net.sel{background:linear-gradient(180deg,rgba(108,178,255,.28),rgba(108,178,255,.10));border-color:rgba(108,178,255,.55)}
+    .net .wifi{flex:0 0 auto;width:24px;height:20px}
+    .net .wifi path{stroke:#cfe4ff;stroke-width:2;fill:none;stroke-linecap:round}
+    .net .wifi path.dim{opacity:.22}
+    .net .ssid{flex:1;min-width:0;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .net .lock{flex:0 0 auto;width:15px;height:15px;fill:var(--muted)}
+    .net .check{flex:0 0 auto;width:18px;height:18px;stroke:var(--accent);stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round;visibility:hidden}
+    .net.sel .check{visibility:visible}
+    .net.other .ssid{color:var(--accent);font-weight:700}
+    .empty{color:var(--muted);font-size:13px;text-align:center;padding:14px 6px;line-height:1.5}
+    .spinner{
+      width:18px;height:18px;border-radius:50%;margin:0 auto;
+      border:2.5px solid rgba(255,255,255,.15);border-top-color:var(--accent);
+      animation:spin .8s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Credentials form */
+    .field{position:relative;margin:10px 0}
+    .field input{
+      width:100%;min-height:var(--tap);padding:8px 52px 8px 14px;
+      border-radius:14px;border:1px solid var(--line);
+      background:rgba(0,0,0,.28);color:var(--text);
+      font-family:var(--font);font-size:16px;outline:none;
+    }
+    .field input:focus{border-color:rgba(108,178,255,.62)}
+    .field input::placeholder{color:rgba(233,238,251,.38)}
+    .field .eye{
+      position:absolute;right:6px;top:50%;transform:translateY(-50%);
+      width:42px;height:42px;border:none;background:none;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .field .eye svg{width:21px;height:21px;stroke:var(--muted);stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .hint{font-size:12px;color:var(--muted);margin:6px 2px 0;line-height:1.45}
+
+    .btn{
+      width:100%;min-height:var(--tap);border-radius:15px;border:1px solid rgba(108,178,255,.55);
+      background:linear-gradient(180deg,rgba(108,178,255,.34),rgba(108,178,255,.16));
+      color:var(--text);font-family:var(--font);font-weight:700;font-size:15px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;
+    }
+    .btn:active{transform:scale(.985)}
+    .btn[disabled]{opacity:.45;pointer-events:none}
+    .btn .spinner{margin:0;width:16px;height:16px;border-width:2px}
+    .err{
+      color:var(--danger);font-size:13px;margin:10px 2px 0;line-height:1.45;font-weight:600;
+    }
+
+    /* Success view */
+    .okmark{
+      width:64px;height:64px;border-radius:50%;margin:6px auto 12px;
+      background:radial-gradient(circle at 32% 28%, rgba(124,240,201,.35), rgba(124,240,201,.12));
+      border:1.5px solid rgba(124,240,201,.55);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .okmark svg{width:30px;height:30px;stroke:var(--good);stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+    .done-t{font-size:20px;font-weight:800;text-align:center;margin:0}
+    .done-s{font-size:14px;color:var(--muted);text-align:center;margin:6px 0 0;line-height:1.5}
+    .steps{margin:14px 0 0;padding:0;list-style:none;counter-reset:step}
+    .steps li{
+      position:relative;padding:12px 8px 12px 46px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      font-size:14px;line-height:1.5;color:var(--text);
+    }
+    .steps li:last-child{border-bottom:none}
+    .steps li::before{
+      counter-increment:step;content:counter(step);
+      position:absolute;left:8px;top:12px;
+      width:24px;height:24px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      background:rgba(108,178,255,.18);border:1px solid rgba(108,178,255,.4);
+      color:var(--accent);font-size:12px;font-weight:800;
+    }
+    .steps .url{
+      display:block;margin-top:6px;padding:8px 10px;border-radius:10px;
+      background:rgba(0,0,0,.35);border:1px solid var(--line);
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+      word-break:break-all;color:#cfe4ff;user-select:text;-webkit-user-select:text;
+    }
+    .foot{color:var(--muted);opacity:.75;font-size:11px;text-align:center;margin-top:18px;letter-spacing:.3px}
+  </style>
+</head>
+<body>
+  <div class="app-bg"></div>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="cloud"><img src="/brand.png" alt="" onerror="this.remove()"></div>
+      </div>
+      <span class="pill" id="serial">…</span>
+    </header>
+
+    <div class="hero">
+      <h1 id="tTitle">Wi-Fi setup</h1>
+      <p id="tIntro">Choose your home Wi-Fi network and enter its password. The lamp saves it and connects automatically from then on.</p>
+    </div>
+
+    <div id="viewSetup">
+      <div class="card">
+        <div class="sec-label"><span id="tNetworks">Networks nearby</span>
+          <button class="rescan" id="btnRescan" type="button">Scan again</button></div>
+        <div class="netlist" id="netlist"><div class="empty"><div class="spinner"></div></div></div>
+      </div>
+
+      <div class="card" id="formCard" hidden>
+        <div class="sec-label" id="tCreds">Password</div>
+        <div class="field" id="ssidField" hidden>
+          <input id="ssid" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="Network name (SSID)">
+        </div>
+        <div class="field">
+          <input id="psk" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="Password">
+          <button class="eye" id="btnEye" type="button" aria-label="Show password">
+            <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+          </button>
+        </div>
+        <p class="hint" id="tHint">Leave the password empty for open networks.</p>
+        <button class="btn" id="btnConnect" type="button">Connect lamp</button>
+        <p class="err" id="err" hidden></p>
+      </div>
+    </div>
+
+    <div id="viewDone" hidden>
+      <div class="card">
+        <div class="okmark"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5L19.5 7"/></svg></div>
+        <p class="done-t" id="tDoneT">Network saved</p>
+        <p class="done-s" id="tDoneS"></p>
+        <ol class="steps">
+          <li id="tStep1">Reconnect your phone to your home Wi-Fi — this setup hotspot disappears once the lamp is connected.</li>
+          <li id="tStep2">Then open the lamp’s remote control in your browser:<span class="url" id="lampUrl">http://cloud-lamp-xxxxxx.local/</span></li>
+          <li id="tStep3">Wrong password? The lamp opens this setup hotspot again after about a minute — simply start over.</li>
+        </ol>
+      </div>
+    </div>
+
+    <p class="foot">Cloud-Lamp · DD Productions</p>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+
+  /* ---------------- i18n (same languages as the app; auto-detected) ---------------- */
+  const I18N = {
+    en:{title:"Wi-Fi setup",intro:"Choose your home Wi-Fi network and enter its password. The lamp saves it and connects automatically from then on.",
+      networks:"Networks nearby",rescan:"Scan again",empty:"No networks found yet — the lamp keeps scanning.",other:"Other network…",
+      creds:"Password",ssid_ph:"Network name (SSID)",psk_ph:"Password",hint:"Leave the password empty for open networks.",
+      connect:"Connect lamp",sending:"Sending…",err:"Could not reach the lamp — stay connected to the setup hotspot and try again.",
+      done_t:"Network saved",done_s:"The lamp is now connecting to “{ssid}”.",
+      step1:"Reconnect your phone to your home Wi-Fi — this setup hotspot disappears once the lamp is connected.",
+      step2:"Then open the lamp’s remote control in your browser:",
+      step3:"Wrong password? The lamp opens this setup hotspot again after about a minute — simply start over."},
+    de:{title:"WLAN einrichten",intro:"Wähle dein Heim-WLAN und gib das Passwort ein. Die Lampe speichert es und verbindet sich ab dann automatisch.",
+      networks:"Netzwerke in der Nähe",rescan:"Erneut suchen",empty:"Noch keine Netzwerke gefunden — die Lampe sucht weiter.",other:"Anderes Netzwerk…",
+      creds:"Passwort",ssid_ph:"Netzwerkname (SSID)",psk_ph:"Passwort",hint:"Bei offenen Netzwerken das Passwort leer lassen.",
+      connect:"Lampe verbinden",sending:"Wird gesendet…",err:"Lampe nicht erreichbar — bleib mit dem Einrichtungs-Hotspot verbunden und versuche es erneut.",
+      done_t:"Netzwerk gespeichert",done_s:"Die Lampe verbindet sich jetzt mit „{ssid}“.",
+      step1:"Verbinde dein Handy wieder mit deinem Heim-WLAN — dieser Einrichtungs-Hotspot verschwindet, sobald die Lampe verbunden ist.",
+      step2:"Öffne dann die Fernbedienung der Lampe im Browser:",
+      step3:"Falsches Passwort? Die Lampe öffnet den Einrichtungs-Hotspot nach etwa einer Minute erneut — einfach von vorn beginnen."},
+    es:{title:"Configurar Wi-Fi",intro:"Elige tu red Wi-Fi doméstica e introduce su contraseña. La lámpara la guarda y se conecta automáticamente a partir de entonces.",
+      networks:"Redes cercanas",rescan:"Buscar de nuevo",empty:"Aún no se han encontrado redes — la lámpara sigue buscando.",other:"Otra red…",
+      creds:"Contraseña",ssid_ph:"Nombre de la red (SSID)",psk_ph:"Contraseña",hint:"Deja la contraseña vacía para redes abiertas.",
+      connect:"Conectar lámpara",sending:"Enviando…",err:"No se puede contactar con la lámpara — permanece conectado al punto de acceso e inténtalo de nuevo.",
+      done_t:"Red guardada",done_s:"La lámpara se está conectando a «{ssid}».",
+      step1:"Vuelve a conectar tu móvil a tu Wi-Fi doméstica — este punto de acceso desaparece cuando la lámpara se conecta.",
+      step2:"Después abre el mando a distancia de la lámpara en el navegador:",
+      step3:"¿Contraseña incorrecta? La lámpara vuelve a abrir este punto de acceso tras un minuto — simplemente empieza de nuevo."},
+    fr:{title:"Configuration Wi-Fi",intro:"Choisissez votre réseau Wi-Fi domestique et saisissez son mot de passe. La lampe l’enregistre et se connecte ensuite automatiquement.",
+      networks:"Réseaux à proximité",rescan:"Rechercher",empty:"Aucun réseau trouvé pour l’instant — la lampe continue de chercher.",other:"Autre réseau…",
+      creds:"Mot de passe",ssid_ph:"Nom du réseau (SSID)",psk_ph:"Mot de passe",hint:"Laissez le mot de passe vide pour les réseaux ouverts.",
+      connect:"Connecter la lampe",sending:"Envoi…",err:"Lampe injoignable — restez connecté au point d’accès de configuration et réessayez.",
+      done_t:"Réseau enregistré",done_s:"La lampe se connecte maintenant à « {ssid} ».",
+      step1:"Reconnectez votre téléphone à votre Wi-Fi domestique — ce point d’accès disparaît dès que la lampe est connectée.",
+      step2:"Ouvrez ensuite la télécommande de la lampe dans le navigateur :",
+      step3:"Mot de passe erroné ? La lampe rouvre ce point d’accès après environ une minute — recommencez simplement."},
+    it:{title:"Configurazione Wi-Fi",intro:"Scegli la tua rete Wi-Fi di casa e inserisci la password. La lampada la salva e da quel momento si connette automaticamente.",
+      networks:"Reti nelle vicinanze",rescan:"Cerca di nuovo",empty:"Nessuna rete trovata finora — la lampada continua a cercare.",other:"Altra rete…",
+      creds:"Password",ssid_ph:"Nome della rete (SSID)",psk_ph:"Password",hint:"Lascia la password vuota per le reti aperte.",
+      connect:"Collega la lampada",sending:"Invio…",err:"Lampada non raggiungibile — resta connesso all’hotspot di configurazione e riprova.",
+      done_t:"Rete salvata",done_s:"La lampada si sta connettendo a «{ssid}».",
+      step1:"Ricollega il telefono al tuo Wi-Fi di casa — questo hotspot scompare quando la lampada è connessa.",
+      step2:"Poi apri il telecomando della lampada nel browser:",
+      step3:"Password sbagliata? La lampada riapre questo hotspot dopo circa un minuto — ricomincia semplicemente."},
+    nl:{title:"Wifi instellen",intro:"Kies je thuisnetwerk en voer het wachtwoord in. De lamp slaat het op en verbindt vanaf dan automatisch.",
+      networks:"Netwerken in de buurt",rescan:"Opnieuw zoeken",empty:"Nog geen netwerken gevonden — de lamp blijft zoeken.",other:"Ander netwerk…",
+      creds:"Wachtwoord",ssid_ph:"Netwerknaam (SSID)",psk_ph:"Wachtwoord",hint:"Laat het wachtwoord leeg voor open netwerken.",
+      connect:"Lamp verbinden",sending:"Versturen…",err:"Lamp niet bereikbaar — blijf verbonden met de setup-hotspot en probeer opnieuw.",
+      done_t:"Netwerk opgeslagen",done_s:"De lamp verbindt nu met “{ssid}”.",
+      step1:"Verbind je telefoon weer met je thuisnetwerk — deze setup-hotspot verdwijnt zodra de lamp verbonden is.",
+      step2:"Open daarna de afstandsbediening van de lamp in de browser:",
+      step3:"Verkeerd wachtwoord? De lamp opent deze setup-hotspot na ongeveer een minuut opnieuw — begin gewoon opnieuw."},
+    pl:{title:"Konfiguracja Wi-Fi",intro:"Wybierz swoją domową sieć Wi-Fi i wpisz hasło. Lampa je zapisze i od tej pory będzie łączyć się automatycznie.",
+      networks:"Sieci w pobliżu",rescan:"Szukaj ponownie",empty:"Nie znaleziono jeszcze sieci — lampa nadal szuka.",other:"Inna sieć…",
+      creds:"Hasło",ssid_ph:"Nazwa sieci (SSID)",psk_ph:"Hasło",hint:"W przypadku sieci otwartych pozostaw hasło puste.",
+      connect:"Połącz lampę",sending:"Wysyłanie…",err:"Brak połączenia z lampą — pozostań połączony z hotspotem konfiguracyjnym i spróbuj ponownie.",
+      done_t:"Sieć zapisana",done_s:"Lampa łączy się teraz z „{ssid}”.",
+      step1:"Połącz telefon ponownie z domową siecią Wi-Fi — ten hotspot zniknie, gdy lampa się połączy.",
+      step2:"Następnie otwórz pilot lampy w przeglądarce:",
+      step3:"Błędne hasło? Lampa ponownie otworzy ten hotspot po około minucie — po prostu zacznij od nowa."},
+    pt:{title:"Configurar Wi-Fi",intro:"Escolhe a tua rede Wi-Fi doméstica e introduz a palavra-passe. O candeeiro guarda-a e liga-se automaticamente a partir daí.",
+      networks:"Redes próximas",rescan:"Procurar de novo",empty:"Ainda não foram encontradas redes — o candeeiro continua a procurar.",other:"Outra rede…",
+      creds:"Palavra-passe",ssid_ph:"Nome da rede (SSID)",psk_ph:"Palavra-passe",hint:"Deixa a palavra-passe vazia para redes abertas.",
+      connect:"Ligar candeeiro",sending:"A enviar…",err:"Candeeiro inacessível — mantém-te ligado ao hotspot de configuração e tenta de novo.",
+      done_t:"Rede guardada",done_s:"O candeeiro está agora a ligar-se a «{ssid}».",
+      step1:"Volta a ligar o telemóvel à tua rede Wi-Fi — este hotspot desaparece quando o candeeiro estiver ligado.",
+      step2:"Depois abre o comando do candeeiro no navegador:",
+      step3:"Palavra-passe errada? O candeeiro reabre este hotspot passado cerca de um minuto — simplesmente recomeça."},
+    tr:{title:"Wi-Fi kurulumu",intro:"Ev Wi-Fi ağını seç ve şifresini gir. Lamba bunu kaydeder ve bundan sonra otomatik olarak bağlanır.",
+      networks:"Yakındaki ağlar",rescan:"Tekrar tara",empty:"Henüz ağ bulunamadı — lamba aramaya devam ediyor.",other:"Başka ağ…",
+      creds:"Şifre",ssid_ph:"Ağ adı (SSID)",psk_ph:"Şifre",hint:"Açık ağlar için şifreyi boş bırak.",
+      connect:"Lambayı bağla",sending:"Gönderiliyor…",err:"Lambaya ulaşılamıyor — kurulum erişim noktasına bağlı kal ve tekrar dene.",
+      done_t:"Ağ kaydedildi",done_s:"Lamba şimdi “{ssid}” ağına bağlanıyor.",
+      step1:"Telefonunu tekrar ev Wi-Fi ağına bağla — lamba bağlandığında bu kurulum erişim noktası kaybolur.",
+      step2:"Sonra lambanın uzaktan kumandasını tarayıcıda aç:",
+      step3:"Şifre mi yanlış? Lamba yaklaşık bir dakika sonra bu erişim noktasını yeniden açar — baştan başlaman yeterli."},
+    ru:{title:"Настройка Wi-Fi",intro:"Выберите домашнюю сеть Wi-Fi и введите пароль. Лампа сохранит его и с этого момента будет подключаться автоматически.",
+      networks:"Сети поблизости",rescan:"Искать снова",empty:"Сети пока не найдены — лампа продолжает поиск.",other:"Другая сеть…",
+      creds:"Пароль",ssid_ph:"Имя сети (SSID)",psk_ph:"Пароль",hint:"Для открытых сетей оставьте пароль пустым.",
+      connect:"Подключить лампу",sending:"Отправка…",err:"Лампа недоступна — оставайтесь подключены к точке доступа настройки и попробуйте ещё раз.",
+      done_t:"Сеть сохранена",done_s:"Лампа подключается к «{ssid}».",
+      step1:"Снова подключите телефон к домашней сети Wi-Fi — эта точка доступа исчезнет, когда лампа подключится.",
+      step2:"Затем откройте пульт лампы в браузере:",
+      step3:"Неверный пароль? Лампа снова откроет эту точку доступа примерно через минуту — просто начните заново."},
+  };
+  const lang = (() => {
+    const cand = (navigator.languages || [navigator.language || "en"])
+      .map(l => String(l).slice(0, 2).toLowerCase());
+    return cand.find(c => I18N[c]) || "en";
+  })();
+  const T = I18N[lang];
+  document.documentElement.lang = lang;
+
+  $("tTitle").textContent = T.title;
+  $("tIntro").textContent = T.intro;
+  $("tNetworks").textContent = T.networks;
+  $("btnRescan").textContent = T.rescan;
+  $("tCreds").textContent = T.creds;
+  $("ssid").placeholder = T.ssid_ph;
+  $("psk").placeholder = T.psk_ph;
+  $("tHint").textContent = T.hint;
+  $("btnConnect").textContent = T.connect;
+  $("tDoneT").textContent = T.done_t;
+  $("tStep1").textContent = T.step1;
+  $("tStep3").textContent = T.step3;
+
+  /* ---------------- state ---------------- */
+  let deviceName = "";       // e.g. "cloud-lamp-cfb911"
+  let selSsid = null;        // selected SSID, null = none, "" = manual entry
+  let scanTimer = null;
+
+  const wifiIcon = rssi => {
+    // Three arcs + dot; arcs fade with signal strength.
+    const bars = rssi >= -55 ? 3 : rssi >= -70 ? 2 : rssi >= -82 ? 1 : 0;
+    const arc = (d, on) => `<path class="${on ? "" : "dim"}" d="${d}"/>`;
+    return `<svg class="wifi" viewBox="0 0 24 20">` +
+      arc("M2 7c6-5.3 14-5.3 20 0", bars >= 3) +
+      arc("M5.5 10.5c4-3.5 9-3.5 13 0", bars >= 2) +
+      arc("M9 14c1.8-1.6 4.2-1.6 6 0", bars >= 1) +
+      `<path d="M11.6 17.4h.8" style="stroke-width:3"/></svg>`;
+  };
+  const lockIcon = `<svg class="lock" viewBox="0 0 24 24"><path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2m-9-2a3 3 0 0 1 6 0v2H9zm3 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg>`;
+  const checkIcon = `<svg class="check" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5L19.5 7"/></svg>`;
+
+  function renderNets(aps) {
+    const list = $("netlist");
+    // Deduplicate by SSID, keep strongest.
+    const seen = {};
+    for (const ap of aps) {
+      if (!ap.ssid) continue;
+      if (!(ap.ssid in seen) || ap.rssi > seen[ap.ssid].rssi) seen[ap.ssid] = ap;
+    }
+    const nets = Object.values(seen).sort((a, b) => b.rssi - a.rssi);
+    let html = "";
+    for (const ap of nets) {
+      const sel = selSsid === ap.ssid ? " sel" : "";
+      html += `<div class="net${sel}" data-ssid="${ap.ssid.replace(/"/g, "&quot;")}">` +
+        wifiIcon(ap.rssi) + `<span class="ssid"></span>` +
+        (ap.lock ? lockIcon : "") + checkIcon + `</div>`;
+    }
+    html += `<div class="net other${selSsid === "" ? " sel" : ""}" data-ssid="">` +
+      `<svg class="wifi" viewBox="0 0 24 20"><path d="M7 10h10M12 5v10"/></svg>` +
+      `<span class="ssid">${T.other}</span>${checkIcon}</div>`;
+    if (!nets.length)
+      html = `<div class="empty">${T.empty}</div>` + html;
+    list.innerHTML = html;
+    // Safe SSID text injection (no HTML parsing of network names).
+    const rows = list.querySelectorAll(".net:not(.other)");
+    rows.forEach((row, i) => { row.querySelector(".ssid").textContent = nets[i].ssid; });
+    list.querySelectorAll(".net").forEach(row => {
+      row.addEventListener("click", () => selectNet(row.dataset.ssid));
+    });
+  }
+
+  function selectNet(ssid) {
+    selSsid = ssid;
+    document.querySelectorAll(".net").forEach(r =>
+      r.classList.toggle("sel", r.dataset.ssid === ssid));
+    $("formCard").hidden = false;
+    const manual = ssid === "";
+    $("ssidField").hidden = !manual;
+    if (!manual) $("ssid").value = ssid;
+    else { $("ssid").value = ""; }
+    $("err").hidden = true;
+    (manual ? $("ssid") : $("psk")).focus();
+    $("formCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  async function scan() {
+    try {
+      const r = await fetch("/config.json", { cache: "no-store" });
+      const j = await r.json();
+      deviceName = j.name || "";
+      const serial = deviceName.includes("-")
+        ? deviceName.slice(deviceName.lastIndexOf("-") + 1).toUpperCase() : "";
+      if (serial) $("serial").textContent = serial;
+      renderNets((j.aps || []).slice(1));   // first element is a placeholder {}
+    } catch (e) { /* keep last list; portal may be busy scanning */ }
+  }
+
+  $("btnRescan").addEventListener("click", scan);
+
+  $("btnEye").addEventListener("click", () => {
+    const p = $("psk");
+    p.type = p.type === "password" ? "text" : "password";
+  });
+
+  $("btnConnect").addEventListener("click", async () => {
+    const ssid = $("ssid").value.trim();
+    if (!ssid) { $("ssidField").hidden = false; $("ssid").focus(); return; }
+    const btn = $("btnConnect");
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner"></div>${T.sending}`;
+    $("err").hidden = true;
+    try {
+      const qs = `ssid=${encodeURIComponent(ssid)}&psk=${encodeURIComponent($("psk").value)}`;
+      const r = await fetch(`/wifisave?${qs}`, { cache: "no-store" });
+      if (!r.ok) throw new Error("http " + r.status);
+      clearInterval(scanTimer);
+      $("viewSetup").hidden = true;
+      $("tDoneS").textContent = T.done_s.replace("{ssid}", ssid);
+      $("tStep2").childNodes[0].textContent = T.step2;
+      $("lampUrl").textContent = `http://${deviceName || "cloud-lamp-xxxxxx"}.local/`;
+      $("viewDone").hidden = false;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      $("err").textContent = T.err;
+      $("err").hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = T.connect;
+    }
+  });
+
+  scan();
+  scanTimer = setInterval(scan, 10000);   // portal keeps scanning in background
+})();
+</script>
+</body>
+</html>

@@ -26,8 +26,14 @@ namespace cloud_lamp_web {
  * Registered with setup priority just above the stock web_server component so
  * this handler is matched first for "/", while every REST route (/light/...,
  * /select/..., /update/..., /events) still falls through to web_server.
- * While the captive portal is active, canHandle() returns false so Wi-Fi
- * onboarding is never shadowed.
+ *
+ * Captive portal (Wi-Fi onboarding): while the portal is active this handler
+ * serves the BRANDED setup page (web/setup.html) for every GET except
+ * /config.json and /wifisave, which fall through to the stock captive_portal
+ * handlers (network scan + credential save). Claiming the whole URL space
+ * also answers the OS captive-portal detection probes, exactly like the stock
+ * page would. If no setup page was compiled in, the handler steps aside
+ * entirely and the stock portal page is shown instead.
  */
 class CloudLampWeb : public Component, public AsyncWebHandler {
  public:
@@ -40,6 +46,10 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
   void set_html(const uint8_t *data, size_t size) {
     this->html_ = data;
     this->html_size_ = size;
+  }
+  void set_setup(const uint8_t *data, size_t size) {
+    this->setup_ = data;
+    this->setup_size_ = size;
   }
   void set_icon(const uint8_t *data, size_t size) {
     this->icon_ = data;
@@ -59,7 +69,9 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
   bool isRequestHandlerTrivial() const override { return true; }
 
  protected:
+  bool portal_active_() const;
   void handle_app_(AsyncWebServerRequest *request);
+  void handle_setup_(AsyncWebServerRequest *request);
   void handle_manifest_(AsyncWebServerRequest *request);
   void handle_png_(AsyncWebServerRequest *request, const uint8_t *data, size_t size);
   void handle_device_info_(AsyncWebServerRequest *request);
@@ -67,6 +79,8 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
   web_server_base::WebServerBase *base_;
   const uint8_t *html_{nullptr};
   size_t html_size_{0};
+  const uint8_t *setup_{nullptr};
+  size_t setup_size_{0};
   const uint8_t *icon_{nullptr};
   size_t icon_size_{0};
   const uint8_t *brand_{nullptr};

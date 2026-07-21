@@ -35,11 +35,12 @@ void CloudLampWeb::dump_config() {
   ESP_LOGCONFIG(TAG,
                 "Cloud-Lamp web app:\n"
                 "  HTML: %u bytes (gzip)\n"
+                "  Setup: %u bytes (gzip)\n"
                 "  Icon: %u bytes\n"
                 "  Brand: %u bytes\n"
                 "  Logo: %u bytes\n"
                 "  Serial: %s",
-                (unsigned) this->html_size_, (unsigned) this->icon_size_,
+                (unsigned) this->html_size_, (unsigned) this->setup_size_, (unsigned) this->icon_size_,
                 (unsigned) this->brand_size_, (unsigned) this->logo_size_,
                 device_serial().c_str());
 }
@@ -48,21 +49,43 @@ void CloudLampWeb::dump_config() {
 // first and wins the "/" route; all other routes fall through to web_server.
 float CloudLampWeb::get_setup_priority() const { return setup_priority::WIFI - 0.5f; }
 
+bool CloudLampWeb::portal_active_() const {
+#ifdef USE_CAPTIVE_PORTAL
+  return captive_portal::global_captive_portal != nullptr && captive_portal::global_captive_portal->is_active();
+#else
+  return false;
+#endif
+}
+
 bool CloudLampWeb::canHandle(AsyncWebServerRequest *request) const {
   if (request->method() != HTTP_GET)
     return false;
-#ifdef USE_CAPTIVE_PORTAL
-  // Never shadow the Wi-Fi onboarding portal.
-  if (captive_portal::global_captive_portal != nullptr && captive_portal::global_captive_portal->is_active())
-    return false;
-#endif
   const auto &url = request->url();
+  if (this->portal_active_()) {
+    // Wi-Fi onboarding: replace the stock captive-portal page with our
+    // branded setup page. /config.json and /wifisave fall through to the
+    // stock captive_portal handlers (scan results + credential save); every
+    // other GET (including the OS captive-portal detection probes) gets the
+    // setup page — same catch-all the stock page relies on. Without a
+    // compiled-in setup page, step aside completely (stock portal shows).
+    if (this->setup_ == nullptr)
+      return false;
+    return url != F("/config.json") && url != F("/wifisave");
+  }
   return url == F("/") || url == F("/app") || url == F("/manifest.json") || url == F("/icon.png") ||
          url == F("/brand.png") || url == F("/logo.png") || url == F("/device.json");
 }
 
 void CloudLampWeb::handleRequest(AsyncWebServerRequest *request) {
   const auto &url = request->url();
+  if (this->portal_active_()) {
+    if (url == F("/brand.png")) {
+      this->handle_png_(request, this->brand_, this->brand_size_);
+    } else {
+      this->handle_setup_(request);
+    }
+    return;
+  }
   if (url == F("/") || url == F("/app")) {
     this->handle_app_(request);
   } else if (url == F("/manifest.json")) {
@@ -95,6 +118,13 @@ void CloudLampWeb::handle_app_(AsyncWebServerRequest *request) {
   request->send(response);
 }
 
+void CloudLampWeb::handle_setup_(AsyncWebServerRequest *request) {
+  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", this->setup_, this->setup_size_);
+  response->addHeader("Content-Encoding", "gzip");
+  response->addHeader("Cache-Control", "no-cache");
+  request->send(response);
+}
+
 void CloudLampWeb::handle_manifest_(AsyncWebServerRequest *request) {
   std::string name = App.get_friendly_name();
   if (name.empty())
@@ -122,7 +152,10 @@ void CloudLampWeb::handle_png_(AsyncWebServerRequest *request, const uint8_t *da
     return;
   }
   AsyncWebServerResponse *response = request->beginResponse_P(200, "image/png", data, size);
-  response->addHeader("Cache-Control", "max-age=86400");
+  // Icons change with firmware updates; a long max-age left users staring at
+  // the previous logo for up to a day. Small files + LAN speeds make
+  // re-fetching cheap, so always revalidate.
+  response->addHeader("Cache-Control", "no-cache");
   request->send(response);
 }
 

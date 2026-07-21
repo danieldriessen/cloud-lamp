@@ -17,19 +17,24 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.2.1 — user manual is now a designed PDF (docs/user-manual.pdf, built from
-> user-manual.md by tools/build-manual.py); the permanent manual URL (sticker QR code +
-> web-app book icon) points at the PDF and must never change again. v2.2.0: firmware
-> update coach (full-screen install → reboot → reconnect UI) plus longer HTTP OTA
-> timeouts (60 s HTTP idle timeout); web REST has no progress %, so the coach uses an
-> indeterminate bar. v2.1.9: project wordmark logo. v2.1.8: ten languages. v2.1.7:
-> custom colour picker. v2.1.6: full-bleed iOS background. v2.1.5: effect list + manual.
+> **Phase:** v2.2.2 — branded Wi-Fi onboarding: the captive portal now serves our own
+> setup page (web/setup.html, same design language as the app, ten languages) instead of
+> ESPHome's stock page; scan/save still use the stock /config.json + /wifisave endpoints.
+> Icons are now served with `no-cache` (a 24 h max-age kept old logos on phones after
+> updates) and the wordmark is also the browser favicon. v2.2.1: user manual as designed
+> PDF (docs/user-manual.pdf, built by tools/build-manual.py); the permanent manual URL
+> (sticker QR code + web-app book icon) points at the PDF and must never change again.
+> v2.2.0: firmware update coach (full-screen install → reboot → reconnect UI) plus longer
+> HTTP OTA timeouts (60 s HTTP idle timeout); web REST has no progress %, so the coach
+> uses an indeterminate bar. v2.1.9: project wordmark logo. v2.1.8: ten languages.
+> v2.1.7: custom colour picker. v2.1.6: full-bleed iOS background. v2.1.5: effect list +
+> manual.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the product
 > sticker (P-Touch template exists: docs/Label.lbx, field checklist in
 > device-credentials.md); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.2.1
+> **Firmware:** ESPHome 2026.6.0, project version 2.2.2
 
 ---
 
@@ -71,6 +76,7 @@ cloud-lamp/
 │   └── cloud_lamp_web/           # Custom ESPHome component serving the web app
 ├── web/
 │   ├── app.html                  # Single-file iOS-style web app (gzipped into firmware)
+│   ├── setup.html                # Branded captive-portal Wi-Fi onboarding page
 │   ├── icon.png                  # Home-screen / PWA icon (wordmark, transparent)
 │   ├── brand.png                 # Header wordmark (transparent, /brand.png)
 │   └── logo.png                  # DD Productions logo (embedded, served at /logo.png)
@@ -153,6 +159,12 @@ guarantee no LED can stay lit from an undefined boot state.
 - If no network connects, the lamp opens the setup hotspot `Cloud-Lamp-XXXXXX` (password on
   the sticker) with a captive portal for entering home Wi-Fi credentials. The lamp keeps
   working as a lamp the whole time; `reboot_timeout: 0s` means it never reboots over Wi-Fi.
+- The portal shows the **branded onboarding page** (`web/setup.html`, served by
+  `cloud_lamp_web`): same design language as the app, auto-localised (same ten languages),
+  network list with signal strength, password reveal, and a success view that tells the
+  user to rejoin their home Wi-Fi and open the lamp's `.local` address. The stock
+  captive-portal endpoints (`/config.json` scan, `/wifisave` save) keep doing the work
+  underneath; without a compiled-in setup page the stock ESPHome page appears instead.
 
 ---
 
@@ -225,8 +237,9 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   map in the app; the firmware always uses the English names as canonical identifiers.
 - **Handler precedence:** `cloud_lamp_web` registers just before `web_server`, so it wins
   the `/` route while all REST routes fall through. While the captive portal is active the
-  component steps aside entirely (`canHandle` returns false) so Wi-Fi onboarding is never
-  shadowed.
+  component instead serves `web/setup.html` for every GET except `/config.json` and
+  `/wifisave` (which fall through to the stock captive-portal handlers), replacing the
+  stock portal page with the branded onboarding UI.
 
 Web app development without hardware: `python3 tools/mock-device.py` serves the app with a
 simulated device API on `http://127.0.0.1:8932/`.

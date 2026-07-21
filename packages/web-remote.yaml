@@ -30,6 +30,10 @@ ota:
 
 cloud_lamp_web:
   html_file: web/app.html
+  # Branded Wi-Fi onboarding page — replaces ESPHome's stock captive-portal
+  # page while the setup hotspot is active (scan/save still go through the
+  # stock /config.json + /wifisave endpoints).
+  setup_file: web/setup.html
   # Home-screen / PWA icon (square wordmark). Transparent on purpose so we can
   # see how iOS/Android treat alpha — iOS historically fills transparent
   # apple-touch-icon pixels with black; switch to a dark solid backdrop if that

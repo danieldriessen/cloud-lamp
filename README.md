@@ -33,7 +33,8 @@ through a built-in web app.
   firmware updates; localised in ten languages (English, German, Spanish, French,
   Italian, Dutch, Polish, Portuguese, Turkish, Russian).
 - **Simple Wi-Fi onboarding** — if the lamp doesn't know the local Wi-Fi it opens its own
-  hotspot (`Cloud-Lamp-XXXXXX`) with a captive portal to enter credentials. No flashing or
+  hotspot (`Cloud-Lamp-XXXXXX`) with a captive portal to enter credentials, using a
+  branded setup page in the same design (and languages) as the web app. No flashing or
   tooling needed to move the lamp to a new home; credentials survive firmware updates.
 - **Safe over-the-air updates** — the lamp checks this repository for new firmware
   (automatically every 6 hours, and on demand from Settings) and offers updates in the
@@ -125,7 +126,7 @@ effects.yaml               light effects and tuning parameters
 secrets.example.yaml       template for the required secrets.yaml
 packages/                  feature modules: web app, updates, MQTT, temperature sensor
 components/cloud_lamp_web/ custom ESPHome component serving the web app
-web/                       web app source (embedded into the firmware at build time)
+web/                       web app + Wi-Fi setup page (embedded into the firmware at build time)
 assets/                    artwork sources (project wordmark, PWA/header derivatives, logos)
 assets/cloud-lamp-logo.png project wordmark (README hero + source for web/brand + web/icon)
 web/brand.png              header wordmark (embedded as /brand.png)

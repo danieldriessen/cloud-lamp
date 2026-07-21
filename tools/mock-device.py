@@ -7,6 +7,10 @@ Then open http://127.0.0.1:<port>/ in a browser.
 Emulates the subset of the ESPHome web_server REST API + /events SSE stream
 that the web app uses, plus the cloud_lamp_web endpoints (/, /device.json,
 /manifest.json).
+
+Also serves the Wi-Fi onboarding page (web/setup.html) at /setup with mock
+captive-portal endpoints (/config.json, /wifisave) for styling it without
+hardware.
 """
 
 import http.server
@@ -35,8 +39,8 @@ state = {
     "mqtt": True,
     "fw_installing": False,
     "fw_progress": 0,
-    "fw_current": "2.2.0",
-    "fw_latest": "2.2.1",
+    "fw_current": "2.2.1",
+    "fw_latest": "2.2.2",
     "fw_offline": False,   # simulate reboot blackout during OTA
 }
 listeners = []
@@ -113,6 +117,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if path in ("/", "/app"):
             self._send(200, (ROOT / "web" / "app.html").read_bytes(), "text/html")
+        elif path == "/setup":
+            # Captive-portal onboarding page (on the device it replaces "/")
+            self._send(200, (ROOT / "web" / "setup.html").read_bytes(), "text/html")
+        elif path == "/config.json":
+            # Stock captive_portal scan endpoint (first aps element is {})
+            self._send(200, json.dumps({
+                "mac": "AA:BB:CC:DD:3F:2A", "name": "cloud-lamp-dd3f2a",
+                "aps": [{}, {"ssid": "MyHomeWiFi", "rssi": -52, "lock": 1},
+                        {"ssid": "FRITZ!Box 7590", "rssi": -61, "lock": 1},
+                        {"ssid": "Guest", "rssi": -74, "lock": 0},
+                        {"ssid": "Neighbor's Wi-Fi", "rssi": -85, "lock": 1}],
+            }).encode())
+        elif path == "/wifisave":
+            time.sleep(0.8)   # feels like the real save
+            self._send(200, b"Saved. Connecting...", "text/plain")
         elif path in ("/icon.png", "/brand.png", "/logo.png"):
             f = ROOT / "web" / path.lstrip("/")
             if f.exists():
