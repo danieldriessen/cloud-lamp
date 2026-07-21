@@ -100,7 +100,10 @@ body {
 }
 .cover .footer .footer-text { margin: 0 0 7mm; }
 .cover .footer .maker-logo {
-  display: block; height: 8mm; margin: 0 auto;
+  /* Taller than you'd expect: the source icon's fine crescent cutouts turn
+     into an indistinct blob below ~11mm once rasterised (verified visually —
+     see chat history around 2026-07-21). */
+  display: block; height: 13mm; margin: 0 auto;
 }
 
 /* ---------- Table of contents ---------- */
