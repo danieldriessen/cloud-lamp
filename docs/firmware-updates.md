@@ -54,9 +54,9 @@ is published).
 - New firmware boot-loops → `safe_mode` catches it after 5 attempts and keeps Wi-Fi + OTA
   alive so a fixed image can be pushed.
 - User settings (Wi-Fi credentials from the captive portal, brightness, effect, power
-  behaviour, MQTT switch) live in the preferences area, **outside** the firmware image, and
-  survive every update. Global/entity IDs are kept stable across versions so stored values
-  stay attached.
+  behaviour, MQTT switch/broker/port/username/password) live in the preferences area,
+  **outside** the firmware image, and survive every update. Global/entity IDs are kept
+  stable across versions so stored values stay attached.
 
 ## Publishing a release (builder workflow)
 
@@ -70,7 +70,8 @@ is published).
 The firmware is generic (lamps are personalised only by the physical front text), so **one
 release channel serves every lamp**. Builder/dev lamps running `cloud-lamp-dev.yaml` should
 be updated via push OTA instead — installing the public update on them would remove the
-compiled-in Wi-Fi networks and MQTT.
+compiled-in Wi-Fi networks (MQTT is unaffected either way: it's part of the core firmware
+on both builds and configured from the web app, not compiled in).
 
 > Note: publishing the same version string twice is not offered to devices — always bump
 > `project_version` first.

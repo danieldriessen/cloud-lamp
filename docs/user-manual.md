@@ -120,6 +120,13 @@ home screen like a normal app.
 > remove and re-add the icon. The lamp lives only in your home network and cannot use
 > HTTPS — this is normal for home devices.
 
+> **For smart-home users:** under Settings → MQTT you can connect the lamp to your own
+> MQTT broker (e.g. Home Assistant, ioBroker) — off by default, no account or cloud
+> service required. Turn it on and enter your broker's address, port, and (if needed)
+> username/password directly in the app; nothing needs to be reflashed, and your entries
+> are kept even if you switch it off again. If you don't recognise these terms, you can
+> safely ignore this feature.
+
 ---
 
 ## 7. Firmware updates
@@ -175,7 +182,7 @@ afterwards the lamp opens its setup hotspot again (sticker).
 | Light source | 24 addressable RGB LEDs (WS2812) |
 | Radio | Wi-Fi 2.4 GHz (802.11 b/g/n) — 5 GHz-only networks are not supported |
 | Controls | 1 push-button, web app (10 languages) |
-| Effects | 18 (solid colours + special effects) plus a free colour picker in the web app |
+| Effects | 27 (solid colours + special effects) plus a free colour picker in the web app |
 | Firmware | Open source: `github.com/danieldriessen/cloud-lamp` |
 
 ---

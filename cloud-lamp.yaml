@@ -2,19 +2,23 @@
 #  cloud-lamp.yaml — Core firmware (v2) — PUBLIC / GIFT BUILD
 #
 #  THIS CONFIG IS PUBLIC-SAFE: it contains no personal names, no Wi-Fi
-#  networks and no MQTT credentials. Wi-Fi is configured exclusively by the
-#  recipient via the captive portal ("Cloud-Lamp-XXXXXX" setup hotspot).
-#  Binaries built from this file are published to the public update channel
-#  (firmware-dist/), so NOTHING device- or person-specific may be added here.
-#  The only embedded shared credentials are the sticker AP password and the
-#  shared OTA password (both deliberately non-secret, see docs).
+#  networks and no MQTT credentials — MQTT is OFF by default and its broker
+#  is configured entirely at runtime from the web app (see packages/mqtt.yaml),
+#  so nothing device- or person-specific is ever compiled in. Wi-Fi is
+#  configured exclusively by the recipient via the captive portal
+#  ("Cloud-Lamp-XXXXXX" setup hotspot). Binaries built from this file are
+#  published to the public update channel (firmware-dist/), so NOTHING
+#  device- or person-specific may be added here. The only embedded shared
+#  credentials are the sticker AP password and the shared OTA password
+#  (both deliberately non-secret, see docs).
 #
 #  For the builder's own bench/dev lamp use cloud-lamp-dev.yaml instead —
-#  it layers the builder/user Wi-Fi networks and MQTT on top of this file.
+#  it layers the builder/user Wi-Fi networks on top of this file (MQTT is
+#  already included here and configured from the web app on either build).
 #
 #  Architecture: the lamp is standalone-first. Everything network-related is
-#  either non-blocking (Wi-Fi, web remote, updates) or an optional package
-#  (MQTT, temperature sensor). The button always works, network or not.
+#  either non-blocking (Wi-Fi, web remote, updates, MQTT) or an optional
+#  package (temperature sensor). The button always works, network or not.
 #
 #  The LIGHT COMPONENT is the single source of truth for on/off, brightness
 #  and effect. Button, web app and MQTT all drive it through the same light
@@ -23,11 +27,11 @@
 #
 #  File map:
 #    cloud-lamp.yaml               core / public gift build (this file)
-#    cloud-lamp-dev.yaml           builder build = core + secret Wi-Fi + MQTT
+#    cloud-lamp-dev.yaml           builder build = core + secret Wi-Fi
 #    effects.yaml                  light effects + tuning knobs
 #    packages/web-remote.yaml      web server + iOS-style web app  (default ON)
 #    packages/updates.yaml         online firmware updates          (default ON)
-#    packages/mqtt.yaml            MQTT / ioBroker integration      (dev build only)
+#    packages/mqtt.yaml            MQTT / ioBroker integration (default OFF, always included)
 #    packages/temperature-sensor.yaml  case temp + thermal shutdown (optional)
 # ==============================================================================
 
@@ -44,7 +48,7 @@ substitutions:
   device_friendly_name: "Cloud-Lamp"   # Human-readable display name (web app title)
 
   # --- Firmware version (bump for every release; used by the online updater) ---
-  project_version: "2.2.5"
+  project_version: "2.3.0"
 
   # --- LED ring count ---
   # ring_count is informational only — it is never referenced directly in the firmware.
@@ -80,13 +84,13 @@ substitutions:
   # An unreachable URL is harmless: the check fails quietly.
   update_manifest_url: "https://raw.githubusercontent.com/danieldriessen/cloud-lamp/main/firmware-dist/cloud-lamp/manifest.json"
 
-  # --- MQTT topic structure (only used when packages/mqtt.yaml is enabled) ---
+  # --- MQTT topic structure (only relevant once "MQTT Enabled" is turned on) ---
   # Full base topic: ${mqtt_topic_root}${mqtt_topic_device}/...
   # Note: mqtt_topic_root must include a trailing slash when non-empty.
   mqtt_topic_root:   ""
   mqtt_topic_device: "Cloud-Lamp"
 
-  # --- Time / SNTP (only used when packages/mqtt.yaml is enabled) ---
+  # --- Time / SNTP (only relevant once "MQTT Enabled" is turned on) ---
   # POSIX timezone string, used for the Logging/Last_Reboot timestamp.
   #   Europe/Berlin (CET/CEST): "CET-1CEST,M3.5.0,M10.5.0/3"
   #   UTC:                      "UTC0"
@@ -104,8 +108,10 @@ packages:
   effects:    !include effects.yaml
   web_remote: !include packages/web-remote.yaml
   updates:    !include packages/updates.yaml
-  # MQTT integration lives in cloud-lamp-dev.yaml ONLY — published gift builds
-  # must never carry broker credentials.
+  # MQTT / ioBroker integration — OFF by default, broker configured entirely
+  # at runtime from the web app. Safe to include in every build: no
+  # credentials are ever compiled in (see packages/mqtt.yaml).
+  mqtt:       !include packages/mqtt.yaml
   # Case temperature sensor + thermal emergency shutdown:
   # temperature_sensor: !include packages/temperature-sensor.yaml
 
@@ -214,7 +220,11 @@ globals:
   - id: last_effect_index
     type: int
     restore_value: yes
-    initial_value: '0'
+    # Index 18 = Aurora Drift (the 19th registered effect: 18 solids at
+    # indices 0-17, then Aurora Drift first in effects.yaml's special-effects
+    # block) — the default a brand-new lamp shows the first time it's turned
+    # on. Only affects fresh devices; existing lamps keep their saved value.
+    initial_value: '18'
 
   # Custom colour picked in the web app (effect "None" + RGB). When active it
   # is restored instead of the effect; double-press re-enters the effect cycle.
@@ -556,7 +566,7 @@ binary_sensor:
 # ================================================================
 number:
   # Global animation speed for effects that move (1 = calm, 50 = default,
-  # 100 = lively). Solid colours and Night Light ignore this. Lambdas read
+  # 100 = lively). Solid colours ignore this. Lambdas read
   # id(effect_speed).state live — no reflash needed to tune.
   - platform: template
     name: "Effect Speed"         # REST object_id: effect_speed

@@ -137,7 +137,10 @@ void CloudLampWeb::handle_manifest_(AsyncWebServerRequest *request) {
                          "\"display_override\":[\"standalone\",\"fullscreen\"],"
                          "\"background_color\":\"#0b0f18\",\"theme_color\":\"#0b0f18\"";
   if (this->icon_ != nullptr) {
-    manifest += ",\"icons\":[{\"src\":\"/icon.png\",\"sizes\":\"512x512\",\"type\":\"image/png\",\"purpose\":\"any\"}]";
+    // "?v=" cache-buster (see cloud_lamp_web.h) so Android/Chrome PWA
+    // installs also pick up a changed icon instead of an old cached one.
+    manifest += ",\"icons\":[{\"src\":\"/icon.png?v=" + this->icon_version_ +
+                "\",\"sizes\":\"512x512\",\"type\":\"image/png\",\"purpose\":\"any\"}]";
   }
   manifest += "}";
   AsyncWebServerResponse *response = request->beginResponse(200, "application/manifest+json", manifest.c_str());

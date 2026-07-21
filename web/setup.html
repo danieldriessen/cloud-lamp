@@ -33,24 +33,31 @@
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     [hidden]{display:none !important}
+    /* Full-bleed canvas on iOS: html/body are locked to the viewport
+       (height:100%, overflow:hidden) instead of letting the document itself
+       scroll — see web/app.html for the full rationale. All real scrolling
+       happens inside .wrap. */
     html{
-      margin:0;padding:0;height:100%;
+      margin:0;padding:0;height:100%;overflow:hidden;
       background-color:var(--bg0);
       background-image:
         radial-gradient(1100px 650px at 15% 0%, rgba(108,178,255,.20), transparent 55%),
         linear-gradient(180deg,var(--bg0),var(--bg1));
       -webkit-text-size-adjust:none;text-size-adjust:none;
+      /* iOS Safari (10+) ignores the viewport meta's user-scalable=no for
+         pinch-zoom on purpose (accessibility). touch-action is a separate
+         mechanism it does respect: allowing pan-x/pan-y but omitting
+         pinch-zoom disables page pinch-zooming while all normal scrolling
+         (inside .wrap) keeps working. */
+      touch-action:pan-x pan-y;
     }
     body{
-      margin:0;padding:0;min-height:100%;min-height:100svh;
+      margin:0;padding:0;height:100%;overflow:hidden;
       font-family:var(--font);color:var(--text);
       overscroll-behavior:none;
     }
     .app-bg{
-      position:fixed;z-index:0;pointer-events:none;left:50%;top:50%;
-      width:100vw;height:100vh;height:100lvh;
-      min-width:130vw;min-height:150vh;min-height:150lvh;
-      transform:translate(-50%,-50%);
+      position:fixed;z-index:0;pointer-events:none;inset:0;
       background:
         radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),
         radial-gradient(850px 550px at 95% 18%, rgba(124,240,201,.08), transparent 60%),
@@ -58,6 +65,9 @@
     }
     .wrap{
       position:relative;z-index:1;max-width:520px;margin:0 auto;
+      height:100%;height:100svh;height:100dvh;height:-webkit-fill-available;
+      overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
       padding:calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
     }
 

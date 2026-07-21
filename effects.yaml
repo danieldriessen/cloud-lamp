@@ -11,42 +11,51 @@
 #  light's color_correct is applied.
 #
 #  RUNTIME SPEED: animated effects read id(effect_speed) (1–100, default 50 =
-#  the substitution defaults below). Solids and Night Light ignore it.
+#  the substitution defaults below). Solids ignore it.
 # ==============================================================================
 
 substitutions:
-  # --- Twinkle ("starfield") — baby-lamp defaults: sparse, slow, soft ---
-  # With 24 LEDs @ 140 ms: ~1 new spark per second across the whole cloud,
-  # each fading over ~9 s. Raise chance / lower fade_step for even calmer.
-  twinkle_ignite_chance: "160"  # 1-in-N chance per pixel per frame (higher = calmer)
-  twinkle_fade_step:     "4"    # Fade-out per frame (lower = longer, softer trails)
-  twinkle_interval:      "140ms"
-  twinkle_peak:          "170"  # Soft max spark brightness (was hard 255 — too sharp)
+  # --- Twinkle ("starfield") — each spark is a smooth sin() rise-and-fall
+  # envelope (never pops in/out abruptly) over a real ambient floor, so the
+  # cloud always looks clearly "on" between sparks. Kid-friendly: no flashes.
+  twinkle_ignite_chance:   "160"  # 1-in-N chance per idle pixel per frame (higher = calmer)
+  twinkle_interval:        "140ms"
+  twinkle_floor:           "42"   # Ambient glow level (0-255) — never near-black
+  twinkle_peak:            "215"  # Brightness at the centre of a spark's envelope
+  twinkle_duration:        "26"   # Frames for one full rise+fall envelope at speed 50
+  twinkle_duration_jitter: "20"   # Extra random frames added per spark for variety
 
-  # --- Pulse ("breathing") — pixel-level so it never overwrites brightness_pct ---
-  pulse_min_level: "51"         # ~20% of 255
-  pulse_max_level: "217"        # ~85% of 255
+  # --- Pulse ("breathing") — pixel-level so it never overwrites brightness_pct.
+  # Floor kept well above "looks off", especially once the light's own
+  # brightness/colour-correct scale it down further.
+  pulse_min_level: "115"        # ~45% of 255
+  pulse_max_level: "225"        # ~88% of 255
   pulse_period_ms: "8000"       # Full there-and-back cycle at speed 50
 
   # --- Rainbow ---
   rainbow_width: "24"           # One full spectrum across all 3 rings
   rainbow_period_ms: "12000"    # Full hue lap at speed 50
 
-  # --- Color Wipe (soft sky colours) ---
+  # --- Blue Color Wipe (blue → violet, wider than before) ---
   wipe_led_interval_ms: "400"   # Per-LED step at speed 50; 24 LEDs ≈ 9.6 s per colour
 
-  # --- Sky Breathing (slow crossfade between two sky tones) ---
+  # --- Sky Breathing (slow crossfade between two blues) ---
   sky_breath_period_s: "14"     # Seconds for a full there-and-back crossfade at speed 50
 
   # --- Aurora Drift (moving pastel gradient, per-ring depth) ---
   aurora_period_s: "22"         # Seconds for one full drift cycle at speed 50
 
-  # --- Candlelight ---
+  # --- Candlelight — deeper, more responsive flicker with a colour shift
+  # (dims AND reddens, like a real flame) so it reads clearly through the
+  # diffuser instead of just a faint brightness wobble.
   candle_interval_ms: "90"      # Flicker update rate at speed 50
-  candle_depth:       "28"      # Max flicker dip (0-255); higher = more nervous flame
+  candle_depth:        "140"    # Max flicker dip (0-255); higher = more nervous flame
 
-  # --- Night Light ---
-  night_light_level: "26"       # Pixel value ceiling (0-255); very dim warm glow
+  # --- Spectrum Fade (whole lamp crossfades through the 18-colour palette) ---
+  spectrum_fade_period_s: "36"  # Seconds for one full lap of the palette at speed 50
+
+  # --- Spectrum Flow (same palette, travelling gradient across the LEDs) ---
+  spectrum_flow_period_s: "30"  # Seconds for one full lap of the palette at speed 50
 
 light:
   - id: !extend led_rings
@@ -55,76 +64,92 @@ light:
       # Solid colours (slow refresh; brightness/colour-correction is
       # applied by the light component at output time, so no fast
       # redraw is needed).
-      # Order is the UI / button cycle order: neutrals first (White is
-      # the default cycle start), then the spectrum red → violet.
+      # Order is the UI / button cycle order and follows the colour wheel:
+      # White first (default cycle start), then one continuous hue sweep
+      # blue → violet → pink → red → orange → yellow → green. Every value
+      # below was picked and verified on-device with the web app's colour
+      # picker before being locked in here.
       # ------------------------------------------------------------
       - addressable_lambda:
           name: "White"
           update_interval: 250ms
-          lambda: 'it.all() = Color(255, 255, 255);'
-      - addressable_lambda:
-          name: "Warm White"
-          update_interval: 250ms
-          lambda: 'it.all() = Color(255, 180, 107);'
-      # Case PLA colour — Bambu Lab Matte "Latte Brown" (#D3B7A7)
-      - addressable_lambda:
-          name: "Latte Brown"
-          update_interval: 250ms
-          lambda: 'it.all() = Color(0xD3, 0xB7, 0xA7);'
-      - addressable_lambda:
-          name: "Red"
-          update_interval: 250ms
-          lambda: 'it.all() = Color(255, 0, 0);'
-      # Slightly warm yellow — pure (255,255,0) reads greenish on WS2812.
-      - addressable_lambda:
-          name: "Yellow"
-          update_interval: 250ms
-          lambda: 'it.all() = Color(255, 200, 0);'
-      - addressable_lambda:
-          name: "Green"
-          update_interval: 250ms
-          lambda: 'it.all() = Color(0, 255, 0);'
-      - addressable_lambda:
-          name: "Cyan"
-          update_interval: 250ms
-          lambda: 'it.all() = Color(0, 255, 255);'
+          lambda: 'it.all() = Color(0xFF, 0xFF, 0xFF);'
       - addressable_lambda:
           name: "Sky Blue"
           update_interval: 250ms
-          lambda: 'it.all() = Color(90, 170, 255);'
+          lambda: 'it.all() = Color(0x52, 0xD6, 0xFC);'
       - addressable_lambda:
           name: "Blue"
           update_interval: 250ms
-          lambda: 'it.all() = Color(0, 0, 255);'
+          lambda: 'it.all() = Color(0x00, 0x56, 0xD6);'
       - addressable_lambda:
-          name: "Violet"
+          name: "Indigo"
           update_interval: 250ms
-          lambda: 'it.all() = Color(138, 43, 226);'
+          lambda: 'it.all() = Color(0x4D, 0x22, 0xB2);'
+      - addressable_lambda:
+          name: "Purple"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xBE, 0x38, 0xF3);'
+      - addressable_lambda:
+          name: "Magenta"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xE6, 0x3B, 0x7A);'
+      - addressable_lambda:
+          name: "Salmon"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFF, 0xB5, 0xAF);'
+      - addressable_lambda:
+          name: "Red"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFF, 0x40, 0x15);'
+      - addressable_lambda:
+          name: "Peach"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFF, 0xC5, 0xAB);'
+      - addressable_lambda:
+          name: "Apricot"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFF, 0xD9, 0xA8);'
+      - addressable_lambda:
+          name: "Orange"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFF, 0xC7, 0x77);'
+      - addressable_lambda:
+          name: "Amber"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFF, 0xAB, 0x01);'
+      - addressable_lambda:
+          name: "Honey"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFF, 0xD9, 0x77);'
+      - addressable_lambda:
+          name: "Gold"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFD, 0xC7, 0x00);'
+      - addressable_lambda:
+          name: "Vanilla"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFF, 0xFB, 0xB9);'
+      - addressable_lambda:
+          name: "Yellow"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xFE, 0xFB, 0x41);'
+      - addressable_lambda:
+          name: "Chartreuse"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0xD9, 0xEC, 0x37);'
+      - addressable_lambda:
+          name: "Green"
+          update_interval: 250ms
+          lambda: 'it.all() = Color(0x76, 0xBB, 0x40);'
 
       # ------------------------------------------------------------
       # Calm animated effects (the "cloud character" set)
       # Speed: id(effect_speed) 1–100; 50 = substitution defaults.
+      # Aurora Drift is first here on purpose: it is also the effect a
+      # brand-new lamp shows the first time it's switched on (see
+      # last_effect_index's initial_value in cloud-lamp.yaml).
       # ------------------------------------------------------------
-
-      # Sky Breathing: very slow sinusoidal crossfade between a daylight blue
-      # and a soft cyan. The signature calm-cloud effect.
-      - addressable_lambda:
-          name: "Sky Breathing"
-          update_interval: 50ms
-          lambda: |-
-            const Color a(70, 150, 255);   // daylight blue
-            const Color b(10, 210, 235);   // soft cyan
-            float spd = id(effect_speed).state;
-            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
-            if (spd > 100.0f) spd = 100.0f;
-            uint32_t period = (uint32_t)(${sky_breath_period_s} * 1000.0f * 50.0f / spd);
-            if (period < 800) period = 800;
-            float t = (millis() % period) / (float) period;
-            float m = 0.5f - 0.5f * cosf(t * 2.0f * (float) M_PI);  // 0..1..0
-            it.all() = Color(
-              (uint8_t)(a.r + (b.r - a.r) * m),
-              (uint8_t)(a.g + (b.g - a.g) * m),
-              (uint8_t)(a.b + (b.b - a.b) * m));
 
       # Aurora Drift: a slow-moving gradient (cyan → violet). Each pixel
       # gets a phase offset, so the three rings show slightly different hues —
@@ -152,8 +177,31 @@ light:
                 (uint8_t)(a.b + (b.b - a.b) * m));
             }
 
-      # Candlelight: warm white with a gentle random-walk flicker per ring
-      # (8 LEDs each), like a flame behind frosted glass.
+      # Sky Breathing: very slow sinusoidal crossfade between a deep ocean
+      # blue and a pale, almost-white sky blue — a wide lightness/hue swing
+      # so the fade reads clearly even through the diffuser.
+      - addressable_lambda:
+          name: "Sky Breathing"
+          update_interval: 50ms
+          lambda: |-
+            const Color a(15, 55, 190);     // deep ocean blue
+            const Color b(160, 230, 255);   // pale sky blue
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t period = (uint32_t)(${sky_breath_period_s} * 1000.0f * 50.0f / spd);
+            if (period < 800) period = 800;
+            float t = (millis() % period) / (float) period;
+            float m = 0.5f - 0.5f * cosf(t * 2.0f * (float) M_PI);  // 0..1..0
+            it.all() = Color(
+              (uint8_t)(a.r + (b.r - a.r) * m),
+              (uint8_t)(a.g + (b.g - a.g) * m),
+              (uint8_t)(a.b + (b.b - a.b) * m));
+
+      # Candlelight: warm orange with a deep, responsive random-walk flicker
+      # per ring (8 LEDs each). Each dip both dims AND reddens towards a
+      # smouldering-ember tone — like a real flame — so it stays clearly
+      # visible through the diffuser instead of just a faint brightness wobble.
       - addressable_lambda:
           name: "Candlelight"
           update_interval: 40ms
@@ -161,6 +209,7 @@ light:
             static uint8_t dip[3] = {0, 0, 0};
             static uint32_t last_step = 0;
             const Color base(255, 147, 41);   // classic candle colour
+            const Color ember(150, 45, 5);    // dim, reddened low point
             float spd = id(effect_speed).state;
             if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
             if (spd > 100.0f) spd = 100.0f;
@@ -171,67 +220,164 @@ light:
               last_step = now;
               for (int r = 0; r < 3; r++) {
                 uint8_t target = random_uint32() % ${candle_depth};
-                dip[r] = (dip[r] * 3 + target) / 4;
+                // Responsive: mostly follows the new target instead of
+                // averaging it away, so dips are actually felt.
+                dip[r] = (dip[r] + target * 3) / 4;
               }
             }
             for (int r = 0; r < 3; r++) {
-              uint8_t scale = 255 - dip[r];
-              Color c((base.r * scale) >> 8, (base.g * scale) >> 8, (base.b * scale) >> 8);
+              float m = dip[r] / (float) ${candle_depth};   // 0 (steady) .. 1 (deepest dip)
+              Color c(
+                (uint8_t)(base.r + (ember.r - base.r) * m),
+                (uint8_t)(base.g + (ember.g - base.g) * m),
+                (uint8_t)(base.b + (ember.b - base.b) * m));
               for (int i = r * 8; i < (r + 1) * 8 && i < it.size(); i++)
                 it[i] = c;
             }
 
-      # Night Light: fixed very dim warm glow — "leave it on all night".
-      # Intentionally ignores the global brightness headroom by using low
-      # pixel values, so even at 100% brightness it stays gentle.
+      # Spectrum Fade: the whole lamp crossfades slowly through the 18-colour
+      # palette above (White → Sky Blue → ... → Green → back to White), all
+      # three rings always showing the same colour.
       - addressable_lambda:
-          name: "Night Light"
-          update_interval: 250ms
+          name: "Spectrum Fade"
+          update_interval: 50ms
           lambda: |-
-            it.all() = Color(${night_light_level},
-                             (uint8_t)(${night_light_level} * 0.55f),
-                             (uint8_t)(${night_light_level} * 0.25f));
+            static const Color palette[] = {
+              Color(0xFF, 0xFF, 0xFF),  // White
+              Color(0x52, 0xD6, 0xFC),  // Sky Blue
+              Color(0x00, 0x56, 0xD6),  // Blue
+              Color(0x4D, 0x22, 0xB2),  // Indigo
+              Color(0xBE, 0x38, 0xF3),  // Purple
+              Color(0xE6, 0x3B, 0x7A),  // Magenta
+              Color(0xFF, 0xB5, 0xAF),  // Salmon
+              Color(0xFF, 0x40, 0x15),  // Red
+              Color(0xFF, 0xC5, 0xAB),  // Peach
+              Color(0xFF, 0xD9, 0xA8),  // Apricot
+              Color(0xFF, 0xC7, 0x77),  // Orange
+              Color(0xFF, 0xAB, 0x01),  // Amber
+              Color(0xFF, 0xD9, 0x77),  // Honey
+              Color(0xFD, 0xC7, 0x00),  // Gold
+              Color(0xFF, 0xFB, 0xB9),  // Vanilla
+              Color(0xFE, 0xFB, 0x41),  // Yellow
+              Color(0xD9, 0xEC, 0x37),  // Chartreuse
+              Color(0x76, 0xBB, 0x40),  // Green
+            };
+            const int n = sizeof(palette) / sizeof(palette[0]);
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t period = (uint32_t)(${spectrum_fade_period_s} * 1000.0f * 50.0f / spd);
+            if (period < 800) period = 800;
+            float pos = (millis() % period) / (float) period * n;
+            int idx = (int) pos;
+            float frac = pos - idx;
+            Color a = palette[idx % n];
+            Color b = palette[(idx + 1) % n];
+            it.all() = Color(
+              (uint8_t)(a.r + (b.r - a.r) * frac),
+              (uint8_t)(a.g + (b.g - a.g) * frac),
+              (uint8_t)(a.b + (b.b - a.b) * frac));
 
-      # Twinkle: sparse soft sparks — a quiet starfield behind the cloud.
-      # Defaults are deliberately slow for a baby lamp (see substitutions).
+      # Spectrum Flow: the same 18-colour palette, but travelling along the
+      # strip — each LED sits a little further along the palette than its
+      # neighbour, so the colours slowly scroll across the cloud instead of
+      # changing all together.
+      - addressable_lambda:
+          name: "Spectrum Flow"
+          update_interval: 50ms
+          lambda: |-
+            static const Color palette[] = {
+              Color(0xFF, 0xFF, 0xFF),  // White
+              Color(0x52, 0xD6, 0xFC),  // Sky Blue
+              Color(0x00, 0x56, 0xD6),  // Blue
+              Color(0x4D, 0x22, 0xB2),  // Indigo
+              Color(0xBE, 0x38, 0xF3),  // Purple
+              Color(0xE6, 0x3B, 0x7A),  // Magenta
+              Color(0xFF, 0xB5, 0xAF),  // Salmon
+              Color(0xFF, 0x40, 0x15),  // Red
+              Color(0xFF, 0xC5, 0xAB),  // Peach
+              Color(0xFF, 0xD9, 0xA8),  // Apricot
+              Color(0xFF, 0xC7, 0x77),  // Orange
+              Color(0xFF, 0xAB, 0x01),  // Amber
+              Color(0xFF, 0xD9, 0x77),  // Honey
+              Color(0xFD, 0xC7, 0x00),  // Gold
+              Color(0xFF, 0xFB, 0xB9),  // Vanilla
+              Color(0xFE, 0xFB, 0x41),  // Yellow
+              Color(0xD9, 0xEC, 0x37),  // Chartreuse
+              Color(0x76, 0xBB, 0x40),  // Green
+            };
+            const int n = sizeof(palette) / sizeof(palette[0]);
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t period = (uint32_t)(${spectrum_flow_period_s} * 1000.0f * 50.0f / spd);
+            if (period < 800) period = 800;
+            float t0 = (millis() % period) / (float) period;
+            for (int i = 0; i < it.size(); i++) {
+              float t = t0 + (float) i / it.size();
+              t -= floorf(t);
+              float pos = t * n;
+              int idx = (int) pos;
+              float frac = pos - idx;
+              Color a = palette[idx % n];
+              Color b = palette[(idx + 1) % n];
+              it[i] = Color(
+                (uint8_t)(a.r + (b.r - a.r) * frac),
+                (uint8_t)(a.g + (b.g - a.g) * frac),
+                (uint8_t)(a.b + (b.b - a.b) * frac));
+            }
+
+      # Twinkle: sparse soft sparks over a real ambient glow — a quiet
+      # starfield behind the cloud. Each spark is a smooth sin() rise-and-fall
+      # envelope (0 → peak → 0), so nothing ever pops in or out abruptly —
+      # kid-friendly, no flashes. Defaults are deliberately slow for a baby
+      # lamp (see substitutions).
       - addressable_lambda:
           name: "Twinkle"
           update_interval: ${twinkle_interval}
           lambda: |-
-            static uint8_t state[${led_count}] = {};
+            static uint16_t life[${led_count}] = {};        // frames left, 0 = idle
+            static uint16_t life_total[${led_count}] = {};  // envelope length for life[i]
             float spd = id(effect_speed).state;
             if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
             if (spd > 100.0f) spd = 100.0f;
             uint32_t chance = (uint32_t)(${twinkle_ignite_chance} * 50.0f / spd);
             if (chance < 24) chance = 24;
-            uint8_t fade = (uint8_t)(${twinkle_fade_step} * spd / 50.0f);
-            if (fade < 1) fade = 1;
+            uint32_t duration = (uint32_t)(${twinkle_duration} * 50.0f / spd);
+            if (duration < 6) duration = 6;
             for (int i = 0; i < it.size(); i++) {
-              if (state[i] == 0 && (random_uint32() % chance) == 0) {
-                // Soft peak with a little variation — never a hard white flash
-                state[i] = ${twinkle_peak} - (random_uint32() % 40);
-              } else if (state[i] > 0) {
-                state[i] = state[i] > fade ? state[i] - fade : 0;
+              if (life[i] == 0 && (random_uint32() % chance) == 0) {
+                life_total[i] = (uint16_t)(duration + (random_uint32() % ${twinkle_duration_jitter}));
+                life[i] = life_total[i];
               }
-              uint8_t v = state[i];
-              // Very faint blue floor so the cloud never goes fully dark between stars
-              it[i] = Color(v > 6 ? v : 6, v > 6 ? v : 6, v > 18 ? v : 18);
+              float f = life_total[i] ? (float) life[i] / (float) life_total[i] : 0.0f;
+              float env = sinf((float) M_PI * f);  // 0 at both ends, smooth peak mid-life
+              uint8_t v = (uint8_t)(${twinkle_floor} + (${twinkle_peak} - ${twinkle_floor}) * env);
+              // Gentle cool-white tint on the sparks, never a hard flash
+              uint16_t vb = (uint16_t)(v * 1.15f);
+              it[i] = Color(v, v, vb > 255 ? 255 : (uint8_t) vb);
+              if (life[i] > 0) life[i]--;
             }
 
-      # Color Wipe: soft cloud colours, very slow sweep. Each colour fills the
-      # whole strip before the next one wipes across.
+      # Blue Color Wipe: soft blue-through-violet cloud colours, very slow
+      # sweep. Each colour fills the whole strip before the next one wipes
+      # across. Deliberately stays in the blue/violet family (not a full
+      # rainbow — that's what Rainbow is for) but spans a wider hue range
+      # than before, reusing the named Sky Blue/Blue/Indigo/Purple solids.
       - addressable_lambda:
-          name: "Color Wipe"
+          name: "Blue Color Wipe"
           update_interval: 40ms
           lambda: |-
             static int pos = 0;
             static int col = 0;
             static uint32_t last_step = 0;
-            const Color colors[3] = {
-              Color(0, 140, 255),     // sky blue
-              Color(89, 64, 255),    // soft indigo
-              Color(0, 191, 230),    // cyan
+            const Color colors[4] = {
+              Color(0x52, 0xD6, 0xFC),  // Sky Blue
+              Color(0x00, 0x56, 0xD6),  // Blue
+              Color(0x4D, 0x22, 0xB2),  // Indigo
+              Color(0xBE, 0x38, 0xF3),  // Purple
             };
+            const int n = 4;
             float spd = id(effect_speed).state;
             if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
             if (spd > 100.0f) spd = 100.0f;
@@ -244,11 +390,11 @@ light:
               pos++;
               if (pos > it.size()) {
                 pos = 1;
-                col = (col + 1) % 3;
+                col = (col + 1) % n;
               }
             }
             Color cur = colors[col];
-            Color prev = colors[(col + 2) % 3];
+            Color prev = colors[(col + n - 1) % n];
             for (int i = 0; i < it.size(); i++)
               it[i] = (i < pos) ? cur : prev;
 

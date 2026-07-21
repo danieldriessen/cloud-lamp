@@ -1,8 +1,8 @@
 # Cloud-Lamp — Design Document
 
 This document describes the design of the **cloud-lamp** firmware (v2). It covers the
-architecture, the button and boot behaviour, the web app, the optional MQTT integration,
-and the hardware. Historical context from the predecessor project lives in
+architecture, the button and boot behaviour, the web app, the MQTT integration (always
+included, OFF by default), and the hardware. Historical context from the predecessor project lives in
 [hand-lamp-reference.md](./hand-lamp-reference.md); the v1 → v2 rewrite rationale is
 summarised in [the changelog section](#v1--v2-changelog) at the end.
 
@@ -17,7 +17,18 @@ Related documents:
 
 ## Project status
 
-> **Phase:** v2.2.5 — OTA reliability fix: a real "Update failed — previous firmware
+> **Phase:** v2.3.0 — MQTT is now always compiled in (public gift build too) but OFF by
+> default on every new device (`RESTORE_DEFAULT_OFF`; previously the "MQTT Enabled" switch
+> itself defaulted to ON on the dev-only bench build). Broker address/port/username/password
+> are no longer compile-time `!secret`s — they're `text`/`number` template entities in the
+> web app's settings sheet (Settings → MQTT), only shown once enabled, persisted in flash
+> independently of the switch (turning MQTT off never loses what was typed in), and applied
+> live via `MQTTClientComponent::set_broker_address()`/`set_broker_port()`/`set_username()`/
+> `set_password()` — no reflash needed to (re)configure a broker. `cloud-lamp-dev.yaml` no
+> longer needs its own `mqtt: !include packages/mqtt.yaml` line since the base config already
+> includes it; `secrets.example.yaml`'s `mqtt_broker_*` keys are gone (configure from the web
+> UI instead). See [MQTT design](#mqtt-design-packagesmqttyaml-always-included-off-by-default)
+> below. v2.2.5: OTA reliability fix: a real "Update failed — previous firmware
 > still running" was traced to ESP8266 heap pressure during the download, not a bad
 > binary (committed binaries were verified byte-for-byte against their manifest MD5).
 > The web app now closes its SSE (`/events`) connection before POSTing
@@ -56,6 +67,38 @@ Related documents:
 > uses an indeterminate bar. v2.1.9: project wordmark logo. v2.1.8: ten languages.
 > v2.1.7: custom colour picker. v2.1.6: full-bleed iOS background. v2.1.5: effect list +
 > manual.
+> **Header layout (no firmware change):** the header is now two rows instead of one —
+> row 1 keeps the wordmark + device name/serial; row 2 holds the connection pill
+> (left-aligned) and the Manual/Settings icon buttons (right-aligned, unchanged), split
+> via a new `.hdr-row2` flex row (`justify-content:space-between`). Gives the connection
+> pill more breathing room next to the two icon buttons on narrow phones.
+> **iOS icon-caching fix:** `/icon.png` (favicon + `apple-touch-icon`, i.e. the "Add to
+> Home Screen" icon) now gets a `?v=<hash>` cache-buster derived from the icon file's own
+> content (`components/cloud_lamp_web/__init__.py` hashes it at compile time and
+> substitutes `web/app.html`'s `__ICON_VERSION__` placeholder; `tools/mock-device.py`
+> mirrors the same substitution for local dev). Root cause: iOS Safari's site-icon cache
+> ignores `Cache-Control` for favicon/apple-touch-icon requests and can get stuck serving
+> a stale icon from an earlier visit indefinitely (Chrome doesn't have this bug, which is
+> why it always showed the current icon while Safari on iPhone kept showing an old one);
+> the fix is self-maintaining — any future icon-artwork change gets a new hash and a new
+> URL automatically, no manual version bump needed. `manifest.json`'s icon entry gets the
+> same cache-buster (`cloud_lamp_web.cpp`'s `handle_manifest_`). Note this only fixes
+> *future* fetches — an icon already added to an iPhone's home screen before this fix
+> won't retroactively update; removing and re-adding it is the only way (same as any
+> apple-touch-icon change, unrelated to this bug).
+> **iOS full-bleed background fix (no firmware change):** the v2.1.6 approach — a fixed
+> `.app-bg` layer oversized against `100lvh`/`130vw` — still left a seam at the top/bottom
+> edges on iPhone, because `html`/`body` were still natively scrollable, so Safari's
+> collapsing address bar and rubber-band bounce could still move the document relative to
+> that fixed layer. Fixed by locking `html`/`body` to the viewport (`height:100%;
+> overflow:hidden`) and moving all real scrolling inside `.wrap` (`overflow-y:auto`)
+> instead — mirroring the Bed-LEDs/Custom_WLED remote control app, which never showed this
+> issue for the same reason. `.app-bg` is now a plain `inset:0` layer (oversizing is no
+> longer needed since the outer page never scrolls). Applied to both `web/app.html` and
+> `web/setup.html` (same design language). The settings-sheet scroll lock
+> (`lockSheetScroll`/`unlockSheetScroll`) now freezes `.wrap`'s own `scrollTop` instead of
+> faking a fixed `body` with a negative offset, since `.wrap` is the only scrollable
+> element now.
 > **Manual cover fix (no firmware change):** the v2.2.4 approach of deriving a flat,
 > single-colour navy silhouette of the DD Productions icon (luminance-as-alpha mask,
 > binarised, recoloured) discarded the logo's actual chrome/metallic shading, so it no
@@ -71,11 +114,20 @@ Related documents:
 > design is finalised (docs/Label.lbx); user-manual.md §2 and device-credentials.md now
 > describe its actual fields (Model/S/N/Hostname/WiFi-Passw./Power-Supply/QR) instead of
 > the earlier, slightly different field set.
+> **Zoom-prevention fix (no firmware change):** the viewport meta's `user-scalable=no` /
+> `maximum-scale=1` alone don't stop pinch-zoom on iOS Safari 10+, which deliberately
+> ignores that for accessibility — pinch-zoom is still possible even though the page has
+> nowhere useful to zoom to. Added `touch-action: pan-x pan-y` on `html` in both
+> `web/app.html` and `web/setup.html`: a separate mechanism iOS does honour, it drops
+> pinch-zoom from the page's default gestures while leaving normal panning/scrolling
+> (`.wrap`, `.sheet`) untouched. Also bumped the MQTT settings text inputs (`.row
+> input.ctl`) from 14px to 16px, since iOS Safari auto-zooms the page when a focused text
+> input's font is under 16px, regardless of the viewport meta.
 > **Still open:** per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.2.5
+> **Firmware:** ESPHome 2026.6.0, project version 2.3.0
 
 ### GitHub Pages setup
 
@@ -105,13 +157,15 @@ redeploys the Pages site automatically, so `docs/user-manual.pdf` stays current.
    the same `light` entity through the same scripts. State mirroring into persisted globals
    happens in one place (the light's `on_state` hook), so every control path stays consistent.
 3. **Optional features are packages; the public build is secret-free.** `cloud-lamp.yaml`
-   is the generic gift build — no personal names, no Wi-Fi networks, no MQTT. The builder's
-   bench lamp uses `cloud-lamp-dev.yaml`, which layers compiled-in networks and the MQTT
-   package on top. Published binaries come only from the public build (enforced by
-   `tools/release.sh`).
+   is the generic gift build — no personal names, no Wi-Fi networks, no MQTT credentials.
+   MQTT itself is always included (default OFF; broker configured entirely at runtime from
+   the web app, so nothing device- or person-specific is ever compiled in). The builder's
+   bench lamp uses `cloud-lamp-dev.yaml`, which just layers compiled-in Wi-Fi networks on
+   top. Published binaries come only from the public build (enforced by `tools/release.sh`).
 4. **Settings survive everything.** Persisted values (brightness, effect, power behaviour,
-   MQTT kill switch, captive-portal Wi-Fi credentials) live in the ESP preferences area,
-   outside the firmware image. They survive reboots, power cuts and OTA updates. Global IDs
+   MQTT enabled/broker/port/username/password, captive-portal Wi-Fi credentials) live in
+   the ESP preferences area, outside the firmware image. They survive reboots, power cuts
+   and OTA updates. Global IDs
    are kept stable across firmware versions so stored values stay attached.
 
 ---
@@ -121,14 +175,14 @@ redeploys the Pages site automatically, so `docs/user-manual.pdf` stays current.
 ```
 cloud-lamp/
 ├── cloud-lamp.yaml               # Core firmware = public gift build (no secrets embedded)
-├── cloud-lamp-dev.yaml           # Builder build: core + secret Wi-Fi networks + MQTT
+├── cloud-lamp-dev.yaml           # Builder build: core + secret Wi-Fi networks
 ├── effects.yaml                  # Effects package + all effect tuning knobs
 ├── secrets.yaml                  # Per-device credentials — git-ignored, never committed
 ├── secrets.example.yaml          # Template for secrets.yaml (placeholders only)
 ├── packages/
 │   ├── web-remote.yaml           # Web server + web app + diagnostics (default ON)
 │   ├── updates.yaml              # Online firmware updates (default ON)
-│   ├── mqtt.yaml                 # MQTT / ioBroker integration (optional)
+│   ├── mqtt.yaml                 # MQTT / ioBroker integration (default OFF, always included)
 │   └── temperature-sensor.yaml   # Case temperature + thermal shutdown (optional)
 ├── components/
 │   └── cloud_lamp_web/           # Custom ESPHome component serving the web app
@@ -182,6 +236,12 @@ only ever the explicit single-click toggle, never the end of a dim ramp. The sam
 applies to the web app slider and MQTT `Set/Brightness` (values below it are clamped).
 Near a limit the direction is forced away from the limit so a hold never appears dead.
 Single-click actions fire ~350 ms after release (double-click disambiguation window).
+
+A brand-new lamp defaults to **Aurora Drift** the first time it's turned on
+(`last_effect_index`'s `initial_value` in `cloud-lamp.yaml` points at Aurora Drift's
+position in `effects.yaml`, which is also why it's listed first among the special
+effects). Existing lamps always keep whichever effect they last had selected —
+this default only applies before the very first effect change.
 
 ### Factory reset
 
@@ -240,7 +300,12 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   (512×512). Used for Add to Home Screen / manifest icons. iOS may still fill
   transparent `apple-touch-icon` pixels with black — check on a real device after each
   artwork change; if it looks wrong, composite the wordmark onto the PWA
-  `background_color` (`#0b0f18`) instead.
+  `background_color` (`#0b0f18`) instead. Every reference to it (`app.html`'s `<link
+  rel="icon">` / `<link rel="apple-touch-icon">`, the manifest's `icons` entry) carries a
+  `?v=<hash>` cache-buster computed from the file's own bytes at compile time — iOS
+  Safari's site-icon cache is known to ignore `Cache-Control` and can get stuck on a
+  stale favicon/home-screen icon otherwise (see changelog). Changing `web/icon.png`'s
+  content is enough; the hash (and therefore the URL) updates itself automatically.
 - **Header brand (`/brand.png`):** the same wordmark, cropped landscape, for the in-app
   header only (`object-fit: contain`, no background box; not used as the home-screen
   icon).
@@ -273,16 +338,18 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   the `/events` server-sent-events stream, with a 5 s polling fallback. All state shown is
   device-confirmed (no unverified optimistic UI).
 - **Features:** power toggle, brightness slider, *Effect Presets* grid with colour
-  swatches (grouped into *Colors* and *Special effects*) plus a *Custom color* tile that
-  opens the OS-native colour picker (`<input type="color">` — the iOS 14+ system
-  spectrum/grid/slider sheet; live preview is throttled to ~5 requests/s while dragging).
-  A custom colour is stored in the firmware like an effect (globals
-  `custom_color_active` + `custom_color_rgb`), so it survives power cuts and off/on;
-  a button double-press leaves it and re-enters the effect cycle at the last-used
-  effect. There is also a header book icon that opens the
+  swatches (grouped into *Colors* and *Special effects*) plus a *Custom color* section
+  between them — a single full-width white button that opens the OS-native colour picker
+  (`<input type="color">` — the iOS 14+ system spectrum/grid/slider sheet; live preview is
+  throttled to ~5 requests/s while dragging). A custom colour is stored in the firmware
+  like an effect (globals `custom_color_active` + `custom_color_rgb`), so it survives
+  power cuts and off/on; a button double-press leaves it and re-enters the effect cycle
+  at the last-used effect. There is also a header book icon that opens the
   [user manual PDF](./user-manual.pdf) in a new tab (permanent GitHub Pages URL serving
   the PDF straight from this repo — same target as the sticker QR code), settings sheet (language, power-cut behaviour, network diagnostics,
-  *Change Wi-Fi network*, MQTT kill switch when present, firmware version/update with
+  *Change Wi-Fi network*, an MQTT section (enable switch plus broker address/port/
+  username/password fields, only shown once enabled — settings persist across
+  disable/re-enable), firmware version/update with
   *Check for updates now*; Install opens a full-screen update coach through reboot/reconnect; restart, factory reset, device info). The
   settings sheet is a bottom sheet capped at the same max width
   as the main view (`520px`), locks background scroll while open, and keeps extra right /
@@ -328,30 +395,32 @@ substitution at the top of the file.
 
 | Effect | Type | Character |
 |---|---|---|
-| White / Warm White / Latte Brown / Red / Yellow / Green / Cyan / Sky Blue / Blue / Violet | solid | Static colours, 250 ms refresh. Order: neutrals first (White = default cycle start), then the spectrum red → violet. Latte Brown = case PLA (Bambu Lab Matte `#D3B7A7`; DE Milchkaffee-Braun, ES Marrón Latte, FR Café au lait). Speed slider hidden. Indigo was removed in v2.1.5 (too dark on WS2812). |
-| Sky Breathing | animated | Very slow blue↔cyan crossfade — the signature calm effect |
-| Aurora Drift | animated | Slow-moving vivid teal→violet gradient with per-ring depth (saturated endpoints since v2.1.5 — the pastel pair washed out) |
-| Candlelight | animated | Warm white with soft per-ring flicker |
-| Night Light | solid | Very dim warm glow, gentle even at 100 % brightness. Speed slider hidden. |
-| Twinkle | animated | Quiet starfield — ~1 soft spark/s, long fade; baby-lamp defaults |
-| Color Wipe | animated | Soft sky colours, very slow sweep |
+| White / Sky Blue / Blue / Indigo / Purple / Magenta / Salmon / Red / Peach / Apricot / Orange / Amber / Honey / Gold / Vanilla / Yellow / Chartreuse / Green | solid | Static colours, 250 ms refresh. 18 colours, White first (default cycle start), then one continuous hue sweep blue → violet → pink → red → orange → yellow → green. Every hex value was tested on-device with the web app's colour picker before being locked in. Speed slider hidden. |
+| Aurora Drift | animated | Slow-moving vivid teal→violet gradient with per-ring depth (saturated endpoints since v2.1.5 — the pastel pair washed out). **First special effect** and the effect a brand-new lamp shows on its very first power-on (`last_effect_index` initial value, see [Behaviour reference](#behaviour-reference)). |
+| Sky Breathing | animated | Slow crossfade between a deep ocean blue and a pale sky blue — widened from the original narrow pair, which was too subtle to notice |
+| Candlelight | animated | Warm orange with a deep, responsive per-ring flicker that dims *and* reddens towards an ember tone — deepened from the original faint brightness-only wobble so it reads through the diffuser |
+| Spectrum Fade | animated | Whole lamp crossfades through the 18-colour palette above, all rings together |
+| Spectrum Flow | animated | Same 18-colour palette, but travelling — a colour gradient scrolls across the individual LEDs |
+| Twinkle | animated | Quiet starfield — sparse sparks with a smooth sin() rise-and-fall envelope (never pops in/out) over a real ambient floor; kid-friendly, no flashes — reworked from the original near-invisible version |
+| Blue Color Wipe | animated | Blue → violet cloud colours (Sky Blue/Blue/Indigo/Purple), very slow sweep — widened and renamed from "Color Wipe" to make clear it stays in the blue/violet family |
 | Rainbow | animated | Full spectrum, slow hue drift |
-| Pulse | animated | Pixel-level breathing between ~20 % and ~85 % (never overwrites saved brightness) |
+| Pulse | animated | Pixel-level breathing, raised to ~45–88 % so the low point never looks "off" (never overwrites saved brightness) |
 
 ### Effect Speed (`number.effect_speed`)
 
 A persisted template number **1–100** (default **50** = substitution defaults in
 `effects.yaml`). The web app shows a Speed slider only while an animated effect that
 honours speed is active. Higher values shorten periods / increase spark rate; lower
-values calm the motion. Solids and Night Light ignore it.
+values calm the motion. Solids ignore it.
 
 Effect names are case-sensitive canonical identifiers used by MQTT (`Set/Effect` /
 `State/Effect`) and the REST API. When renaming an effect, update the display-name maps in
 `web/app.html` (`FX_NAMES`, `FX_SWATCH`, `SPEED_FX`, `SOLID_FX`) as well. The web app
 groups the grid into **Colors** (names in `SOLID_FX`) and **Special effects** (everything
-else, including Night Light and unknown future effects). Note: the last-used effect is
-persisted as an *index*, so reordering or removing effects shifts which effect a lamp
-restores after its first update — harmless one-time cosmetic jump.
+else, including unknown future effects), with the *Custom color* button rendered between
+the two groups. Note: the last-used effect is persisted as an *index*, so reordering or
+removing effects shifts which effect a lamp restores after its first update — harmless
+one-time cosmetic jump.
 
 ### Deferred idea: per-effect user presets
 
@@ -364,11 +433,34 @@ not possible — effect algorithms are compiled in.
 
 ---
 
-## MQTT design (`packages/mqtt.yaml`, optional)
+## MQTT design (`packages/mqtt.yaml`, always included, OFF by default)
 
-Enable by uncommenting one line in the `packages:` block. Designed to never affect lamp
-functionality: `reboot_timeout: 0s`, plus a persisted runtime kill switch (*MQTT Enabled*
-in the web app settings) that silences MQTT without a reflash.
+Always compiled in on every build (public and dev) but OFF on every new device
+(`RESTORE_DEFAULT_OFF`) and fully runtime-configurable — no broker credentials are ever
+baked into a binary. Designed to never affect lamp functionality: `reboot_timeout: 0s`,
+plus a persisted runtime switch (*MQTT Enabled* in the web app settings) that silences
+MQTT without a reflash.
+
+### Runtime configuration (no reflash needed)
+
+The web app's settings sheet exposes, in an "MQTT" section that only shows the fields
+below once *MQTT Enabled* is on:
+
+- **MQTT Broker** (`text.mqtt_broker_host`) — hostname or IP
+- **MQTT Port** (`number.mqtt_broker_port`, default `1883`)
+- **MQTT Username** (`text.mqtt_broker_username`) — optional
+- **MQTT Password** (`text.mqtt_broker_password`, password-mode) — optional
+
+All four are `template` entities with `restore_value: true`, so they persist in flash
+independently of the enable switch — turning MQTT off never loses what was typed in.
+Each has a `set_action` that calls `mqtt::global_mqtt_client->set_broker_address()` /
+`set_broker_port()` / `set_username()` / `set_password()` and reconnects immediately if
+MQTT is currently on; the enable switch's `turn_on_action` re-applies all four before
+calling `enable()` (needed because ESPHome's `mqtt:` block only ever sees the empty
+compile-time placeholders — the real values live in these entities). Note: like all
+ESPHome password-mode `text` entities, the REST API's `value` field returns the
+plaintext password (only the human-readable `state` field is masked) — acceptable here
+since this is the lamp owner's own LAN and their own broker, not a device secret.
 
 ### Topic structure
 

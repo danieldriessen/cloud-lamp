@@ -1,11 +1,16 @@
 # ==============================================================================
 #  packages/mqtt.yaml — Optional MQTT / ioBroker integration
 #
-#  Enable/disable by (un)commenting one line in cloud-lamp.yaml's packages
-#  block. Designed so it can NEVER affect lamp functionality:
+#  Always compiled in (public gift build AND dev build) but OFF by default
+#  and completely runtime-configurable — no broker credentials are ever
+#  baked into a binary:
+#    - "MQTT Enabled" switch — OFF on every new device (RESTORE_DEFAULT_OFF)
+#    - "MQTT Broker" / "MQTT Port" / "MQTT Username" / "MQTT Password" —
+#      text/number entities in the web app's settings sheet, only shown
+#      while MQTT is enabled, persisted to flash, applied live via
+#      MQTTClientComponent::set_broker_address()/set_broker_port()/
+#      set_username()/set_password() (no reflash needed to (re)configure)
 #    - reboot_timeout: 0s — an unreachable broker never reboots the lamp
-#    - runtime kill switch ("MQTT Enabled", persisted) — stops all MQTT
-#      activity without a reflash
 #    - all handlers drive the same light/scripts as the button and web app
 #
 #  Topic scheme (unchanged from v1): ${mqtt_topic_root}${mqtt_topic_device}/
@@ -59,10 +64,15 @@ time:
           id(last_reboot_published) = true;
 
 mqtt:
-  broker: !secret mqtt_broker_ip
-  port: !secret mqtt_broker_port
-  username: !secret mqtt_broker_username
-  password: !secret mqtt_broker_password
+  # Broker/port/username/password below are just placeholders to satisfy
+  # ESPHome's schema (broker: is required) — the real values always come
+  # from the text/number entities further down, restored from flash and
+  # pushed in via the setters whenever "MQTT Enabled" turns on or a field
+  # changes while already on. enable_on_boot: false means the client never
+  # even tries to connect until that switch (default OFF) says so.
+  broker: ""
+  port: 1883
+  enable_on_boot: false
   clean_session: false   # Broker queues QoS 1 messages while device is offline
   keepalive: 8s
   # NEVER reboot the lamp because the broker is unreachable. A gift lamp in a
@@ -298,18 +308,101 @@ ota:
             mqtt::global_mqtt_client->enable();
 
 # ================================================================
-#  Runtime kill switch — visible in the web app's settings sheet.
-#  Persisted; OFF survives reboots, so a gift lamp that somehow got
-#  MQTT compiled in can be permanently silenced from the web UI.
+#  Runtime on/off switch — visible in the web app's settings sheet.
+#  OFF by default on every new device (RESTORE_DEFAULT_OFF); the user opts
+#  in from the web UI. Persisted, so the choice survives reboots.
 # ================================================================
 switch:
   - platform: template
     name: "MQTT Enabled"          # REST object_id: mqtt_enabled
     id: mqtt_enabled
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
+    restore_mode: RESTORE_DEFAULT_OFF
     entity_category: config
     turn_on_action:
-      - lambda: 'mqtt::global_mqtt_client->enable();'
+      # (Re-)apply the current broker settings before connecting — covers
+      # both a manual toggle and the switch restoring ON at boot, when the
+      # static `mqtt:` block above only ever has the empty placeholders.
+      - lambda: |-
+          mqtt::global_mqtt_client->set_broker_address(id(mqtt_broker_host).state);
+          mqtt::global_mqtt_client->set_broker_port((uint16_t) id(mqtt_broker_port).state);
+          mqtt::global_mqtt_client->set_username(id(mqtt_broker_username).state);
+          mqtt::global_mqtt_client->set_password(id(mqtt_broker_password).state);
+          mqtt::global_mqtt_client->enable();
     turn_off_action:
       - lambda: 'mqtt::global_mqtt_client->disable();'
+
+# ================================================================
+#  Broker connection settings — visible in the web app only while
+#  "MQTT Enabled" is on; persisted regardless, so turning MQTT off never
+#  loses what the user typed in. Editing a field while MQTT is already on
+#  reconnects immediately with the new value (no toggle cycle needed).
+# ================================================================
+text:
+  - platform: template
+    name: "MQTT Broker"           # REST object_id: mqtt_broker_host
+    id: mqtt_broker_host
+    mode: text
+    optimistic: true
+    restore_value: true
+    max_length: 64
+    entity_category: config
+    set_action:
+      - lambda: |-
+          if (id(mqtt_enabled).state) {
+            mqtt::global_mqtt_client->disable();
+            mqtt::global_mqtt_client->set_broker_address(x);
+            mqtt::global_mqtt_client->enable();
+          }
+
+  - platform: template
+    name: "MQTT Username"         # REST object_id: mqtt_broker_username
+    id: mqtt_broker_username
+    mode: text
+    optimistic: true
+    restore_value: true
+    max_length: 32
+    entity_category: config
+    set_action:
+      - lambda: |-
+          if (id(mqtt_enabled).state) {
+            mqtt::global_mqtt_client->disable();
+            mqtt::global_mqtt_client->set_username(x);
+            mqtt::global_mqtt_client->enable();
+          }
+
+  - platform: template
+    name: "MQTT Password"         # REST object_id: mqtt_broker_password
+    id: mqtt_broker_password
+    mode: password
+    optimistic: true
+    restore_value: true
+    max_length: 64
+    entity_category: config
+    set_action:
+      - lambda: |-
+          if (id(mqtt_enabled).state) {
+            mqtt::global_mqtt_client->disable();
+            mqtt::global_mqtt_client->set_password(x);
+            mqtt::global_mqtt_client->enable();
+          }
+
+number:
+  - platform: template
+    name: "MQTT Port"             # REST object_id: mqtt_broker_port
+    id: mqtt_broker_port
+    min_value: 1
+    max_value: 65535
+    step: 1
+    initial_value: 1883
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    mode: box
+    set_action:
+      - lambda: |-
+          if (id(mqtt_enabled).state) {
+            mqtt::global_mqtt_client->disable();
+            mqtt::global_mqtt_client->set_broker_port((uint16_t) x);
+            mqtt::global_mqtt_client->enable();
+          }

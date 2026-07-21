@@ -15,6 +15,7 @@ The HTML files are read and gzip-compressed at compile time; changing
 """
 
 import gzip
+import hashlib
 from pathlib import Path
 
 import esphome.codegen as cg
@@ -67,8 +68,26 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID], base)
     await cg.register_component(var, config)
 
+    # Read the icon first (if any) so its content hash is ready before the
+    # HTML is processed below — both /icon.png references in the HTML and
+    # the manifest's icon entry get a "?v=<hash>" cache-buster derived from
+    # it. iOS Safari's site-icon cache is known to ignore Cache-Control on
+    # /icon.png (favicon + apple-touch-icon / "Add to Home Screen"), so a
+    # same-URL refresh can get stuck showing a stale icon indefinitely; a
+    # URL that actually changes whenever the icon's bytes change is the only
+    # reliable way to bust that cache. The hash is deterministic from the
+    # file content, so it updates itself automatically — no manual version
+    # bump needed when the artwork changes.
+    icon_data = b""
+    if CONF_ICON_FILE in config:
+        icon_path = Path(CORE.relative_config_path(config[CONF_ICON_FILE]))
+        icon_data = icon_path.read_bytes()
+    icon_version = hashlib.md5(icon_data).hexdigest()[:8] if icon_data else "0"
+    cg.add(var.set_icon_version(icon_version))
+
     html_path = Path(CORE.relative_config_path(config[CONF_HTML_FILE]))
-    html_gz = gzip.compress(html_path.read_bytes(), compresslevel=9)
+    html_bytes = html_path.read_bytes().replace(b"__ICON_VERSION__", icon_version.encode())
+    html_gz = gzip.compress(html_bytes, compresslevel=9)
     html_arr = cg.progmem_array(config[CONF_HTML_DATA_ID], list(html_gz))
     cg.add(var.set_html(html_arr, len(html_gz)))
 
@@ -78,9 +97,7 @@ async def to_code(config):
         setup_arr = cg.progmem_array(config[CONF_SETUP_DATA_ID], list(setup_gz))
         cg.add(var.set_setup(setup_arr, len(setup_gz)))
 
-    if CONF_ICON_FILE in config:
-        icon_path = Path(CORE.relative_config_path(config[CONF_ICON_FILE]))
-        icon_data = icon_path.read_bytes()
+    if icon_data:
         icon_arr = cg.progmem_array(config[CONF_ICON_DATA_ID], list(icon_data))
         cg.add(var.set_icon(icon_arr, len(icon_data)))
 

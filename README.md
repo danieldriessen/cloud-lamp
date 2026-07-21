@@ -17,16 +17,18 @@ through a built-in web app.
   next effect, press-and-hold dims up/down (alternating, Hue-style). Holding the button
   while plugging the lamp in performs a factory reset (with a red countdown animation as
   warning).
-- **18 light effects** — solid colours in spectrum order (including Latte Brown /
-  Milchkaffee-Braun matching the case PLA) plus special effects (Sky Breathing, Aurora
-  Drift, Candlelight, Night Light, Rainbow, Twinkle, …), all tunable via substitutions in
-  `effects.yaml`.
+- **27 light effects** — 18 solid colours in spectrum order (White first, then one
+  continuous hue sweep from blue through violet, pink, red, orange, yellow and green; all
+  tested on-device with the web app's colour picker) plus special effects (Aurora Drift —
+  the default on a lamp's first-ever power-on — Sky Breathing, Candlelight, Spectrum Fade,
+  Spectrum Flow, Twinkle, Blue Color Wipe, Rainbow, Pulse), all tunable via substitutions
+  in `effects.yaml`.
 - **Effect speed** — live 1–100 slider in the web app for animated effects (persisted;
-  50 = the calm defaults). Solids and Night Light hide the control.
-- **Custom colour** — a *Custom color* tile in the web app opens the device's native
-  colour picker (the iOS system picker on iPhone/iPad); the picked colour is remembered
-  like an effect and survives power cuts. A double press on the button returns to the
-  effect presets.
+  50 = the calm defaults). Solids hide the control.
+- **Custom colour** — a *Custom color* button in its own section of the web app opens the
+  device's native colour picker (the iOS system picker on iPhone/iPad); the picked colour
+  is remembered like an effect and survives power cuts. A double press on the button
+  returns to the effect presets.
 - **iOS-style web app** — served directly from the lamp, no cloud, no app store.
   Progressive Web App: open the lamp's address in Safari, "Add to Home Screen", and it
   behaves like a native app. Power, brightness, speed, effect selection, settings and
@@ -41,8 +43,10 @@ through a built-in web app.
   web app. Downloads are MD5-verified and written to a separate flash region; a failed or
   interrupted update leaves the running firmware untouched, and a boot-loop triggers
   ESPHome safe mode.
-- **Optional MQTT integration** — for ioBroker / Home Assistant setups, as a separate
-  build that adds broker connectivity without affecting standalone behaviour.
+- **Optional MQTT integration** — for ioBroker / Home Assistant setups. Off by default on
+  every lamp; turn it on and enter your broker's address/port/username/password directly
+  in the web app's settings (Settings → MQTT) — no reflash needed, and the values stay
+  saved if you turn MQTT off again.
 - **Optional thermal protection** — a DS18B20 sensor package that shuts the LEDs off if
   the case overheats and re-enables them after cooling down.
 
@@ -96,8 +100,8 @@ Two build configurations exist:
 - **`cloud-lamp.yaml`** — the standard build. Wi-Fi is configured entirely through the
   captive portal; nothing network-specific is compiled in.
 - **`cloud-lamp-dev.yaml`** — a development build that additionally compiles in Wi-Fi
-  networks and the MQTT integration from `secrets.yaml`, convenient for bench work and
-  home-automation setups.
+  networks from `secrets.yaml`, convenient for bench work. MQTT is already part of the
+  core firmware (`cloud-lamp.yaml`) and is configured from the web app on either build.
 
 To iterate on the web app without hardware, run `python3 tools/mock-device.py` and open
 `http://127.0.0.1:8932/`.
@@ -121,10 +125,10 @@ To iterate on the web app without hardware, run `python3 tools/mock-device.py` a
 
 ```
 cloud-lamp.yaml            main firmware configuration
-cloud-lamp-dev.yaml        development build (compiled-in Wi-Fi + MQTT)
+cloud-lamp-dev.yaml        development build (adds compiled-in Wi-Fi networks)
 effects.yaml               light effects and tuning parameters
 secrets.example.yaml       template for the required secrets.yaml
-packages/                  feature modules: web app, updates, MQTT, temperature sensor
+packages/                  feature modules: web app, updates, MQTT (off by default), temperature sensor
 components/cloud_lamp_web/ custom ESPHome component serving the web app
 web/                       web app + Wi-Fi setup page (embedded into the firmware at build time)
 assets/                    artwork sources (project wordmark, PWA/header derivatives, logos)

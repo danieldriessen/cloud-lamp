@@ -3,24 +3,25 @@
 #
 #  Layers on top of the public gift build (cloud-lamp.yaml):
 #    + compiled-in Wi-Fi networks from secrets.yaml (user + builder fallback)
-#    + MQTT / ioBroker integration (packages/mqtt.yaml)
+#
+#  MQTT is already included in cloud-lamp.yaml (OFF by default, broker
+#  configured at runtime from the web app) — nothing MQTT-specific needs to
+#  be layered on here anymore.
 #
 #  Usage:  esphome run cloud-lamp-dev.yaml
 #
-#  NEVER publish binaries built from this file — they embed the Wi-Fi and
-#  MQTT credentials from secrets.yaml. The public update channel
-#  (firmware-dist/) is fed exclusively from cloud-lamp.yaml via
-#  tools/release.sh.
+#  NEVER publish binaries built from this file — they embed the Wi-Fi
+#  credentials from secrets.yaml. The public update channel (firmware-dist/)
+#  is fed exclusively from cloud-lamp.yaml via tools/release.sh.
 #
 #  Note on updates: this dev build points at the same public update channel
 #  as the gift lamps. Installing an online update on a dev lamp therefore
-#  replaces it with the public build (no compiled-in Wi-Fi, no MQTT) — use
-#  push OTA (esphome run) to update dev lamps instead.
+#  replaces it with the public build (no compiled-in Wi-Fi) — use push OTA
+#  (esphome run) to update dev lamps instead.
 # ==============================================================================
 
 packages:
   base: !include cloud-lamp.yaml
-  mqtt: !include packages/mqtt.yaml
 
 wifi:
   # Merged into the base config's (empty) network list by the package system.

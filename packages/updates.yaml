@@ -28,16 +28,17 @@
 #  in normal operation, and BearSSL needs an ~8.7 KB *contiguous* buffer for
 #  the OTA's own HTTPS session (see tls_buffer_size_rx/tx below) — on top of
 #  whatever else is holding a socket open at the time. A held-open web-app
-#  SSE connection and (on the MQTT-enabled bench build) the MQTT client's own
+#  SSE connection and (when "MQTT Enabled" is on) the MQTT client's own
 #  broker connection are the two biggest avoidable competitors for that
 #  budget, and both were observed causing "update failed, previous firmware
 #  still running" on real hardware (the safety net worked correctly — the
 #  underlying cause was resource pressure, not a bad binary; committed
 #  binaries were verified byte-for-byte against their manifest MD5).
 #  Mitigations: web/app.html closes its EventSource before POSTing install
-#  and only reconnects once the update coach reaches done/fail; MQTT (when
-#  compiled in) is suspended for the OTA's duration via the ota_via_http
-#  entity's on_begin/on_error/on_abort hooks in packages/mqtt.yaml.
+#  and only reconnects once the update coach reaches done/fail; MQTT is
+#  suspended for the OTA's duration (regardless of the kill switch's state)
+#  via the ota_via_http entity's on_begin/on_error/on_abort hooks in
+#  packages/mqtt.yaml.
 # ==============================================================================
 
 http_request:

@@ -14,8 +14,14 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="format-detection" content="telephone=no">
   <link rel="manifest" href="/manifest.json">
-  <link rel="icon" type="image/png" href="/icon.png">
-  <link rel="apple-touch-icon" href="/icon.png">
+  <!-- "?v=__ICON_VERSION__" is replaced at compile time (see
+       components/cloud_lamp_web/__init__.py) with a hash of icon.png's
+       bytes. iOS Safari's site-icon cache ignores Cache-Control on this URL
+       and can get stuck showing a stale favicon / home-screen icon
+       indefinitely after an artwork change — changing the URL itself is the
+       only reliable way to force a refetch. -->
+  <link rel="icon" type="image/png" href="/icon.png?v=__ICON_VERSION__">
+  <link rel="apple-touch-icon" href="/icon.png?v=__ICON_VERSION__">
   <title>Cloud Lamp</title>
   <style>
     :root{
@@ -41,36 +47,35 @@
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     [hidden]{display:none !important}
-    /* Full-bleed canvas on iOS:
-       - html carries the same gradient as the fixed layer, so the areas Safari
-         paints itself (behind its bars, rubber-band overscroll, letterboxing)
-         continue the design instead of flashing a flat colour;
-       - the fixed layer is sized against the LARGE viewport (100lvh) and
-         heavily oversized, so collapsed/expanded browser bars and safe areas
-         never reveal a seam. */
+    /* Full-bleed canvas on iOS: html/body are locked to the viewport
+       (height:100%, overflow:hidden) instead of letting the document itself
+       scroll. All real scrolling happens inside .wrap. That way Safari's
+       collapsing address bar and rubber-band bounce never move the page
+       relative to the fixed gradient layer behind it, so there's no seam
+       left for them to reveal at the top/bottom edges. */
     html{
-      margin:0;padding:0;height:100%;
+      margin:0;padding:0;height:100%;overflow:hidden;
       background-color:var(--bg0);
       background-image:
         radial-gradient(1100px 650px at 15% 0%, rgba(108,178,255,.20), transparent 55%),
         linear-gradient(180deg,var(--bg0),var(--bg1));
       -webkit-text-size-adjust:none;text-size-adjust:none;
+      /* iOS Safari (10+) ignores the viewport meta's user-scalable=no for
+         pinch-zoom on purpose (accessibility). touch-action is a separate
+         mechanism it does respect: allowing pan-x/pan-y but omitting
+         pinch-zoom disables page pinch-zooming while all normal scrolling
+         (inside .wrap/.sheet) keeps working. */
+      touch-action:pan-x pan-y;
     }
     body{
-      margin:0;padding:0;
-      min-height:100%;min-height:100svh;min-height:100dvh;min-height:-webkit-fill-available;
+      margin:0;padding:0;height:100%;overflow:hidden;
       font-family:var(--font);color:var(--text);
       overscroll-behavior:none;
       -webkit-user-select:none;user-select:none;
       -webkit-touch-callout:none;
     }
     .app-bg{
-      position:fixed;z-index:0;pointer-events:none;
-      left:50%;top:50%;
-      width:100vw;height:100vh;height:100lvh;
-      /* Oversized so safe-area / browser bars / bounce never reveal a seam */
-      min-width:130vw;min-height:150vh;min-height:150lvh;
-      transform:translate(-50%,-50%);
+      position:fixed;z-index:0;pointer-events:none;inset:0;
       background:
         radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),
         radial-gradient(850px 550px at 95% 18%, rgba(124,240,201,.08), transparent 60%),
@@ -79,11 +84,14 @@
     }
     .wrap{
       position:relative;z-index:1;max-width:520px;margin:0 auto;
-      min-height:100svh;min-height:100dvh;min-height:-webkit-fill-available;
+      height:100%;height:100svh;height:100dvh;height:-webkit-fill-available;
+      overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
       padding:calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
     }
 
-    header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+    header{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+    .hdr-row2{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .brand{display:flex;align-items:center;gap:10px;min-width:0}
     /* Wordmark logo (cloud + "Lamp") — landscape slot, transparent PNG. */
     .brand .cloud{
@@ -190,9 +198,18 @@
       border-color:rgba(108,178,255,.62);
     }
     .fx-none{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:12px 0}
-    /* Custom-colour tile: the native colour input covers the whole tile
-       invisibly, so a tap opens the OS colour picker directly. */
-    .fx-btn.fx-custom{position:relative}
+    /* Custom-colour button: its own section between Colors and Special
+       effects, one full-width white button (not a swatch tile). The native
+       colour input covers the whole button invisibly, so a tap opens the
+       OS colour picker directly. */
+    .fx-btn.fx-custom{
+      position:relative;grid-column:1/-1;justify-content:center;
+      background:#fff;border-color:rgba(0,0,0,.10);color:#11151f;
+    }
+    .fx-btn.fx-custom.sel{
+      background:#fff;border-color:rgba(108,178,255,.7);
+      box-shadow:0 0 0 2px rgba(108,178,255,.35) inset;
+    }
     .fx-btn.fx-custom input[type=color]{
       position:absolute;inset:0;width:100%;height:100%;
       opacity:0;border:none;padding:0;cursor:pointer;
@@ -255,7 +272,8 @@
       padding:14px 20px calc(env(safe-area-inset-bottom, 0px) + 28px) 16px;
       -webkit-overflow-scrolling:touch;scrollbar-gutter:stable;
     }
-    body.settings-open{overflow:hidden;touch-action:none}
+    body.settings-open{touch-action:none}
+    body.settings-open .wrap{overflow:hidden}
     .sheet-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
     .sheet-hdr .t{font-weight:800;font-size:17px}
     .sheet-close{
@@ -281,6 +299,13 @@
       background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23aab6cc' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
       background-repeat:no-repeat;background-position:right 10px center;
     }
+    .row input.ctl{
+      flex-shrink:0;max-width:52%;text-align:right;
+      background:rgba(0,0,0,.30);color:var(--text);border:1px solid var(--line);
+      border-radius:11px;padding:9px 12px;font-size:16px;font-family:var(--font);
+    }
+    .row input.ctl::placeholder{color:rgba(233,238,251,.38)}
+    .row input.ctl:focus{outline:none;border-color:rgba(108,178,255,.55)}
     .sw-toggle{
       width:52px;height:32px;border-radius:999px;border:1px solid var(--line);
       background:rgba(0,0,0,.35);position:relative;cursor:pointer;flex:0 0 auto;transition:background .2s;
@@ -381,13 +406,15 @@
           <div class="sub" id="devSerial">&nbsp;</div>
         </div>
       </div>
-      <div class="hdr-right">
+      <div class="hdr-row2">
         <div class="pill"><span class="dot" id="connDot"></span><span id="connText">…</span></div>
-        <div class="iconbtn" id="btnManual" role="button" tabindex="0" aria-label="Manual">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        </div>
-        <div class="iconbtn" id="btnSettings" role="button" tabindex="0" aria-label="Settings">
-          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.46a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.55 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5z"/></svg>
+        <div class="hdr-right">
+          <div class="iconbtn" id="btnManual" role="button" tabindex="0" aria-label="Manual">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="iconbtn" id="btnSettings" role="button" tabindex="0" aria-label="Settings">
+            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.46a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.55 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5z"/></svg>
+          </div>
         </div>
       </div>
     </header>
@@ -494,6 +521,16 @@
             <div class="k"><span data-i18n="mqtt_enabled">MQTT enabled</span>
               <span class="d" data-i18n="mqtt_d">Smart-home integration (optional)</span></div>
             <div class="sw-toggle" id="mqttToggle" role="switch" tabindex="0"><div class="kn"></div></div>
+          </div>
+          <div id="mqttFields" hidden>
+            <div class="row"><div class="k" data-i18n="mqtt_broker">Broker address</div>
+              <input class="ctl" id="mqttBroker" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="192.168.1.10"></div>
+            <div class="row"><div class="k" data-i18n="mqtt_port">Port</div>
+              <input class="ctl" id="mqttPort" type="number" min="1" max="65535" step="1" placeholder="1883"></div>
+            <div class="row"><div class="k" data-i18n="mqtt_username">Username</div>
+              <input class="ctl" id="mqttUser" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="(optional)"></div>
+            <div class="row"><div class="k" data-i18n="mqtt_password">Password</div>
+              <input class="ctl" id="mqttPass" type="password" autocomplete="off" placeholder="(optional)"></div>
           </div>
         </div>
       </div>
@@ -625,7 +662,8 @@
       power_behavior:"After power cut",power_behavior_d:"Behaviour when power returns",
       beh_off:"Start switched off",beh_restore:"Restore last state",network:"Network",wifi_network:"Wi-Fi network",
       signal:"Signal",ip_address:"IP address",uptime:"Uptime",mqtt_enabled:"MQTT enabled",
-      mqtt_d:"Smart-home integration (optional)",firmware:"Firmware",installed_version:"Installed version",
+      mqtt_d:"Smart-home integration (optional)",mqtt_broker:"Broker address",mqtt_port:"Port",mqtt_username:"Username",mqtt_password:"Password",
+      firmware:"Firmware",installed_version:"Installed version",
       latest_version:"Latest version",check_updates:"Check for updates now",checking_updates:"Checking for updates…",
       install_update:"Install update",maintenance:"Maintenance",
       restart:"Restart lamp",factory_reset:"Factory reset…",change_wifi:"Change Wi-Fi network…",
@@ -650,7 +688,8 @@
       power_behavior:"Nach Stromausfall",power_behavior_d:"Verhalten, wenn der Strom zurückkehrt",
       beh_off:"Ausgeschaltet starten",beh_restore:"Letzten Zustand wiederherstellen",network:"Netzwerk",wifi_network:"WLAN-Netzwerk",
       signal:"Signal",ip_address:"IP-Adresse",uptime:"Laufzeit",mqtt_enabled:"MQTT aktiviert",
-      mqtt_d:"Smart-Home-Anbindung (optional)",firmware:"Firmware",installed_version:"Installierte Version",
+      mqtt_d:"Smart-Home-Anbindung (optional)",mqtt_broker:"Broker-Adresse",mqtt_port:"Port",mqtt_username:"Benutzername",mqtt_password:"Passwort",
+      firmware:"Firmware",installed_version:"Installierte Version",
       latest_version:"Neueste Version",check_updates:"Jetzt nach Updates suchen",checking_updates:"Suche nach Updates…",
       install_update:"Update installieren",maintenance:"Wartung",
       restart:"Lampe neu starten",factory_reset:"Werkseinstellungen…",change_wifi:"WLAN wechseln…",
@@ -675,7 +714,8 @@
       power_behavior:"Tras un corte de luz",power_behavior_d:"Comportamiento al volver la corriente",
       beh_off:"Arrancar apagada",beh_restore:"Restaurar el último estado",network:"Red",wifi_network:"Red Wi-Fi",
       signal:"Señal",ip_address:"Dirección IP",uptime:"Tiempo encendida",mqtt_enabled:"MQTT activado",
-      mqtt_d:"Integración domótica (opcional)",firmware:"Firmware",installed_version:"Versión instalada",
+      mqtt_d:"Integración domótica (opcional)",mqtt_broker:"Dirección del broker",mqtt_port:"Puerto",mqtt_username:"Usuario",mqtt_password:"Contraseña",
+      firmware:"Firmware",installed_version:"Versión instalada",
       latest_version:"Última versión",check_updates:"Buscar actualizaciones ahora",checking_updates:"Buscando actualizaciones…",
       install_update:"Instalar actualización",maintenance:"Mantenimiento",
       restart:"Reiniciar lámpara",factory_reset:"Restablecer de fábrica…",change_wifi:"Cambiar red Wi-Fi…",
@@ -700,7 +740,8 @@
       power_behavior:"Après une coupure",power_behavior_d:"Comportement au retour du courant",
       beh_off:"Démarrer éteinte",beh_restore:"Restaurer le dernier état",network:"Réseau",wifi_network:"Réseau Wi-Fi",
       signal:"Signal",ip_address:"Adresse IP",uptime:"En marche depuis",mqtt_enabled:"MQTT activé",
-      mqtt_d:"Intégration domotique (optionnel)",firmware:"Micrologiciel",installed_version:"Version installée",
+      mqtt_d:"Intégration domotique (optionnel)",mqtt_broker:"Adresse du broker",mqtt_port:"Port",mqtt_username:"Nom d'utilisateur",mqtt_password:"Mot de passe",
+      firmware:"Micrologiciel",installed_version:"Version installée",
       latest_version:"Dernière version",check_updates:"Vérifier les mises à jour maintenant",checking_updates:"Recherche de mises à jour…",
       install_update:"Installer la mise à jour",maintenance:"Maintenance",
       restart:"Redémarrer la lampe",factory_reset:"Réinitialisation d'usine…",change_wifi:"Changer de réseau Wi-Fi…",
@@ -725,7 +766,8 @@
       power_behavior:"Dopo un'interruzione",power_behavior_d:"Comportamento al ritorno della corrente",
       beh_off:"Avvia spenta",beh_restore:"Ripristina l'ultimo stato",network:"Rete",wifi_network:"Rete Wi-Fi",
       signal:"Segnale",ip_address:"Indirizzo IP",uptime:"In funzione da",mqtt_enabled:"MQTT attivo",
-      mqtt_d:"Integrazione smart-home (opzionale)",firmware:"Firmware",installed_version:"Versione installata",
+      mqtt_d:"Integrazione smart-home (opzionale)",mqtt_broker:"Indirizzo del broker",mqtt_port:"Porta",mqtt_username:"Nome utente",mqtt_password:"Password",
+      firmware:"Firmware",installed_version:"Versione installata",
       latest_version:"Ultima versione",check_updates:"Cerca aggiornamenti ora",checking_updates:"Ricerca aggiornamenti…",
       install_update:"Installa aggiornamento",maintenance:"Manutenzione",
       restart:"Riavvia la lampada",factory_reset:"Ripristino di fabbrica…",change_wifi:"Cambia rete Wi-Fi…",
@@ -750,7 +792,8 @@
       power_behavior:"Na stroomuitval",power_behavior_d:"Gedrag als de stroom terugkeert",
       beh_off:"Uitgeschakeld starten",beh_restore:"Laatste stand herstellen",network:"Netwerk",wifi_network:"Wifi-netwerk",
       signal:"Signaal",ip_address:"IP-adres",uptime:"Looptijd",mqtt_enabled:"MQTT ingeschakeld",
-      mqtt_d:"Smarthome-koppeling (optioneel)",firmware:"Firmware",installed_version:"Geïnstalleerde versie",
+      mqtt_d:"Smarthome-koppeling (optioneel)",mqtt_broker:"Broker-adres",mqtt_port:"Poort",mqtt_username:"Gebruikersnaam",mqtt_password:"Wachtwoord",
+      firmware:"Firmware",installed_version:"Geïnstalleerde versie",
       latest_version:"Nieuwste versie",check_updates:"Nu op updates controleren",checking_updates:"Zoeken naar updates…",
       install_update:"Update installeren",maintenance:"Onderhoud",
       restart:"Lamp opnieuw opstarten",factory_reset:"Fabrieksinstellingen…",change_wifi:"Wifi-netwerk wijzigen…",
@@ -775,7 +818,8 @@
       power_behavior:"Po zaniku zasilania",power_behavior_d:"Zachowanie po powrocie zasilania",
       beh_off:"Uruchom wyłączoną",beh_restore:"Przywróć ostatni stan",network:"Sieć",wifi_network:"Sieć Wi-Fi",
       signal:"Sygnał",ip_address:"Adres IP",uptime:"Czas pracy",mqtt_enabled:"MQTT włączone",
-      mqtt_d:"Integracja smart home (opcjonalna)",firmware:"Oprogramowanie",installed_version:"Zainstalowana wersja",
+      mqtt_d:"Integracja smart home (opcjonalna)",mqtt_broker:"Adres brokera",mqtt_port:"Port",mqtt_username:"Nazwa użytkownika",mqtt_password:"Hasło",
+      firmware:"Oprogramowanie",installed_version:"Zainstalowana wersja",
       latest_version:"Najnowsza wersja",check_updates:"Sprawdź aktualizacje teraz",checking_updates:"Sprawdzanie aktualizacji…",
       install_update:"Zainstaluj aktualizację",maintenance:"Konserwacja",
       restart:"Uruchom lampę ponownie",factory_reset:"Ustawienia fabryczne…",change_wifi:"Zmień sieć Wi-Fi…",
@@ -800,7 +844,8 @@
       power_behavior:"Após falha de energia",power_behavior_d:"Comportamento quando a energia volta",
       beh_off:"Iniciar desligada",beh_restore:"Restaurar o último estado",network:"Rede",wifi_network:"Rede Wi-Fi",
       signal:"Sinal",ip_address:"Endereço IP",uptime:"Tempo ligada",mqtt_enabled:"MQTT ativado",
-      mqtt_d:"Integração smart home (opcional)",firmware:"Firmware",installed_version:"Versão instalada",
+      mqtt_d:"Integração smart home (opcional)",mqtt_broker:"Endereço do broker",mqtt_port:"Porta",mqtt_username:"Nome de utilizador",mqtt_password:"Palavra-passe",
+      firmware:"Firmware",installed_version:"Versão instalada",
       latest_version:"Última versão",check_updates:"Procurar atualizações agora",checking_updates:"A procurar atualizações…",
       install_update:"Instalar atualização",maintenance:"Manutenção",
       restart:"Reiniciar a lâmpada",factory_reset:"Reposição de fábrica…",change_wifi:"Mudar de rede Wi-Fi…",
@@ -825,7 +870,8 @@
       power_behavior:"Elektrik kesintisinden sonra",power_behavior_d:"Elektrik geri geldiğinde davranış",
       beh_off:"Kapalı başlat",beh_restore:"Son durumu geri yükle",network:"Ağ",wifi_network:"Wi-Fi ağı",
       signal:"Sinyal",ip_address:"IP adresi",uptime:"Çalışma süresi",mqtt_enabled:"MQTT etkin",
-      mqtt_d:"Akıllı ev entegrasyonu (isteğe bağlı)",firmware:"Donanım yazılımı",installed_version:"Yüklü sürüm",
+      mqtt_d:"Akıllı ev entegrasyonu (isteğe bağlı)",mqtt_broker:"Broker adresi",mqtt_port:"Bağlantı noktası",mqtt_username:"Kullanıcı adı",mqtt_password:"Şifre",
+      firmware:"Donanım yazılımı",installed_version:"Yüklü sürüm",
       latest_version:"En son sürüm",check_updates:"Şimdi güncelleme ara",checking_updates:"Güncellemeler aranıyor…",
       install_update:"Güncellemeyi yükle",maintenance:"Bakım",
       restart:"Lambayı yeniden başlat",factory_reset:"Fabrika ayarları…",change_wifi:"Wi-Fi ağını değiştir…",
@@ -850,7 +896,8 @@
       power_behavior:"После отключения питания",power_behavior_d:"Поведение при восстановлении питания",
       beh_off:"Запускаться выключенной",beh_restore:"Восстановить последнее состояние",network:"Сеть",wifi_network:"Сеть Wi-Fi",
       signal:"Сигнал",ip_address:"IP-адрес",uptime:"Время работы",mqtt_enabled:"MQTT включён",
-      mqtt_d:"Интеграция с умным домом (опционально)",firmware:"Прошивка",installed_version:"Установленная версия",
+      mqtt_d:"Интеграция с умным домом (опционально)",mqtt_broker:"Адрес брокера",mqtt_port:"Порт",mqtt_username:"Имя пользователя",mqtt_password:"Пароль",
+      firmware:"Прошивка",installed_version:"Установленная версия",
       latest_version:"Последняя версия",check_updates:"Проверить обновления сейчас",checking_updates:"Поиск обновлений…",
       install_update:"Установить обновление",maintenance:"Обслуживание",
       restart:"Перезапустить лампу",factory_reset:"Сброс к заводским настройкам…",change_wifi:"Сменить сеть Wi-Fi…",
@@ -875,70 +922,95 @@
   // Effect display names per language (fallback: raw firmware name)
   const FX_NAMES = {
     en:{}, // firmware names are English already
-    de:{"Warm White":"Warmweiß","White":"Weiß","Latte Brown":"Milchkaffee-Braun","Red":"Rot","Yellow":"Gelb","Green":"Grün",
-        "Sky Blue":"Himmelblau","Cyan":"Cyan","Blue":"Blau",
-        "Violet":"Violett","Sky Breathing":"Himmel-Atmen","Aurora Drift":"Aurora",
-        "Candlelight":"Kerzenlicht","Night Light":"Nachtlicht","Twinkle":"Sternenfunkeln",
-        "Color Wipe":"Farbverlauf","Rainbow":"Regenbogen","Pulse":"Pulsieren"},
-    es:{"Warm White":"Blanco cálido","White":"Blanco","Latte Brown":"Marrón Latte","Red":"Rojo","Yellow":"Amarillo","Green":"Verde",
-        "Sky Blue":"Azul cielo","Cyan":"Cian","Blue":"Azul",
-        "Violet":"Violeta","Sky Breathing":"Cielo respirante","Aurora Drift":"Aurora",
-        "Candlelight":"Luz de vela","Night Light":"Luz nocturna","Twinkle":"Destellos",
-        "Color Wipe":"Barrido de color","Rainbow":"Arcoíris","Pulse":"Pulso"},
-    fr:{"Warm White":"Blanc chaud","White":"Blanc","Latte Brown":"Café au lait","Red":"Rouge","Yellow":"Jaune","Green":"Vert",
-        "Sky Blue":"Bleu ciel","Cyan":"Cyan","Blue":"Bleu",
-        "Violet":"Violet","Sky Breathing":"Ciel respirant","Aurora Drift":"Aurore",
-        "Candlelight":"Bougie","Night Light":"Veilleuse","Twinkle":"Scintillement",
-        "Color Wipe":"Balayage de couleur","Rainbow":"Arc-en-ciel","Pulse":"Pulsation"},
-    it:{"Warm White":"Bianco caldo","White":"Bianco","Latte Brown":"Marrone latte","Red":"Rosso","Yellow":"Giallo","Green":"Verde",
-        "Sky Blue":"Azzurro cielo","Cyan":"Ciano","Blue":"Blu",
-        "Violet":"Viola","Sky Breathing":"Cielo che respira","Aurora Drift":"Aurora",
-        "Candlelight":"Lume di candela","Night Light":"Luce notturna","Twinkle":"Scintillio",
-        "Color Wipe":"Onda di colore","Rainbow":"Arcobaleno","Pulse":"Pulsazione"},
-    nl:{"Warm White":"Warmwit","White":"Wit","Latte Brown":"Lattebruin","Red":"Rood","Yellow":"Geel","Green":"Groen",
-        "Sky Blue":"Hemelsblauw","Cyan":"Cyaan","Blue":"Blauw",
-        "Violet":"Violet","Sky Breathing":"Ademende hemel","Aurora Drift":"Aurora",
-        "Candlelight":"Kaarslicht","Night Light":"Nachtlampje","Twinkle":"Fonkeling",
-        "Color Wipe":"Kleurgolf","Rainbow":"Regenboog","Pulse":"Pulseren"},
-    pl:{"Warm White":"Ciepła biel","White":"Biały","Latte Brown":"Brąz latte","Red":"Czerwony","Yellow":"Żółty","Green":"Zielony",
-        "Sky Blue":"Błękit nieba","Cyan":"Cyjan","Blue":"Niebieski",
-        "Violet":"Fioletowy","Sky Breathing":"Oddychające niebo","Aurora Drift":"Zorza",
-        "Candlelight":"Blask świecy","Night Light":"Lampka nocna","Twinkle":"Migotanie",
-        "Color Wipe":"Fala koloru","Rainbow":"Tęcza","Pulse":"Pulsowanie"},
-    pt:{"Warm White":"Branco quente","White":"Branco","Latte Brown":"Castanho latte","Red":"Vermelho","Yellow":"Amarelo","Green":"Verde",
-        "Sky Blue":"Azul-céu","Cyan":"Ciano","Blue":"Azul",
-        "Violet":"Violeta","Sky Breathing":"Céu a respirar","Aurora Drift":"Aurora",
-        "Candlelight":"Luz de vela","Night Light":"Luz noturna","Twinkle":"Cintilação",
-        "Color Wipe":"Onda de cor","Rainbow":"Arco-íris","Pulse":"Pulsação"},
-    tr:{"Warm White":"Sıcak beyaz","White":"Beyaz","Latte Brown":"Latte kahvesi","Red":"Kırmızı","Yellow":"Sarı","Green":"Yeşil",
-        "Sky Blue":"Gök mavisi","Cyan":"Camgöbeği","Blue":"Mavi",
-        "Violet":"Mor","Sky Breathing":"Nefes alan gökyüzü","Aurora Drift":"Kutup ışığı",
-        "Candlelight":"Mum ışığı","Night Light":"Gece lambası","Twinkle":"Yıldız parıltısı",
-        "Color Wipe":"Renk dalgası","Rainbow":"Gökkuşağı","Pulse":"Nabız"},
-    ru:{"Warm White":"Тёплый белый","White":"Белый","Latte Brown":"Латте","Red":"Красный","Yellow":"Жёлтый","Green":"Зелёный",
-        "Sky Blue":"Небесно-голубой","Cyan":"Бирюзовый","Blue":"Синий",
-        "Violet":"Фиолетовый","Sky Breathing":"Дышащее небо","Aurora Drift":"Северное сияние",
-        "Candlelight":"Свеча","Night Light":"Ночник","Twinkle":"Мерцание",
-        "Color Wipe":"Волна цвета","Rainbow":"Радуга","Pulse":"Пульсация"},
+    de:{"White":"Weiß","Sky Blue":"Himmelblau","Blue":"Blau","Indigo":"Indigo","Purple":"Lila",
+        "Magenta":"Magenta","Salmon":"Lachs","Red":"Rot","Peach":"Pfirsich","Apricot":"Aprikose",
+        "Orange":"Orange","Amber":"Bernstein","Honey":"Honig","Gold":"Gold","Vanilla":"Vanille",
+        "Yellow":"Gelb","Chartreuse":"Gelbgrün","Green":"Grün",
+        "Sky Breathing":"Himmel-Atmen","Aurora Drift":"Aurora","Candlelight":"Kerzenlicht",
+        "Twinkle":"Sternenfunkeln","Blue Color Wipe":"Blauer Farbverlauf","Rainbow":"Regenbogen","Pulse":"Pulsieren",
+        "Spectrum Fade":"Spektrum-Überblendung","Spectrum Flow":"Spektrum-Fluss"},
+    es:{"White":"Blanco","Sky Blue":"Azul cielo","Blue":"Azul","Indigo":"Índigo","Purple":"Púrpura",
+        "Magenta":"Magenta","Salmon":"Salmón","Red":"Rojo","Peach":"Melocotón","Apricot":"Albaricoque",
+        "Orange":"Naranja","Amber":"Ámbar","Honey":"Miel","Gold":"Oro","Vanilla":"Vainilla",
+        "Yellow":"Amarillo","Chartreuse":"Verde amarillo","Green":"Verde",
+        "Sky Breathing":"Cielo respirante","Aurora Drift":"Aurora","Candlelight":"Luz de vela",
+        "Twinkle":"Destellos","Blue Color Wipe":"Barrido azul","Rainbow":"Arcoíris","Pulse":"Pulso",
+        "Spectrum Fade":"Fundido espectral","Spectrum Flow":"Flujo espectral"},
+    fr:{"White":"Blanc","Sky Blue":"Bleu ciel","Blue":"Bleu","Indigo":"Indigo","Purple":"Pourpre",
+        "Magenta":"Magenta","Salmon":"Saumon","Red":"Rouge","Peach":"Pêche","Apricot":"Abricot",
+        "Orange":"Orange","Amber":"Ambre","Honey":"Miel","Gold":"Or","Vanilla":"Vanille",
+        "Yellow":"Jaune","Chartreuse":"Chartreuse","Green":"Vert",
+        "Sky Breathing":"Ciel respirant","Aurora Drift":"Aurore","Candlelight":"Bougie",
+        "Twinkle":"Scintillement","Blue Color Wipe":"Balayage bleu","Rainbow":"Arc-en-ciel","Pulse":"Pulsation",
+        "Spectrum Fade":"Fondu du spectre","Spectrum Flow":"Flux du spectre"},
+    it:{"White":"Bianco","Sky Blue":"Azzurro cielo","Blue":"Blu","Indigo":"Indaco","Purple":"Porpora",
+        "Magenta":"Magenta","Salmon":"Salmone","Red":"Rosso","Peach":"Pesca","Apricot":"Albicocca",
+        "Orange":"Arancione","Amber":"Ambra","Honey":"Miele","Gold":"Oro","Vanilla":"Vaniglia",
+        "Yellow":"Giallo","Chartreuse":"Verde giallo","Green":"Verde",
+        "Sky Breathing":"Cielo che respira","Aurora Drift":"Aurora","Candlelight":"Lume di candela",
+        "Twinkle":"Scintillio","Blue Color Wipe":"Onda blu","Rainbow":"Arcobaleno","Pulse":"Pulsazione",
+        "Spectrum Fade":"Dissolvenza spettro","Spectrum Flow":"Flusso spettro"},
+    nl:{"White":"Wit","Sky Blue":"Hemelsblauw","Blue":"Blauw","Indigo":"Indigo","Purple":"Paars",
+        "Magenta":"Magenta","Salmon":"Zalm","Red":"Rood","Peach":"Perzik","Apricot":"Abrikoos",
+        "Orange":"Oranje","Amber":"Amber","Honey":"Honing","Gold":"Goud","Vanilla":"Vanille",
+        "Yellow":"Geel","Chartreuse":"Geelgroen","Green":"Groen",
+        "Sky Breathing":"Ademende hemel","Aurora Drift":"Aurora","Candlelight":"Kaarslicht",
+        "Twinkle":"Fonkeling","Blue Color Wipe":"Blauwe kleurgolf","Rainbow":"Regenboog","Pulse":"Pulseren",
+        "Spectrum Fade":"Spectrumovergang","Spectrum Flow":"Spectrumstroom"},
+    pl:{"White":"Biały","Sky Blue":"Błękit nieba","Blue":"Niebieski","Indigo":"Indygo","Purple":"Purpurowy",
+        "Magenta":"Magenta","Salmon":"Łososiowy","Red":"Czerwony","Peach":"Brzoskwiniowy","Apricot":"Morelowy",
+        "Orange":"Pomarańczowy","Amber":"Bursztynowy","Honey":"Miodowy","Gold":"Złoty","Vanilla":"Waniliowy",
+        "Yellow":"Żółty","Chartreuse":"Żółto-zielony","Green":"Zielony",
+        "Sky Breathing":"Oddychające niebo","Aurora Drift":"Zorza","Candlelight":"Blask świecy",
+        "Twinkle":"Migotanie","Blue Color Wipe":"Niebieska fala koloru","Rainbow":"Tęcza","Pulse":"Pulsowanie",
+        "Spectrum Fade":"Przejście spektrum","Spectrum Flow":"Przepływ spektrum"},
+    pt:{"White":"Branco","Sky Blue":"Azul-céu","Blue":"Azul","Indigo":"Índigo","Purple":"Púrpura",
+        "Magenta":"Magenta","Salmon":"Salmão","Red":"Vermelho","Peach":"Pêssego","Apricot":"Alperce",
+        "Orange":"Laranja","Amber":"Âmbar","Honey":"Mel","Gold":"Dourado","Vanilla":"Vanília",
+        "Yellow":"Amarelo","Chartreuse":"Verde-amarelado","Green":"Verde",
+        "Sky Breathing":"Céu a respirar","Aurora Drift":"Aurora","Candlelight":"Luz de vela",
+        "Twinkle":"Cintilação","Blue Color Wipe":"Onda azul","Rainbow":"Arco-íris","Pulse":"Pulsação",
+        "Spectrum Fade":"Transição do espectro","Spectrum Flow":"Fluxo do espectro"},
+    tr:{"White":"Beyaz","Sky Blue":"Gök mavisi","Blue":"Mavi","Indigo":"İndigo","Purple":"Mor",
+        "Magenta":"Eflatun","Salmon":"Somon","Red":"Kırmızı","Peach":"Şeftali","Apricot":"Kayısı",
+        "Orange":"Turuncu","Amber":"Kehribar","Honey":"Bal","Gold":"Altın","Vanilla":"Vanilya",
+        "Yellow":"Sarı","Chartreuse":"Sarı-yeşil","Green":"Yeşil",
+        "Sky Breathing":"Nefes alan gökyüzü","Aurora Drift":"Kutup ışığı","Candlelight":"Mum ışığı",
+        "Twinkle":"Yıldız parıltısı","Blue Color Wipe":"Mavi renk dalgası","Rainbow":"Gökkuşağı","Pulse":"Nabız",
+        "Spectrum Fade":"Spektrum Geçişi","Spectrum Flow":"Spektrum Akışı"},
+    ru:{"White":"Белый","Sky Blue":"Небесно-голубой","Blue":"Синий","Indigo":"Индиго","Purple":"Пурпурный",
+        "Magenta":"Маджента","Salmon":"Лососёвый","Red":"Красный","Peach":"Персиковый","Apricot":"Абрикосовый",
+        "Orange":"Оранжевый","Amber":"Янтарный","Honey":"Медовый","Gold":"Золотой","Vanilla":"Ванильный",
+        "Yellow":"Жёлтый","Chartreuse":"Желто-зелёный","Green":"Зелёный",
+        "Sky Breathing":"Дышащее небо","Aurora Drift":"Северное сияние","Candlelight":"Свеча",
+        "Twinkle":"Мерцание","Blue Color Wipe":"Синяя волна цвета","Rainbow":"Радуга","Pulse":"Пульсация",
+        "Spectrum Fade":"Переход спектра","Spectrum Flow":"Течение спектра"},
   };
-  // Swatch colours for known effects (CSS backgrounds)
+  // Swatch colours for known effects (CSS backgrounds). Solid-colour hex
+  // values must match the pixel values in effects.yaml exactly (tested
+  // on-device with the colour picker).
   const FX_SWATCH = {
-    "Warm White":"#ffd9a0","White":"#f4f7ff","Latte Brown":"#D3B7A7",
-    "Red":"#ff3b30","Yellow":"#ffc800","Green":"#2ee649",
-    "Sky Blue":"#5aaaff","Cyan":"#19e3e3","Blue":"#2b50ff","Violet":"#8a2be2",
-    "Sky Breathing":"linear-gradient(135deg,#4696ff,#0ad2eb)",
+    "White":"#FFFFFF","Sky Blue":"#52D6FC","Blue":"#0056D6","Indigo":"#4D22B2",
+    "Purple":"#BE38F3","Magenta":"#E63B7A","Salmon":"#FFB5AF","Red":"#FF4015",
+    "Peach":"#FFC5AB","Apricot":"#FFD9A8","Orange":"#FFC777","Amber":"#FFAB01",
+    "Honey":"#FFD977","Gold":"#FDC700","Vanilla":"#FFFBB9","Yellow":"#FEFB41",
+    "Chartreuse":"#D9EC37","Green":"#76BB40",
+    "Sky Breathing":"linear-gradient(135deg,#0f37be,#a0e6ff)",
     "Aurora Drift":"linear-gradient(135deg,#00e6d2,#aa1eff)",
-    "Candlelight":"linear-gradient(135deg,#ff9329,#ffce7a)",
-    "Night Light":"#7a5c33","Twinkle":"linear-gradient(135deg,#0b1030,#e8ecff)",
-    "Color Wipe":"linear-gradient(135deg,#008cff,#5940ff,#00bfe6)",
+    "Candlelight":"linear-gradient(135deg,#ff9329,#962d05)",
+    "Twinkle":"linear-gradient(135deg,#0b1030,#e8ecff)",
+    "Blue Color Wipe":"linear-gradient(135deg,#52D6FC,#0056D6,#4D22B2,#BE38F3)",
     "Rainbow":"linear-gradient(135deg,#ff4040,#ffc040,#40ff70,#40c8ff,#a040ff)",
     "Pulse":"radial-gradient(circle,#cfe4ff 20%,#3a5a8c 100%)",
+    "Spectrum Fade":"linear-gradient(135deg,#52D6FC,#BE38F3,#FF4015,#FFAB01,#FEFB41,#76BB40)",
+    "Spectrum Flow":"linear-gradient(135deg,#76BB40,#FEFB41,#FFAB01,#FF4015,#BE38F3,#52D6FC)",
   };
   // Solid colours are listed under "Colours"; everything else (animations,
-  // Night Light, unknown future effects) lands in "Special effects".
+  // unknown future effects) lands in "Special effects".
   const SOLID_FX = new Set([
-    "White","Warm White","Latte Brown","Red","Yellow","Green",
-    "Cyan","Sky Blue","Blue","Violet",
+    "White","Sky Blue","Blue","Indigo","Purple","Magenta","Salmon","Red",
+    "Peach","Apricot","Orange","Amber","Honey","Gold","Vanilla","Yellow",
+    "Chartreuse","Green",
   ]);
 
   // English is the default; other languages are an explicit user choice.
@@ -966,14 +1038,14 @@
   // Lower brightness limit in % — keep in sync with the firmware's
   // brightness_min substitution (cloud-lamp.yaml) and the slider's min above.
   const BRI_MIN = 10;
-  // Effects that honour the Effect Speed number entity (solids / Night Light do not).
+  // Effects that honour the Effect Speed number entity (solids do not).
   const SPEED_FX = new Set([
     "Sky Breathing","Aurora Drift","Candlelight","Twinkle",
-    "Color Wipe","Rainbow","Pulse",
+    "Blue Color Wipe","Rainbow","Pulse","Spectrum Fade","Spectrum Flow",
   ]);
   const st = {
     connected:false, on:false, brightness:70, speed:50, effect:"None", effects:[],
-    colorHex:"#5aaaff",   // last custom colour (effect "None"); synced via SSE
+    colorHex:"#52D6FC",   // last custom colour (effect "None"); synced via SSE
     ssid:"—", rssi:null, ip:"—", uptime:null,
     hostname:"", serial:"",
     fwCur:"—", fwLatest:null, fwInstalling:false, fwChecking:false, fwProgress:null,
@@ -1114,6 +1186,7 @@
   function renderMqtt(){
     $("mqttGroup").hidden = !st.mqttPresent;
     $("mqttToggle").classList.toggle("on", st.mqttOn);
+    $("mqttFields").hidden = !st.mqttOn;
   }
   function renderUpdate(){
     $("fwCur").textContent = st.fwCur;
@@ -1248,6 +1321,18 @@
         st.mqttOn = data.state === "ON";
         renderMqtt();
         break;
+      case "text-mqtt_broker_host":
+        if (document.activeElement !== $("mqttBroker")) $("mqttBroker").value = data.value || "";
+        break;
+      case "number-mqtt_broker_port":
+        if (document.activeElement !== $("mqttPort") && typeof data.value === "number") $("mqttPort").value = data.value;
+        break;
+      case "text-mqtt_broker_username":
+        if (document.activeElement !== $("mqttUser")) $("mqttUser").value = data.value || "";
+        break;
+      case "text-mqtt_broker_password":
+        if (document.activeElement !== $("mqttPass")) $("mqttPass").value = data.value || "";
+        break;
       case "sensor-wifi_signal":
         st.rssi = Math.round(data.value); renderNet(); break;
       case "sensor-uptime":
@@ -1334,6 +1419,22 @@
       if (r.ok) { st.mqttPresent = true; ingest(Object.assign({ id:"switch-mqtt_enabled" }, await r.json())); }
     } catch {}
     try {
+      const r = await fetch("/text/mqtt_broker_host", { cache:"no-store" });
+      if (r.ok) ingest(Object.assign({ id:"text-mqtt_broker_host" }, await r.json()));
+    } catch {}
+    try {
+      const r = await fetch("/number/mqtt_broker_port", { cache:"no-store" });
+      if (r.ok) ingest(Object.assign({ id:"number-mqtt_broker_port" }, await r.json()));
+    } catch {}
+    try {
+      const r = await fetch("/text/mqtt_broker_username", { cache:"no-store" });
+      if (r.ok) ingest(Object.assign({ id:"text-mqtt_broker_username" }, await r.json()));
+    } catch {}
+    try {
+      const r = await fetch("/text/mqtt_broker_password", { cache:"no-store" });
+      if (r.ok) ingest(Object.assign({ id:"text-mqtt_broker_password" }, await r.json()));
+    } catch {}
+    try {
       const r = await fetch("/select/power_behavior", { cache:"no-store" });
       if (r.ok) { const j = await r.json(); if (j.value) $("pwrBehSel").value = j.value; }
     } catch {}
@@ -1379,24 +1480,21 @@
     setSpeed(v);
   });
 
-  // Modal helpers — lock background scroll while any sheet is open
+  // Modal helpers — freeze .wrap's own scroll position while any sheet is
+  // open (the outer page never scrolls itself — see the html/body rules —
+  // so it's .wrap's scrollTop we need to preserve, not window.scrollY).
   const setModal = $("setModal");
   const installModal = $("installModal");
-  let sheetScrollY = 0;
+  const wrapEl = document.querySelector(".wrap");
+  let sheetScrollTop = 0;
   function lockSheetScroll(){
-    sheetScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    sheetScrollTop = wrapEl.scrollTop;
     document.body.classList.add("settings-open");
-    document.body.style.top = `-${sheetScrollY}px`;
-    document.body.style.position = "fixed";
-    document.body.style.width = "100%";
   }
   function unlockSheetScroll(){
     if (!setModal.hidden || !installModal.hidden || !$("fwModal").hidden) return;
     document.body.classList.remove("settings-open");
-    document.body.style.position = "";
-    document.body.style.top = "";
-    document.body.style.width = "";
-    window.scrollTo(0, sheetScrollY);
+    wrapEl.scrollTop = sheetScrollTop;
   }
   function openSettings(){ lockSheetScroll(); setModal.hidden = false; }
   function closeSettings(){ setModal.hidden = true; unlockSheetScroll(); }
@@ -1459,6 +1557,21 @@
     st.mqttOn = target; renderMqtt();
     act(() => post(`/switch/mqtt_enabled/${target ? "turn_on" : "turn_off"}`));
   });
+
+  // MQTT broker fields — commit on blur/change/Enter, not on every keystroke.
+  function wireMqttField(id, kind, path){
+    const el = $(id);
+    const commit = () => {
+      const v = kind === "number" ? el.value : encodeURIComponent(el.value);
+      act(() => post(`${path}?value=${v}`)).catch(() => {});
+    };
+    el.addEventListener("change", commit);
+    el.addEventListener("keydown", e => { if (e.key === "Enter") el.blur(); });
+  }
+  wireMqttField("mqttBroker", "text", "/text/mqtt_broker_host/set");
+  wireMqttField("mqttPort", "number", "/number/mqtt_broker_port/set");
+  wireMqttField("mqttUser", "text", "/text/mqtt_broker_username/set");
+  wireMqttField("mqttPass", "text", "/text/mqtt_broker_password/set");
 
   // Confirm dialog helper
   function confirmDlg(q, s, onYes){

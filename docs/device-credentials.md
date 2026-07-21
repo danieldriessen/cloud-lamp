@@ -135,6 +135,9 @@ published** (`tools/release.sh` enforces this with a binary scan).
 
 ## MQTT broker
 
-Only relevant when `packages/mqtt.yaml` is enabled (never for gift lamps). Broker address,
-port, username and password are set per-installation in `secrets.yaml`. There is no shared
-default.
+`packages/mqtt.yaml` is compiled into every lamp (gift and dev) but OFF by default
+(`RESTORE_DEFAULT_OFF`). There is no compiled-in broker, credential, or shared default of
+any kind — broker address, port, username and password are entered per-installation, at
+runtime, in the web app's settings sheet (Settings → MQTT, fields only shown once enabled).
+They're stored on the lamp itself (flash preferences) and survive MQTT being turned off
+and back on. `secrets.yaml` no longer has a role here.

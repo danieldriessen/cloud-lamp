@@ -13,6 +13,7 @@ captive-portal endpoints (/config.json, /wifisave) for styling it without
 hardware.
 """
 
+import hashlib
 import http.server
 import json
 import sys
@@ -24,23 +25,34 @@ from pathlib import Path
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8932
 ROOT = Path(__file__).resolve().parent.parent
 
-EFFECTS = ["White", "Warm White", "Latte Brown", "Red", "Yellow", "Green",
-           "Cyan", "Sky Blue", "Blue", "Violet",
-           "Sky Breathing", "Aurora Drift", "Candlelight", "Night Light",
-           "Twinkle", "Color Wipe", "Rainbow", "Pulse"]
+# Mirrors components/cloud_lamp_web/__init__.py's "?v=<hash>" cache-buster
+# for /icon.png, so app.html's __ICON_VERSION__ placeholder resolves the same
+# way here as on real firmware.
+_icon_path = ROOT / "web" / "icon.png"
+ICON_VERSION = hashlib.md5(_icon_path.read_bytes()).hexdigest()[:8] if _icon_path.exists() else "0"
+
+EFFECTS = ["White", "Sky Blue", "Blue", "Indigo", "Purple", "Magenta", "Salmon",
+           "Red", "Peach", "Apricot", "Orange", "Amber", "Honey", "Gold",
+           "Vanilla", "Yellow", "Chartreuse", "Green",
+           "Aurora Drift", "Sky Breathing", "Candlelight", "Spectrum Fade",
+           "Spectrum Flow", "Twinkle", "Blue Color Wipe", "Rainbow", "Pulse"]
 
 state = {
     "on": False,
     "brightness": 178,   # 0-255
-    "effect": "Sky Breathing",
-    "color": (90, 170, 255),   # custom colour RGB (effect "None")
+    "effect": "Aurora Drift",
+    "color": (82, 214, 252),   # custom colour RGB (effect "None") — Sky Blue
     "speed": 50,         # effect_speed 1–100
     "power_behavior": "Start Off",
-    "mqtt": True,
+    "mqtt": False,               # OFF by default on new devices
+    "mqtt_broker": "",
+    "mqtt_port": 1883,
+    "mqtt_user": "",
+    "mqtt_pass": "",
     "fw_installing": False,
     "fw_progress": 0,
-    "fw_current": "2.2.2",
-    "fw_latest": "2.2.3",
+    "fw_current": "2.2.5",
+    "fw_latest": "2.3.0",
     "fw_offline": False,   # simulate reboot blackout during OTA
 }
 listeners = []
@@ -116,7 +128,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send(503, b"{}")
             return
         if path in ("/", "/app"):
-            self._send(200, (ROOT / "web" / "app.html").read_bytes(), "text/html")
+            html = (ROOT / "web" / "app.html").read_bytes().replace(b"__ICON_VERSION__", ICON_VERSION.encode())
+            self._send(200, html, "text/html")
         elif path == "/setup":
             # Captive-portal onboarding page (on the device it replaces "/")
             self._send(200, (ROOT / "web" / "setup.html").read_bytes(), "text/html")
@@ -157,6 +170,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/switch/mqtt_enabled":
             self._send(200, json.dumps({"id": "switch-mqtt_enabled",
                                         "state": "ON" if state["mqtt"] else "OFF"}).encode())
+        elif path == "/text/mqtt_broker_host":
+            self._send(200, json.dumps({"id": "text-mqtt_broker_host",
+                                        "state": state["mqtt_broker"], "value": state["mqtt_broker"]}).encode())
+        elif path == "/number/mqtt_broker_port":
+            self._send(200, json.dumps({"id": "number-mqtt_broker_port", "value": state["mqtt_port"],
+                                        "min_value": 1, "max_value": 65535, "step": 1}).encode())
+        elif path == "/text/mqtt_broker_username":
+            self._send(200, json.dumps({"id": "text-mqtt_broker_username",
+                                        "state": state["mqtt_user"], "value": state["mqtt_user"]}).encode())
+        elif path == "/text/mqtt_broker_password":
+            # Real firmware masks `state` for password-mode texts but still
+            # returns the raw value in `value` — mirror that here.
+            masked = "********" if state["mqtt_pass"] else ""
+            self._send(200, json.dumps({"id": "text-mqtt_broker_password",
+                                        "state": masked, "value": state["mqtt_pass"]}).encode())
         elif path == "/update/firmware":
             self._send(200, json.dumps(update_json()).encode())
         elif path == "/events":
@@ -174,7 +202,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         {"id": "text_sensor-connected_ssid", "value": "MyHomeWiFi"},
                         {"id": "number-effect_speed", "value": state["speed"]},
                         {"id": "select-power_behavior", "value": state["power_behavior"]},
-                        {"id": "switch-mqtt_enabled", "state": "ON" if state["mqtt"] else "OFF"}):
+                        {"id": "switch-mqtt_enabled", "state": "ON" if state["mqtt"] else "OFF"},
+                        {"id": "text-mqtt_broker_host", "value": state["mqtt_broker"]},
+                        {"id": "number-mqtt_broker_port", "value": state["mqtt_port"]},
+                        {"id": "text-mqtt_broker_username", "value": state["mqtt_user"]},
+                        {"id": "text-mqtt_broker_password", "value": state["mqtt_pass"]}):
                 self.wfile.write(f"event: state\ndata: {json.dumps(obj)}\n\n".encode())
             self.wfile.flush()
             while True:  # keep open; broken pipe cleans up via broadcast()
@@ -211,6 +243,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
             state["mqtt"] = path.endswith("turn_on")
             self._send(200)
             broadcast({"id": "switch-mqtt_enabled", "state": "ON" if state["mqtt"] else "OFF"})
+        elif path == "/text/mqtt_broker_host/set":
+            state["mqtt_broker"] = q.get("value", [""])[0]
+            self._send(200)
+            broadcast({"id": "text-mqtt_broker_host", "value": state["mqtt_broker"]})
+        elif path == "/number/mqtt_broker_port/set":
+            try:
+                state["mqtt_port"] = max(1, min(65535, int(float(q.get("value", ["1883"])[0]))))
+            except ValueError:
+                pass
+            self._send(200)
+            broadcast({"id": "number-mqtt_broker_port", "value": state["mqtt_port"]})
+        elif path == "/text/mqtt_broker_username/set":
+            state["mqtt_user"] = q.get("value", [""])[0]
+            self._send(200)
+            broadcast({"id": "text-mqtt_broker_username", "value": state["mqtt_user"]})
+        elif path == "/text/mqtt_broker_password/set":
+            state["mqtt_pass"] = q.get("value", [""])[0]
+            self._send(200)
+            broadcast({"id": "text-mqtt_broker_password", "value": state["mqtt_pass"]})
         elif path == "/button/check_for_updates/press":
             self._send(200)
 

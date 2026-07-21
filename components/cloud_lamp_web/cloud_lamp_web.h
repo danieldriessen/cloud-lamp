@@ -55,6 +55,9 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
     this->icon_ = data;
     this->icon_size_ = size;
   }
+  // Short content-hash of icon.png, computed at compile time. Used as a
+  // "?v=" cache-buster for the icon URL — see __init__.py for why.
+  void set_icon_version(const std::string &version) { this->icon_version_ = version; }
   void set_brand(const uint8_t *data, size_t size) {
     this->brand_ = data;
     this->brand_size_ = size;
@@ -83,6 +86,7 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
   size_t setup_size_{0};
   const uint8_t *icon_{nullptr};
   size_t icon_size_{0};
+  std::string icon_version_{"0"};
   const uint8_t *brand_{nullptr};
   size_t brand_size_{0};
   const uint8_t *logo_{nullptr};
