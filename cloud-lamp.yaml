@@ -48,7 +48,7 @@ substitutions:
   device_friendly_name: "Cloud-Lamp"   # Human-readable display name (web app title)
 
   # --- Firmware version (bump for every release; used by the online updater) ---
-  project_version: "2.3.2"
+  project_version: "2.3.3"
 
   # --- LED ring count ---
   # ring_count is informational only — it is never referenced directly in the firmware.
@@ -364,7 +364,7 @@ script:
     mode: single
     then:
       - lambda: |-
-          if (id(power_behavior).state == "Restore Last State" && id(saved_on)) {
+          if (id(power_behavior).current_option() == "Restore Last State" && id(saved_on)) {
             ESP_LOGI("boot", "Power-cut behaviour: restoring last state (on)");
             id(lamp_turn_on).execute();
           } else {

@@ -30,7 +30,9 @@ GitHub Pages setup or separate repo needed.
    Settings → Firmware → **Check for updates now** (REST: `POST /button/check_for_updates/press`,
    which runs `update.check` — the web-server API only exposes install, not check).
 2. If the manifest version differs from the installed `${project_version}`, the web app
-   shows an **Update available** badge and an **Install** button.
+   shows an **Update available** badge next to the "Connected" pill in the header (visible
+   without opening Settings — tapping it jumps straight to Settings → Firmware), plus the
+   same badge and an **Install** button inside Settings → Firmware itself.
 3. On install, the web app opens a full-screen **update coach** (installing → restarting →
    waiting → done / failed). The lamp downloads the firmware image (the `path` in the
    manifest is resolved relative to the manifest URL, so the `.bin` sits next to it),

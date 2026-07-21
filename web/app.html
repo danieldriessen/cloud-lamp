@@ -82,6 +82,20 @@
         radial-gradient(900px 900px at 45% 96%, rgba(140,90,235,.10), transparent 55%),
         linear-gradient(180deg,var(--bg0),var(--bg1));
     }
+    .load-overlay{
+      position:fixed;inset:0;z-index:80;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+      background:linear-gradient(180deg,var(--bg0),var(--bg1));
+      opacity:1;transition:opacity .35s ease;
+    }
+    .load-overlay.hide{opacity:0;pointer-events:none}
+    .load-spinner{
+      width:38px;height:38px;border-radius:50%;
+      border:3px solid rgba(255,255,255,.12);border-top-color:var(--accent);
+      animation:load-spin .8s linear infinite;
+    }
+    .load-text{font-size:13px;color:var(--muted);letter-spacing:.2px}
+    @keyframes load-spin{to{transform:rotate(360deg)}}
     .wrap{
       position:relative;z-index:1;max-width:520px;margin:0 auto;
       height:100%;height:100svh;height:100dvh;height:-webkit-fill-available;
@@ -91,7 +105,14 @@
     }
 
     header{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
-    .hdr-row2{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    /* Row 1: brand on the left, connection pill pinned to the top-right
+       corner (align-items:flex-start keeps the pill glued to the top edge
+       rather than centred against the taller logo block). The update badge
+       sits just left of the pill so it's visible without opening Settings,
+       and wraps onto its own line on narrow screens instead of overlapping. */
+    .hdr-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .hdr-status{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+    .hdr-row2{display:flex;align-items:center;justify-content:flex-end;gap:10px}
     .brand{display:flex;align-items:center;gap:10px;min-width:0}
     /* Wordmark logo (cloud + "Lamp") — landscape slot, transparent PNG. */
     .brand .cloud{
@@ -366,6 +387,10 @@
     }
     .upd-badge.avail{background:rgba(255,204,102,.15);color:var(--warn);border:1px solid rgba(255,204,102,.4)}
     .upd-badge.ok{background:rgba(124,240,201,.12);color:var(--good);border:1px solid rgba(124,240,201,.35)}
+    /* Header copy of the update badge: tappable shortcut straight to the
+       Firmware section of Settings, for anyone who never opens it otherwise. */
+    #fwBadgeMain{cursor:pointer}
+    #fwBadgeMain:active{transform:scale(.96)}
     /* Badge sits before the version number, number right-aligned like the
        Installed-version row; the gap keeps them clearly separated. */
     .fw-latest{display:inline-flex;align-items:center;justify-content:flex-end;gap:14px}
@@ -394,20 +419,32 @@
 </head>
 <body role="application">
   <div class="app-bg" aria-hidden="true"></div>
+  <!-- Shown until the lamp's real state (on/off, brightness, effect) has
+       actually loaded — without this, the UI briefly shows its JS defaults
+       (e.g. "Off") which can be flat-out wrong if the lamp is really on. -->
+  <div class="load-overlay" id="loadOverlay" aria-live="polite">
+    <div class="load-spinner" aria-hidden="true"></div>
+    <div class="load-text" data-i18n="loading">Loading…</div>
+  </div>
   <div class="wrap">
     <header>
-      <div class="brand">
-        <div class="cloud" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M17.5 18H7a4 4 0 1 1 .7-7.94 5.5 5.5 0 0 1 10.63 1.55A3.7 3.7 0 0 1 17.5 18z"/></svg>
-          <img src="/brand.png" alt="" onerror="this.remove()">
+      <div class="hdr-row1">
+        <div class="brand">
+          <div class="cloud" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M17.5 18H7a4 4 0 1 1 .7-7.94 5.5 5.5 0 0 1 10.63 1.55A3.7 3.7 0 0 1 17.5 18z"/></svg>
+            <img src="/brand.png" alt="" onerror="this.remove()">
+          </div>
+          <div style="min-width:0">
+            <h1 id="devName">Cloud Lamp</h1>
+            <div class="sub" id="devSerial">&nbsp;</div>
+          </div>
         </div>
-        <div style="min-width:0">
-          <h1 id="devName">Cloud Lamp</h1>
-          <div class="sub" id="devSerial">&nbsp;</div>
+        <div class="hdr-status">
+          <span class="upd-badge avail" id="fwBadgeMain" role="button" tabindex="0" hidden data-i18n="update_available">Update available</span>
+          <div class="pill"><span class="dot" id="connDot"></span><span id="connText">…</span></div>
         </div>
       </div>
       <div class="hdr-row2">
-        <div class="pill"><span class="dot" id="connDot"></span><span id="connText">…</span></div>
         <div class="hdr-right">
           <div class="iconbtn" id="btnManual" role="button" tabindex="0" aria-label="Manual">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
@@ -535,7 +572,7 @@
         </div>
       </div>
 
-      <div class="group">
+      <div class="group" id="fwGroup">
         <div class="g-label" data-i18n="firmware">Firmware</div>
         <div class="g-card">
           <div class="row"><div class="k" data-i18n="installed_version">Installed version</div><div class="v" id="fwCur">—</div></div>
@@ -1045,6 +1082,7 @@
     "Blue Color Wipe","Rainbow","Pulse","Spectrum Fade","Spectrum Flow",
   ]);
   const st = {
+    ready:false,
     connected:false, on:false, brightness:70, speed:50, effect:"None", effects:[],
     colorHex:"#52D6FC",   // last custom colour (effect "None"); synced via SSE
     ssid:"—", rssi:null, ip:"—", uptime:null,
@@ -1059,6 +1097,15 @@
   function renderConn(){
     $("connDot").classList.toggle("ok", st.connected);
     $("connText").textContent = st.connected ? t("connected") : t("offline");
+  }
+  // Marks the lamp's real state as loaded and fades the boot overlay away.
+  // Only ever runs once — later reconnects rely on the "Offline" badge
+  // instead, not this overlay (re-showing it on every hiccup would be
+  // jarring, and the last known state is still accurate to show).
+  function markReady(){
+    if (st.ready) return;
+    st.ready = true;
+    $("loadOverlay").classList.add("hide");
   }
   function renderPower(){
     $("pwrLabel").textContent = st.on ? t("on") : t("off");
@@ -1198,6 +1245,12 @@
     badge.hidden = !st.fwLatest;
     badge.className = "upd-badge " + (hasUpd ? "avail" : "ok");
     badge.textContent = hasUpd ? t("update_available") : t("up_to_date");
+    // Header copy: only ever shown when an update is actually available
+    // (never an "up to date" variant) so users who never open Settings
+    // still notice — Settings has its own, separately-driven badge above.
+    const badgeMain = $("fwBadgeMain");
+    badgeMain.hidden = !hasUpd;
+    badgeMain.textContent = t("update_available");
     $("fwCheck").disabled = st.fwInstalling || st.fwChecking;
     $("fwInstall").hidden = !hasUpd || st.fwInstalling;
     $("fwProg").hidden = !st.fwInstalling;
@@ -1305,6 +1358,7 @@
         st.colorHex = nextColor;
         if (onChanged || fxChanged || colorChanged) { renderPower(); renderEffects(); renderSpeed(); }
         if (briChanged) renderBrightness();
+        markReady();
         break;
       }
       case "number-effect_speed": {
@@ -1507,6 +1561,17 @@
   }
   function closeInstall(){ installModal.hidden = true; unlockSheetScroll(); }
   $("btnSettings").addEventListener("click", openSettings);
+
+  // Header "Update available" badge — jumps straight to the Firmware
+  // section of Settings, for anyone who doesn't open Settings on their own.
+  function openFwSettings(){
+    openSettings();
+    requestAnimationFrame(() => $("fwGroup").scrollIntoView({ behavior:"smooth", block:"start" }));
+  }
+  $("fwBadgeMain").addEventListener("click", openFwSettings);
+  $("fwBadgeMain").addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openFwSettings(); }
+  });
 
   // User manual (PDF) — permanent URL, also encoded in the QR code on the
   // sticker. Served via GitHub Pages (first-party, no third-party CDN),
@@ -1847,6 +1912,11 @@
   initialLoad();
   connectSSE();
   pollTimer = setInterval(pollLight, 5000);
+  // Safety net: never trap the user behind the loading overlay if the lamp
+  // genuinely can't be reached at all — fall back to showing defaults (with
+  // the "Offline" badge already communicating the real problem) rather than
+  // spinning forever.
+  setTimeout(markReady, 12000);
 })();
 </script>
 </body>

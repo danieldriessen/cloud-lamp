@@ -132,7 +132,8 @@ home screen like a normal app.
 ## 7. Firmware updates
 
 The lamp checks for updates automatically (every 6 hours). When one is available, the web
-app shows an **Update available** badge under **Settings → Firmware**. Tap
+app shows an **Update available** badge on the main screen, next to the "Connected"
+indicator — tap it (or go to **Settings → Firmware** yourself) to see it there too. Tap
 **Install update** and a full-screen guide walks you through installing, restarting and
 reconnecting — keep the lamp plugged in and wait until it says **Update complete**. You
 can also check manually with **Check for updates now**.

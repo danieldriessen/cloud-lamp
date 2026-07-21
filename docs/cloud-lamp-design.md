@@ -17,6 +17,33 @@ Related documents:
 
 ## Project status
 
+> **Phase:** v2.3.3 — three web-app UX improvements, no firmware/backend logic changes:
+> (1) the "Connected" pill moves back into the header's top row, pinned to the top-right
+> corner next to the logo (it had been moved into a second row in v2.3.0); (2) a new
+> **"Update available" badge** sits next to it, visible on the main screen itself —
+> previously the only indicator was the same-styled badge inside Settings → Firmware,
+> easy to miss for anyone who rarely opens Settings. Tapping the new badge opens Settings
+> and scrolls straight to the Firmware section. Both badges are driven by the same
+> `hasUpd` check in `renderUpdate()`, so any future fix to that logic (see the "Latest
+> version" detection work still open elsewhere) automatically applies to both; (3) a
+> **loading overlay** (spinner + "Loading…") now covers the app until the lamp's real
+> on/off/brightness/effect state has actually arrived over `/events` or the initial REST
+> fetch — before this, the UI briefly rendered its JS defaults (e.g. "Off") which could be
+> flatly wrong if the lamp was actually on, right as the "Connected" pill was still
+> showing its own "…" placeholder. The overlay always clears within 12 s even if the lamp
+> is unreachable, falling back to the existing "Offline" badge rather than spinning
+> forever. Also fixed an ESPHome deprecation warning (`select::state` → `current_option()`,
+> `cloud-lamp.yaml`'s `power_behavior` boot lambda) that would have broken the build in
+> ESPHome 2026.7.0.
+>
+> **Still investigating (carried over from v2.3.2):** the OTA *install* failing outright on
+> real hardware. Diagnostic build tooling only, this release: an OTA-push-only,
+> gitignored `esphome run`-time copy of `cloud-lamp.yaml` with `api:` added is used to
+> stream live logs over Wi-Fi during a failed install (no case-opening/USB required —
+> `esphome logs <file> --device <lamp-ip>`), since MQTT-based log viewing goes silent for
+> the exact window under investigation (MQTT is intentionally suspended during OTA to
+> free heap — see `packages/mqtt.yaml`). Nothing diagnostic-only ships in this release.
+>
 > **Phase:** v2.3.2 — the update-failed screen had no way out except retrying. In
 > `setFwCoachPhase()`, the "Continue" button was hidden with `cont.hidden = phase ===
 > "fail"` — inverted: it hid Continue *specifically* on failure, the one phase where a

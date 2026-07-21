@@ -18,3 +18,6 @@ secrets.yaml
 
 # ioBroker VS Code extension config (contains private network address and username)
 .iobroker-config.json
+
+# ignore resources folder and all its content
+resources/
