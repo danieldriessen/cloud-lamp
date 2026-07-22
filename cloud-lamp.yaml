@@ -26,7 +26,7 @@
 #  can be restored after a power cut (if the user chooses "Restore").
 #
 #  File map:
-#    cloud-lamp.yaml               core / public gift build (this file)
+#    cloud-lamp.yaml               core / public build (this file)
 #    cloud-lamp-dev.yaml           builder build = core + secret Wi-Fi
 #    effects.yaml                  light effects + tuning knobs
 #    packages/web-remote.yaml      web server + iOS-style web app  (default ON)

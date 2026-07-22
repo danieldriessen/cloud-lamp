@@ -151,7 +151,7 @@ Related documents:
 > for the recovery steps (power-cycle without opening the web app, or manual browser-upload
 > OTA as a last resort).
 >
-> **Phase:** v2.3.0 — MQTT is now always compiled in (public gift build too) but OFF by
+> **Phase:** v2.3.0 — MQTT is now always compiled in (public build too) but OFF by
 > default on every new device (`RESTORE_DEFAULT_OFF`; previously the "MQTT Enabled" switch
 > itself defaulted to ON on the dev-only bench build). Broker address/port/username/password
 > are no longer compile-time `!secret`s — they're `text`/`number` template entities in the
@@ -291,7 +291,7 @@ redeploys the Pages site automatically, so `docs/user-manual.pdf` stays current.
    the same `light` entity through the same scripts. State mirroring into persisted globals
    happens in one place (the light's `on_state` hook), so every control path stays consistent.
 3. **Optional features are packages; the public build is secret-free.** `cloud-lamp.yaml`
-   is the generic gift build — no personal names, no Wi-Fi networks, no MQTT credentials.
+   is the generic public build — no personal names, no Wi-Fi networks, no MQTT credentials.
    MQTT itself is always included (default OFF; broker configured entirely at runtime from
    the web app, so nothing device- or person-specific is ever compiled in). The builder's
    bench lamp uses `cloud-lamp-dev.yaml`, which just layers compiled-in Wi-Fi networks on
@@ -308,7 +308,7 @@ redeploys the Pages site automatically, so `docs/user-manual.pdf` stays current.
 
 ```
 cloud-lamp/
-├── cloud-lamp.yaml               # Core firmware = public gift build (no secrets embedded)
+├── cloud-lamp.yaml               # Core firmware = public build (no secrets embedded)
 ├── cloud-lamp-dev.yaml           # Builder build: core + secret Wi-Fi networks
 ├── effects.yaml                  # Effects package + all effect tuning knobs
 ├── secrets.yaml                  # Per-device credentials — git-ignored, never committed
@@ -408,7 +408,7 @@ guarantee no LED can stay lit from an undefined boot state.
 
 ### Wi-Fi / provisioning
 
-- **Gift build (`cloud-lamp.yaml`): no compiled-in networks.** Its binaries are published
+- **Public build (`cloud-lamp.yaml`): no compiled-in networks.** Its binaries are published
   publicly, so it must not embed any credentials; Wi-Fi comes exclusively from the captive
   portal (stored in flash, survives updates). The builder's dev build
   (`cloud-lamp-dev.yaml`) adds two compiled-in networks from `secrets.yaml` — see

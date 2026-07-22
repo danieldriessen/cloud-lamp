@@ -1,8 +1,10 @@
 # ==============================================================================
 #  cloud-lamp-dev.yaml — BUILDER / BENCH BUILD
 #
-#  Layers on top of the public gift build (cloud-lamp.yaml):
+#  Layers on top of the public build (cloud-lamp.yaml):
 #    + compiled-in Wi-Fi networks from secrets.yaml (user + builder fallback)
+#    + the ESPHome native API, so `esphome logs`/`esphome run` work normally
+#      on this lamp (see below) — never compiled into the public build
 #
 #  MQTT is already included in cloud-lamp.yaml (OFF by default, broker
 #  configured at runtime from the web app) — nothing MQTT-specific needs to
@@ -15,9 +17,9 @@
 #  is fed exclusively from cloud-lamp.yaml via tools/release.sh.
 #
 #  Note on updates: this dev build points at the same public update channel
-#  as the gift lamps. Installing an online update on a dev lamp therefore
-#  replaces it with the public build (no compiled-in Wi-Fi) — use push OTA
-#  (esphome run) to update dev lamps instead.
+#  as public-build lamps. Installing an online update on a dev lamp therefore
+#  replaces it with the public build (no compiled-in Wi-Fi, no native API) —
+#  use push OTA (esphome run) to update dev lamps instead.
 # ==============================================================================
 
 packages:
@@ -30,3 +32,15 @@ wifi:
       password: !secret wifi_password_user
     - ssid: !secret wifi_ssid_builder
       password: !secret wifi_password_builder
+
+# ESPHome's native API — lets `esphome logs`/`esphome run` stream this lamp's
+# logs directly over Wi-Fi. Deliberately NOT in cloud-lamp.yaml: it's only
+# useful to the builder on the bench, adds an extra open network port for no
+# end-user benefit, and costs ~24 KB flash (measured) the public build
+# doesn't need to spend. Without this, `esphome logs` mistakenly tries MQTT
+# logging instead (packages/mqtt.yaml defines a log_topic for real MQTT
+# deployments) and fails, since the dev/bench lamp has no MQTT broker
+# configured at compile time. No encryption key set — fine for this trusted
+# bench network; add one (or move to a `secrets.yaml` entry) if that stops
+# being true.
+api:

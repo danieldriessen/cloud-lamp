@@ -1,7 +1,7 @@
 # ==============================================================================
 #  packages/mqtt.yaml — Optional MQTT / ioBroker integration
 #
-#  Always compiled in (public gift build AND dev build) but OFF by default
+#  Always compiled in (public build AND dev build) but OFF by default
 #  and completely runtime-configurable — no broker credentials are ever
 #  baked into a binary:
 #    - "MQTT Enabled" switch — OFF on every new device (RESTORE_DEFAULT_OFF)
@@ -75,7 +75,7 @@ mqtt:
   enable_on_boot: false
   clean_session: false   # Broker queues QoS 1 messages while device is offline
   keepalive: 8s
-  # NEVER reboot the lamp because the broker is unreachable. A gift lamp in a
+  # NEVER reboot the lamp because the broker is unreachable. A lamp in a
   # home without a broker must behave exactly like a lamp without MQTT.
   reboot_timeout: 0s
 

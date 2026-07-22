@@ -116,7 +116,7 @@ instead (see [firmware-updates.md](./firmware-updates.md)).
 
 ## Builder hotspot (dev builds only)
 
-**Gift lamps (public `cloud-lamp.yaml` build) contain NO compiled-in Wi-Fi networks at
+**Public-build lamps (`cloud-lamp.yaml`) contain NO compiled-in Wi-Fi networks at
 all** — their binaries are published in the public repo, so no credentials may be embedded.
 Recipients connect them exclusively via the captive portal; those credentials are stored in
 the preferences flash area and survive every OTA update.
@@ -135,7 +135,7 @@ published** (`tools/release.sh` enforces this with a binary scan).
 
 ## MQTT broker
 
-`packages/mqtt.yaml` is compiled into every lamp (gift and dev) but OFF by default
+`packages/mqtt.yaml` is compiled into every lamp (public build and dev build) but OFF by default
 (`RESTORE_DEFAULT_OFF`). There is no compiled-in broker, credential, or shared default of
 any kind — broker address, port, username and password are entered per-installation, at
 runtime, in the web app's settings sheet (Settings → MQTT, fields only shown once enabled).

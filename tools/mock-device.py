@@ -18,7 +18,7 @@ can stand in for the real plain-HTTP host (see docs/firmware-updates.md)
 when testing components/signed_update/ against real hardware without
 publishing a real release. It's signed with a throwaway, dev-only
 keypair (OTA_TEST_* below) — NOT the production key in
-~/.cloud-lamp-release-secrets/ — so a real gift-build lamp won't trust it.
+~/.cloud-lamp-release-secrets/ — so a real public-build lamp won't trust it.
 To test the full accept path on real hardware, temporarily point a
 diagnostic build's update_manifest_url at
 http://<this-machine's-LAN-IP>:<port>/firmware-dist/cloud-lamp/manifest.json

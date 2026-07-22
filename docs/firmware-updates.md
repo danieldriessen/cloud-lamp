@@ -32,7 +32,7 @@ Because both roles are the same files in the same folder, there is nothing to ke
 sync" — a `git push` updates the live endpoint and the history simultaneously.
 
 **Public-safety rule:** released binaries are built exclusively from `cloud-lamp.yaml`
-(the generic gift build) — no personal names, no Wi-Fi networks, no MQTT credentials.
+(the generic public build) — no personal names, no Wi-Fi networks, no MQTT credentials.
 `tools/release.sh` refuses dev configs and additionally scans every binary for values from
 `secrets.yaml` before packaging. Never publish a `cloud-lamp-dev.yaml` build.
 
