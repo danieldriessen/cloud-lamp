@@ -38,10 +38,11 @@ through a built-in web app.
   hotspot (`Cloud-Lamp-XXXXXX`) with a captive portal to enter credentials, using a
   branded setup page in the same design (and languages) as the web app. No flashing or
   tooling needed to move the lamp to a new home; credentials survive firmware updates.
-- **Safe over-the-air updates** — the lamp checks this repository for new firmware
-  (automatically every 6 hours, and on demand from Settings) and offers updates in the
-  web app. Downloads are MD5-verified and written to a separate flash region; a failed or
-  interrupted update leaves the running firmware untouched, and a boot-loop triggers
+- **Safe over-the-air updates** — the lamp checks for new firmware (automatically every 6
+  hours, and on demand from Settings) and offers updates in the web app. The update
+  manifest is Ed25519-signed and verified on-device before anything is trusted; the
+  firmware image itself is MD5-verified and written to a separate flash region. A failed
+  or interrupted update leaves the running firmware untouched, and a boot-loop triggers
   ESPHome safe mode.
 - **Optional MQTT integration** — for ioBroker / Home Assistant setups. Off by default on
   every lamp; turn it on and enter your broker's address/port/username/password directly
@@ -106,10 +107,15 @@ Two build configurations exist:
 To iterate on the web app without hardware, run `python3 tools/mock-device.py` and open
 `http://127.0.0.1:8932/`.
 
-**Note on updates:** firmware built from this repository checks this repository's
-`firmware-dist/` folder for online updates. If you fork the project, point the
-`update_manifest_url` substitution in `cloud-lamp.yaml` at your own fork (or remove the
-`updates` package) so your lamps follow your releases.
+**Note on updates:** firmware built from this repository checks a plain-HTTP manifest URL
+(`update_manifest_url` in `cloud-lamp.yaml`) for new releases, and verifies its Ed25519
+signature against a public key baked in (`ota_ed25519_pubkey`) before trusting it — see
+[docs/firmware-updates.md](docs/firmware-updates.md) for the full mechanism and
+`tools/release.sh` for the release/signing/publish workflow. If you fork the project,
+generate your own keypair, point `update_manifest_url` at your own host and
+`ota_ed25519_pubkey` at your own public key (or remove the `updates` package) — reusing
+this project's keys or manifest URL means your lamps would trust *this* project's releases,
+not yours.
 
 ## Documentation
 
@@ -130,6 +136,7 @@ effects.yaml               light effects and tuning parameters
 secrets.example.yaml       template for the required secrets.yaml
 packages/                  feature modules: web app, updates, MQTT (off by default), temperature sensor
 components/cloud_lamp_web/ custom ESPHome component serving the web app
+components/signed_update/  custom `update:` platform: plain-HTTP + Ed25519-signed manifest check
 web/                       web app + Wi-Fi setup page (embedded into the firmware at build time)
 assets/                    artwork sources (project wordmark, PWA/header derivatives, logos)
 assets/cloud-lamp-logo.png project wordmark (README hero + source for web/brand + web/icon)

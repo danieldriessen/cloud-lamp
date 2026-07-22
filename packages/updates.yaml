@@ -2,19 +2,27 @@
 #  packages/updates.yaml — Online firmware updates (pull, user-triggered)
 #
 #  How it works:
-#    1. The device periodically downloads ${update_manifest_url} (a small
-#       JSON manifest in the GitHub repo, served via raw.githubusercontent.com,
-#       listing the newest firmware version, download path and MD5 checksum —
-#       see tools/release.sh).
-#    2. If the manifest version differs from ${project_version}, the web app
-#       shows "Update available" with an Install button.
-#    3. On install, the firmware is downloaded, MD5-verified and written to
-#       the inactive flash area. The running firmware keeps working during
-#       the whole download. Only a fully verified image is booted.
+#    1. The device periodically downloads ${update_manifest_url} over plain
+#       HTTP (a small JSON manifest, listing the newest firmware version,
+#       download path, MD5 checksum and an Ed25519 signature — see
+#       tools/release.sh and components/signed_update/).
+#    2. The signature is verified on-device against the ${ota_ed25519_pubkey}
+#       baked into the firmware, over "<version>|<path>|<md5>". A manifest
+#       that doesn't verify is treated exactly like a failed fetch (no
+#       update surfaced) — a plain, unauthenticated HTTP GET can't be trusted
+#       on its own, so nothing gets treated as an "update" without this.
+#    3. If the (now-trusted) manifest version differs from ${project_version},
+#       the web app shows "Update available" with an Install button.
+#    4. On install, the firmware is downloaded over plain HTTP, MD5-verified
+#       and written to the inactive flash area. The running firmware keeps
+#       working during the whole download. Only a fully verified image is
+#       booted.
 #
 #  Safety net (why an update can't brick the lamp):
 #    - Download/power failure mid-update  -> old firmware still boots.
 #    - Corrupted file                     -> MD5 mismatch, update discarded.
+#    - Tampered/unsigned manifest         -> signature check fails, update
+#      never surfaces as available in the first place.
 #    - New firmware boot-loops            -> safe_mode (cloud-lamp.yaml)
 #      catches it after 5 attempts and keeps Wi-Fi + OTA alive for a fix.
 #    - Settings live in the preferences area, not the firmware image, and
@@ -24,67 +32,67 @@
 #  lamp keeps running. Manual browser-upload OTA (web-remote.yaml) always
 #  remains available as a fallback.
 #
-#  Reliability note (RAM, not the binary): the ESP8266 has ~40 KB free heap
-#  in normal operation, and BearSSL needs an ~8.7 KB *contiguous* buffer for
-#  the OTA's own HTTPS session (see tls_buffer_size_rx/tx below) — on top of
-#  whatever else is holding a socket open at the time. A held-open web-app
-#  SSE connection and (when "MQTT Enabled" is on) the MQTT client's own
-#  broker connection are the two biggest avoidable competitors for that
-#  budget, and both were observed causing "update failed, previous firmware
-#  still running" on real hardware (the safety net worked correctly — the
-#  underlying cause was resource pressure, not a bad binary; committed
-#  binaries were verified byte-for-byte against their manifest MD5).
-#  Mitigations: web/app.html closes its EventSource before POSTing install
-#  and only reconnects once the update coach reaches done/fail; MQTT is
-#  suspended for the OTA's duration (regardless of the kill switch's state)
-#  via the ota_via_http entity's on_begin/on_error/on_abort hooks in
-#  packages/mqtt.yaml.
-#
-#  v2.3.1: the exact same contention was silently affecting the manifest
-#  *check* too, not just the firmware *install* — this went unnoticed until
-#  a real device stayed on "Up to date" after a new release had already
-#  gone live, because a manual "Check for updates now" is, by definition,
-#  always pressed from a page that has this exact SSE connection open, and
-#  http_request's update component only republishes (and only lets the web
-#  app see anything change) on a *successful* check — a failed one leaves
-#  the entity exactly as it was, with no error surfaced anywhere the web app
-#  can see. Fixed the same way: web/app.html's "Check for updates now"
-#  handler now closes its EventSource before POSTing the button press and
-#  reconnects right after (the press blocks server-side until the check
-#  finishes, so there's no live event to wait for in between); this file's
-#  check_for_updates_btn now also suspends/resumes MQTT around update.check,
-#  in that exact order, in the same on_press list (a second on_press merged
-#  in from packages/mqtt.yaml via `!extend`, as done for ota_via_http above,
-#  would not guarantee running before/after the existing update.check step).
+#  Why plain HTTP + a signature, not HTTPS (see docs/firmware-updates.md for
+#  the full writeup): the ESP8266's BearSSL TLS stack needs ~16-20 KB of
+#  *contiguous* free heap to complete a handshake against GitHub's CDN —
+#  confirmed directly on hardware with heap instrumentation, failing with
+#  "SSL failure: Unable to allocate buffer memory" even with 12-17 KB free.
+#  That's more contiguous headroom than this device reliably has alongside
+#  the web server and (when enabled) MQTT. Plain HTTP has no such
+#  requirement, but on its own gives an on-path attacker as much trust as
+#  today's `verify_ssl: false` HTTPS already did (none) — so the manifest is
+#  Ed25519-signed instead, which is strictly stronger authenticity than
+#  either, at essentially no memory cost. MQTT is still suspended around
+#  checks/installs below as defense-in-depth (a plain HTTP GET is much
+#  lighter than a TLS handshake, but every byte of headroom still helps).
 # ==============================================================================
 
 http_request:
-  # Idle-read timeout between chunks while downloading ~750 KB over HTTPS.
-  # 15 s was too tight when GitHub/Fastly stalled briefly — the OTA aborted,
-  # the update entity snapped back to "UPDATE AVAILABLE", and the web app
-  # looked like "nothing happened" (no error is exposed on the REST API).
+  # Idle-read timeout between chunks while downloading ~750 KB. Not TLS
+  # specific — matters for any slow/stalling connection.
   timeout: 60s
-  # BearSSL on the ESP8266 has no CA certificate store; transport is still
-  # TLS-encrypted, and firmware integrity is enforced by the manifest MD5.
+  # ESPHome requires this to be set explicitly on ESP8266 (no cert-verification
+  # support there at all) even though nothing here uses https:// any more —
+  # both the manifest and the firmware binary are plain HTTP (see the header
+  # comment above). Effectively a no-op now; kept because config validation
+  # fails without it.
   verify_ssl: false
-  # GitHub / Fastly send full-size TLS records. The ESP8266 default (512)
-  # fails with BR_ERR_TOO_LARGE. ESPHome docs recommend 16384; that OOM's on
-  # the MQTT-enabled dev build, so we use 8192 as a practical middle ground
-  # that fits gift + bench lamps. If checks fail with BR_ERR_TOO_LARGE again,
-  # raise toward 16384 on gift builds (no MQTT) or host via a CDN with MFL.
-  tls_buffer_size_rx: 8192
-  tls_buffer_size_tx: 512
 
 ota:
   - platform: http_request
     id: ota_via_http
 
 update:
-  - platform: http_request
+  - platform: signed_update
     id: firmware_update
     name: "Firmware"             # REST object_id: firmware
     source: ${update_manifest_url}
-    update_interval: 6h
+    public_key: ${ota_ed25519_pubkey}
+    # Driven by the interval: below instead of update:'s own polling — see
+    # the "Automatic check heap guard" comment above it for why.
+    update_interval: never
+
+# Automatic check heap guard: update:'s own update_interval polling has no
+# on_begin/on_error hooks to extend (unlike ota_via_http above, or the manual
+# "Check for updates now" button's on_press list below) — and ESPHome's
+# scheduler runs a PollingComponent's *first* update shortly after boot (a
+# small random offset, not the full interval), exactly when MQTT's own
+# connect + discovery burst is competing hardest for the ESP8266's tight
+# contiguous heap. Confirmed directly while diagnosing the original HTTPS
+# install failure: adding three extra MQTT-published debug sensors was
+# enough to tip that post-boot window over the edge. Kept as defense-in-depth
+# after the move to plain HTTP (see the header comment above) — a plain GET
+# is far lighter than the TLS handshake that originally motivated this, but
+# it's a cheap guard to keep. Drive the periodic check ourselves with the
+# same disable/check/enable order as check_for_updates_btn.
+interval:
+  - interval: 6h
+    then:
+      - lambda: 'mqtt::global_mqtt_client->disable();'
+      - update.check: firmware_update
+      - lambda: |-
+          if (id(mqtt_enabled).state)
+            mqtt::global_mqtt_client->enable();
 
 # Web-server REST has install, but not check — expose a button the web app can press.
 button:
@@ -94,16 +102,16 @@ button:
     icon: "mdi:cloud-download"
     entity_category: config
     on_press:
-      # Same heap-pressure guard as the OTA install (see the "Reliability
-      # note" above and packages/mqtt.yaml's ota_via_http on_begin/on_error/
-      # on_abort hooks): briefly suspend MQTT's own broker connection so it
-      # can't compete with the manifest fetch's TLS session for the
-      # ESP8266's tight contiguous heap. Unlike the install hooks this can't
-      # live in packages/mqtt.yaml via `!extend` — the disable/re-enable
-      # must run strictly before/after update.check in this exact list, and
-      # `!extend`-ing a second on_press onto the same button would not
-      # guarantee that ordering. Respects the persisted MQTT kill switch —
-      # never re-enables MQTT if the user had already turned it off.
+      # Same heap-pressure guard as the OTA install (see the "Automatic check
+      # heap guard" comment above and packages/mqtt.yaml's ota_via_http
+      # on_begin/on_error/on_abort hooks): briefly suspend MQTT's own broker
+      # connection so it can't compete with the manifest fetch for heap.
+      # Unlike the install hooks this can't live in packages/mqtt.yaml via
+      # `!extend` — the disable/re-enable must run strictly before/after
+      # update.check in this exact list, and `!extend`-ing a second on_press
+      # onto the same button would not guarantee that ordering. Respects
+      # the persisted MQTT kill switch — never re-enables MQTT if the user
+      # had already turned it off.
       - lambda: 'mqtt::global_mqtt_client->disable();'
       - update.check: firmware_update
       - lambda: |-

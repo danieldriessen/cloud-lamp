@@ -48,7 +48,7 @@ substitutions:
   device_friendly_name: "Cloud-Lamp"   # Human-readable display name (web app title)
 
   # --- Firmware version (bump for every release; used by the online updater) ---
-  project_version: "2.3.4"
+  project_version: "2.4.0"
 
   # --- LED ring count ---
   # ring_count is informational only — it is never referenced directly in the firmware.
@@ -78,11 +78,26 @@ substitutions:
   wifi_ap_password: "cloud-lamp"
 
   # --- Online updates ---
-  # Public manifest URL checked by the updater (see packages/updates.yaml and
-  # docs/firmware-updates.md). Served straight from the GitHub repo via
-  # raw.githubusercontent.com; releases are published with tools/release.sh.
-  # An unreachable URL is harmless: the check fails quietly.
-  update_manifest_url: "https://raw.githubusercontent.com/danieldriessen/cloud-lamp/main/firmware-dist/cloud-lamp/manifest.json"
+  # Manifest URL checked by the updater (see packages/updates.yaml and
+  # docs/firmware-updates.md). Plain HTTP, not HTTPS — the ESP8266's BearSSL
+  # stack can't reliably complete a TLS handshake within this device's free
+  # contiguous heap (confirmed on hardware; see docs/firmware-updates.md).
+  # Integrity/authenticity comes from the Ed25519 signature below instead of
+  # from transport security. Releases are published with tools/release.sh,
+  # which uploads both the manifest and the firmware binary here (mirrors
+  # this repo's firmware-dist/cloud-lamp/ layout 1:1 on the host, so the
+  # local folder can be rsync'd across with no path translation). An
+  # unreachable URL is harmless: the check fails quietly.
+  update_manifest_url: "http://cloud-lamp.ddproductions.de/firmware-dist/cloud-lamp/manifest.json"
+
+  # Ed25519 public key (32 bytes, hex) used to verify the manifest's
+  # "signature" field before any update is ever trusted — see
+  # components/signed_update/ and docs/firmware-updates.md. Not a secret:
+  # only the matching PRIVATE key (kept outside this repo, on the release
+  # machine only — see docs/firmware-updates.md) can produce a valid
+  # signature. Regenerating the keypair requires re-flashing every device
+  # with the new public key before it can trust any future release.
+  ota_ed25519_pubkey: "bdf3f6bd6232980f300dca1e2bdc6c7362f75e2b13c8bb41363fd65d1f661f8b"
 
   # --- MQTT topic structure (only relevant once "MQTT Enabled" is turned on) ---
   # Full base topic: ${mqtt_topic_root}${mqtt_topic_device}/...

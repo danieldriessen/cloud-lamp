@@ -17,6 +17,44 @@ Related documents:
 
 ## Project status
 
+> **Phase:** v2.4.0 — root-caused and fixed the OTA install/check failures that had been
+> "still investigating" since v2.3.2: **BearSSL's HTTPS handshake against GitHub's CDN
+> needs roughly 16-20 KB of *contiguous* free heap** — confirmed directly on hardware with
+> heap instrumentation (`ESP.getFreeHeap()`/`getMaxFreeBlockSize()`/`getHeapFragmentation()`
+> logged immediately around the failing allocation), which showed 12-17 KB free contiguous
+> heap *still* wasn't enough. That's more than this device reliably has alongside the web
+> server and MQTT, no matter how the TLS buffers were tuned (raising them further OOMs even
+> sooner on the MQTT-enabled bench build; GitHub/Fastly's CDN doesn't honor MFLN at the
+> sizes tried) — so every fix through v2.3.3 (closing the web app's SSE connection,
+> suspending MQTT) reduced *contention* for that budget but could never make the budget
+> itself sufficient. **Fix: drop TLS for OTA entirely.** Both the manifest and the firmware
+> binary are now fetched over **plain HTTP** — removing BearSSL's memory requirement
+> completely — and a new **Ed25519 signature** on the manifest (verified on-device before
+> anything is trusted as an update) replaces TLS as the source of integrity/authenticity,
+> which is strictly *stronger* than the previous `verify_ssl: false` HTTPS ever provided
+> (an on-path attacker had exactly as much power then — no certificate was ever validated —
+> just with TLS overhead and none of the memory cost). New custom component
+> [`components/signed_update/`](../components/signed_update/) (an `update:` platform,
+> drop-in for `http_request`'s own) fetches, parses and verifies the manifest, then calls
+> straight into the existing, unchanged `ota: platform: http_request` entity to flash —
+> so the web app, MQTT discovery and the update coach UI all keep working with no changes.
+> `tools/release.sh` now signs every manifest with an Ed25519 private key kept **outside
+> this repository** (never committed — see
+> [firmware-updates.md](./firmware-updates.md#key-custody)) and publishes atomically to
+> *both* GitHub (history/fallback) and a plain-HTTP host (what the lamp actually checks) —
+> failing loudly if either half doesn't complete, so the two can never silently drift out of
+> sync. `cloud-lamp.yaml` gained an `ota_ed25519_pubkey` substitution (the public half,
+> not a secret) and `update_manifest_url` now points at the plain-HTTP host (placeholder
+> pending final hosting details) instead of `raw.githubusercontent.com`. Verified: full
+> `esphome compile` succeeds with the new component and its vendored Ed25519 dependency
+> ([operatorfoundation/Crypto](https://registry.platformio.org/libraries/operatorfoundation/Crypto),
+> a PlatformIO-registry mirror of rweather/arduinolibs' audited Crypto library, pulled
+> as-is rather than hand-copied) linked in, adding only ~8 KB to the final binary thanks to
+> linker dead-code elimination; a standalone Python sign/verify round-trip against both the
+> real production keypair and `tools/mock-device.py`'s throwaway test keypair. Still
+> pending: the plain-HTTP host's real hostname/credentials, and an on-hardware install test
+> once that host is live.
+>
 > **Phase:** v2.3.4 — fixed the web app's REST calls to use ESPHome's new entity-Name-based
 > URL format (e.g. `/light/Cloud Light`) instead of the legacy object_id form
 > (`/light/cloud_light`). The object_id form still works today but logs a
@@ -216,7 +254,7 @@ Related documents:
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.3.4
+> **Firmware:** ESPHome 2026.6.0, project version 2.4.0
 
 ### GitHub Pages setup
 
@@ -274,7 +312,9 @@ cloud-lamp/
 │   ├── mqtt.yaml                 # MQTT / ioBroker integration (default OFF, always included)
 │   └── temperature-sensor.yaml   # Case temperature + thermal shutdown (optional)
 ├── components/
-│   └── cloud_lamp_web/           # Custom ESPHome component serving the web app
+│   ├── cloud_lamp_web/           # Custom ESPHome component serving the web app
+│   └── signed_update/            # Custom `update:` platform: plain-HTTP + Ed25519-signed
+│       └── update/               #   manifest check (see firmware-updates.md)
 ├── web/
 │   ├── app.html                  # Single-file iOS-style web app (gzipped into firmware)
 │   ├── setup.html                # Branded captive-portal Wi-Fi onboarding page
@@ -284,7 +324,9 @@ cloud-lamp/
 ├── assets/                       # Artwork sources (cloud-lamp-logo.png = project wordmark)
 ├── firmware-dist/                # Published releases (update channel, see firmware-updates.md)
 ├── tools/
-│   ├── release.sh                # Build + package a firmware release for the updater
+│   ├── release.sh                # Build, sign + publish a firmware release for the updater
+│   ├── release.local.env         # Per-machine HTTP host upload target — git-ignored
+│   ├── release.local.env.example # Template for release.local.env
 │   ├── build-manual.py           # Render docs/user-manual.md → docs/user-manual.pdf
 │   └── mock-device.py            # Local mock of the device API for web app development
 └── docs/                         # This folder
@@ -472,11 +514,18 @@ simulated device API on `http://127.0.0.1:8932/`.
 ## Online updates (`packages/updates.yaml`)
 
 See [firmware-updates.md](./firmware-updates.md) for the full workflow. Summary: the lamp
-checks a manifest hosted in this GitHub repo (`firmware-dist/`, served via
-raw.githubusercontent.com) every 6 h (or on demand via *Check for updates now*); when a
-newer version is published the web app shows an *Install* button; the image is downloaded,
-MD5-verified and written to the inactive flash area while the lamp keeps running;
-`safe_mode` catches boot loops after a bad flash.
+checks a manifest over **plain HTTP** every 6 h (or on demand via *Check for updates now*),
+verifies its **Ed25519 signature** on-device (`components/signed_update/`, an `update:`
+platform swapped in for `http_request`'s own) before trusting anything in it; when a newer,
+validly-signed version is found the web app shows an *Install* button; the image is
+downloaded (also plain HTTP), MD5-verified and written to the inactive flash area while the
+lamp keeps running; `safe_mode` catches boot loops after a bad flash. Releases are published
+to two places at once by `tools/release.sh` — this GitHub repo's `firmware-dist/` (history /
+manual-download fallback) and the plain-HTTP host the lamp actually fetches from — signing
+the manifest with a private key kept outside the repo. Plain HTTP replaced HTTPS in v2.4.0
+because BearSSL's TLS handshake against GitHub's CDN needs more contiguous free heap than
+this device reliably has; see the [v2.4.0 changelog entry](#project-status) and
+[firmware-updates.md](./firmware-updates.md#plain-http--ed25519-signing) for the full story.
 Settings are never touched by updates. Browser-upload OTA (`/update` on the stock ESPHome
 page) and push OTA from the builder's machine remain available as fallbacks.
 

@@ -11,6 +11,18 @@ that the web app uses, plus the cloud_lamp_web endpoints (/, /device.json,
 Also serves the Wi-Fi onboarding page (web/setup.html) at /setup with mock
 captive-portal endpoints (/config.json, /wifisave) for styling it without
 hardware.
+
+Also serves a validly-signed OTA update manifest at
+/firmware-dist/cloud-lamp/manifest.json (plus the referenced .bin), so this
+can stand in for the real plain-HTTP host (see docs/firmware-updates.md)
+when testing components/signed_update/ against real hardware before the
+all-inkl.com host is configured. It's signed with a throwaway, dev-only
+keypair (OTA_TEST_* below) — NOT the production key in
+~/.cloud-lamp-release-secrets/ — so a real gift-build lamp won't trust it.
+To test the full accept path on real hardware, temporarily point a
+diagnostic build's update_manifest_url at
+http://<this-machine's-LAN-IP>:<port>/firmware-dist/cloud-lamp/manifest.json
+and its ota_ed25519_pubkey at OTA_TEST_PUBLIC_KEY_HEX.
 """
 
 import hashlib
@@ -22,8 +34,40 @@ import time
 import urllib.parse
 from pathlib import Path
 
+try:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+except ImportError:  # pragma: no cover - only needed for the OTA manifest route
+    Ed25519PrivateKey = None
+
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8932
 ROOT = Path(__file__).resolve().parent.parent
+
+# Throwaway dev-only Ed25519 keypair, used ONLY to sign the local test
+# manifest served below — never used for real releases (see
+# tools/release.sh, which signs with the real key kept outside this repo).
+# Safe to commit: it authenticates nothing on real hardware unless a
+# diagnostic build is deliberately compiled with OTA_TEST_PUBLIC_KEY_HEX.
+OTA_TEST_PRIVATE_KEY_HEX = "d786092d2e2ad248f3d8f24156c43d8cf5103e022099e57a532e84853a0f1282"
+OTA_TEST_PUBLIC_KEY_HEX = "dfc7c2587793ff522017f8d5671b7d031d6766c6ba5026c713d3ea7417222129"
+
+
+def signed_ota_manifest(device_name="cloud-lamp"):
+    """Re-signs the real committed firmware-dist/<device_name>/manifest.json
+    with the throwaway test key, computing the MD5 live so it always matches
+    whatever .bin is actually on disk."""
+    manifest_dir = ROOT / "firmware-dist" / device_name
+    manifest = json.loads((manifest_dir / "manifest.json").read_text())
+    build = manifest["builds"][0]["ota"]
+    bin_path = manifest_dir / build["path"]
+    md5 = hashlib.md5(bin_path.read_bytes()).hexdigest()
+    build["md5"] = md5
+    if Ed25519PrivateKey is None:
+        build["signature"] = "0" * 128  # deliberately invalid — see ImportError above
+    else:
+        key = Ed25519PrivateKey.from_private_bytes(bytes.fromhex(OTA_TEST_PRIVATE_KEY_HEX))
+        message = f"{manifest['version']}|{build['path']}|{md5}".encode()
+        build["signature"] = key.sign(message).hex()
+    return manifest
 
 # Mirrors components/cloud_lamp_web/__init__.py's "?v=<hash>" cache-buster
 # for /icon.png, so app.html's __ICON_VERSION__ placeholder resolves the same
@@ -190,6 +234,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
             }).encode())
         elif path == "/manifest.json":
             self._send(200, json.dumps({"name": "Cloud-Lamp", "display": "standalone"}).encode())
+        elif path == "/firmware-dist/cloud-lamp/manifest.json":
+            # Signed OTA update manifest — see module docstring for how to
+            # point real hardware at this for a full local signed_update test.
+            self._send(200, json.dumps(signed_ota_manifest()).encode())
+        elif path.startswith("/firmware-dist/cloud-lamp/") and path.endswith(".bin"):
+            bin_dir = (ROOT / "firmware-dist" / "cloud-lamp").resolve()
+            f = (ROOT / path.lstrip("/")).resolve()
+            if bin_dir in f.parents and f.exists():
+                self._send(200, f.read_bytes(), "application/octet-stream")
+            else:
+                self._send(404, b"")
         elif path == "/light/cloud_light":
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
             self._send(200, json.dumps(light_json(q.get("detail") == ["all"])).encode())

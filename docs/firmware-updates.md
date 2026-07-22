@@ -15,20 +15,28 @@ them. Configured in `packages/updates.yaml`; user-facing UI in the web app's set
 
 ## How the online update works
 
-Releases are hosted **in this GitHub repository** (`danieldriessen/cloud-lamp`, public)
-inside the tracked `firmware-dist/` folder and served via `raw.githubusercontent.com` — no
-GitHub Pages setup or separate repo needed.
+Releases live in two places, kept in sync by `tools/release.sh` (see
+[Publishing a release](#publishing-a-release-builder-workflow) below):
+
+- **GitHub** (`danieldriessen/cloud-lamp`, public), in the tracked `firmware-dist/`
+  folder — the source-of-truth history and a manual-download fallback.
+- **A plain-HTTP host** (`${update_manifest_url}` in `cloud-lamp.yaml`) — what the lamp
+  itself actually fetches from. Plain HTTP, not HTTPS: see
+  [Plain HTTP + Ed25519 signing](#plain-http--ed25519-signing) for why, and how the
+  manifest's signature keeps this trustworthy anyway.
 
 **Public-safety rule:** released binaries are built exclusively from `cloud-lamp.yaml`
 (the generic gift build) — no personal names, no Wi-Fi networks, no MQTT credentials.
 `tools/release.sh` refuses dev configs and additionally scans every binary for values from
 `secrets.yaml` before packaging. Never publish a `cloud-lamp-dev.yaml` build.
 
-1. Every 6 hours (and shortly after boot) the lamp downloads its manifest from
-   `https://raw.githubusercontent.com/danieldriessen/cloud-lamp/main/firmware-dist/cloud-lamp/manifest.json`
-   (the `update_manifest_url` substitution). The same check can be triggered on demand from
-   Settings → Firmware → **Check for updates now** (REST: `POST /button/Check for Updates/press`,
-   which runs `update.check` — the web-server API only exposes install, not check). REST paths use
+1. Every 6 hours (and shortly after boot) the lamp downloads its manifest over plain HTTP
+   from `${update_manifest_url}` and verifies its Ed25519 **signature** against the public
+   key baked into the firmware (`ota_ed25519_pubkey` substitution) — a manifest that doesn't
+   verify is treated exactly like a failed fetch, so nothing untrusted is ever surfaced as
+   an update. The same check can be triggered on demand from Settings → Firmware →
+   **Check for updates now** (REST: `POST /button/Check for Updates/press`, which runs
+   `update.check` — the web-server API only exposes install, not check). REST paths use
    the entity's display Name, URL-encoded (e.g. `Check%20for%20Updates`) — the legacy object_id
    form (`check_for_updates`) still works today but is deprecated and is removed in ESPHome 2026.7.0.
 2. If the manifest version differs from the installed `${project_version}`, the web app
@@ -71,11 +79,18 @@ if you hit this on a lamp still running an older firmware.
 ## Publishing a release (builder workflow)
 
 1. Bump `project_version` in the `substitutions` block of the device's config.
-2. Run `tools/release.sh` — it compiles the public build, verifies the binary contains no
-   secrets, and writes `firmware-dist/cloud-lamp/` with the binary and `manifest.json`
-   (with MD5).
-3. Commit and push:
-   `git add firmware-dist/cloud-lamp && git commit -m "Release cloud-lamp vX.Y.Z" && git push`
+2. Run `tools/release.sh`. In order, it:
+   - compiles the public build and verifies the binary contains no secrets;
+   - writes `firmware-dist/cloud-lamp/` with the binary and `manifest.json` (MD5 + version);
+   - **signs** the manifest with the Ed25519 private key (see
+     [Plain HTTP + Ed25519 signing](#plain-http--ed25519-signing)) and adds the
+     `signature` field;
+   - **publishes atomically**: commits + pushes `firmware-dist/cloud-lamp/` to GitHub, *and*
+     uploads `manifest.json` + the `.bin` to the plain-HTTP host — both required. If either
+     half fails, the script exits with an error listing which half didn't complete; **do not
+     consider the release done until it prints "published: GitHub + HTTP host both
+     updated."** Re-running it is safe (same version/MD5/signature every time) until both
+     succeed.
 
 The firmware is generic (lamps are personalised only by the physical front text), so **one
 release channel serves every lamp**. Builder/dev lamps running `cloud-lamp-dev.yaml` should
@@ -85,6 +100,59 @@ on both builds and configured from the web app, not compiled in).
 
 > Note: publishing the same version string twice is not offered to devices — always bump
 > `project_version` first.
+
+### HTTP host upload setup (one-time)
+
+The plain-HTTP host is the `cloud-lamp.ddproductions.de` subdomain (all-inkl.com/KAS
+hosting), with SSL available but not forced — the lamp deliberately uses `http://`, not
+`https://`, for this (see [Plain HTTP + Ed25519 signing](#plain-http--ed25519-signing)).
+Its webroot mirrors this repo's `firmware-dist/cloud-lamp/` layout exactly:
+
+```
+cloud-lamp.ddproductions.de/        (webroot)
+└── firmware-dist/
+    └── cloud-lamp/
+        ├── manifest.json
+        └── cloud-lamp-<version>.bin
+```
+
+`tools/release.sh` uploads there via **FTPS** (explicit FTP-over-TLS, so the credentials and
+files aren't sent in the clear), configured through a git-ignored `tools/release.local.env`:
+
+```
+cp tools/release.local.env.example tools/release.local.env
+# then fill in RELEASE_HTTP_FTP_HOST / _USER / _PASSWORD
+```
+
+SSH/rsync was the original plan, but all-inkl.com's KAS panel only supports **one**
+authorized public key per account-wide SSH login — reusing or replacing it would have
+affected every other project already relying on that key. FTP has no such restriction: KAS
+lets you create additional, independent FTP users scoped to a single folder.
+
+**One-time FTP access setup:**
+
+1. In the KAS control panel: **Tools → FTP-Zugänge** → create a new FTP user, with its home
+   directory scoped to the `cloud-lamp.ddproductions.de` folder specifically (not the main
+   webspace account) — this is a dedicated, minimal-privilege login used only by this
+   release script, isolated from every other site/project on the same all-inkl account.
+2. Put that user's host/username/password into `tools/release.local.env` as
+   `RELEASE_HTTP_FTP_HOST` / `_USER` / `_PASSWORD`.
+3. Because the FTP user's home directory is already the `cloud-lamp.ddproductions.de`
+   webroot, `RELEASE_HTTP_FTP_PATH` only needs the repo-relative part — the default
+   `/firmware-dist/cloud-lamp/` mirrors this repo's layout and normally doesn't need
+   changing.
+4. Verify manually if needed:
+   `curl --ssl-reqd --user "USER:PASSWORD" "ftp://HOST/firmware-dist/cloud-lamp/"` should
+   connect over TLS and list the (initially empty) directory.
+
+`tools/release.sh` uploads the `.bin` under its final name first (harmless even mid-transfer,
+since no manifest points to it yet), then uploads `manifest.json` to a temp name and
+FTP-renames it into place (`RNFR`/`RNTO`) — so a lamp polling mid-publish never sees a
+half-written manifest. `--ftp-create-dirs` means the remote `firmware-dist/cloud-lamp/`
+folders are created automatically on first run if they don't already exist.
+
+That same webroot path must be reachable at the `update_manifest_url` configured in
+`cloud-lamp.yaml`'s substitutions.
 
 ### Manifest format
 
@@ -98,6 +166,7 @@ on both builds and configured from the web app, not compiled in).
       "ota": {
         "path": "cloud-lamp-2.1.0.bin",
         "md5": "<md5 of the bin>",
+        "signature": "<128-hex-char Ed25519 signature, see below>",
         "summary": "Cloud-Lamp firmware 2.1.0"
       }
     }
@@ -106,7 +175,9 @@ on both builds and configured from the web app, not compiled in).
 ```
 
 `path` is resolved relative to the manifest URL. `release_url` and `summary` are optional
-and shown by the update entity where supported.
+and shown by the update entity where supported. `signature` is **required** —
+`components/signed_update/` rejects any manifest missing it (or failing verification)
+exactly as if the fetch itself had failed.
 
 ## Stuck on an old version with "Up to date" showing
 
@@ -136,15 +207,85 @@ Recovery, in order of preference:
 Once the lamp is running v2.3.1 or newer, both the automatic and manual checks are
 protected against this contention (see `packages/updates.yaml`) and this should not recur.
 
-## TLS note
+## Plain HTTP + Ed25519 signing
 
-The ESP8266's BearSSL stack has no CA certificate store, so the manifest/firmware download
-uses `verify_ssl: false`: transport is TLS-encrypted but the server certificate is not
-validated. Integrity of the installed firmware is enforced end-to-end by the manifest MD5;
-an attacker able to spoof GitHub DNS could at worst offer a manifest the user must still
-manually install. Accepted trade-off for this device class.
+Through v2.3.4, the manifest and firmware were fetched over HTTPS with `verify_ssl: false`
+(TLS-encrypted, certificate unvalidated — the ESP8266's BearSSL stack has no CA store).
+That transport turned out to be the update mechanism's real reliability problem, not just a
+security trade-off:
 
-`packages/updates.yaml` also sets `tls_buffer_size_rx: 8192`. Without an enlarged buffer,
-fetches from `raw.githubusercontent.com` fail with BearSSL `BR_ERR_TOO_LARGE` (GitHub/Fastly
-use large TLS records; the ESP8266 default 512-byte buffer is too small). 16 KiB is the
-textbook size but OOMs on the MQTT-enabled bench build; 8 KiB is enough in practice here.
+- **The root cause, confirmed on hardware:** BearSSL needs roughly **16-20 KB of
+  *contiguous* free heap** to complete a TLS handshake against GitHub's CDN — far more than
+  the nominal ~8.7 KB RX/TX buffer size suggests. Direct heap instrumentation during a real
+  failure showed 12-17 KB free contiguous heap *still* wasn't enough; the SSL context, X.509
+  validator and I/O buffers together exceed what this device reliably has alongside the web
+  server and (when enabled) MQTT. This is what caused the "update failed, previous firmware
+  still running" and "stuck on an old version" issues described elsewhere in this doc — the
+  safety net was always working correctly, but the underlying HTTPS transport had a memory
+  ceiling this device couldn't reliably clear.
+- Raising the TLS buffers further (16 KiB is ESPHome's own textbook recommendation) OOMs
+  even sooner on the MQTT-enabled bench build, and GitHub/Fastly's CDN doesn't honor MFLN
+  (Maximum Fragment Length Negotiation) at the buffer sizes tried, so there was no buffer
+  size that reliably worked.
+
+**Fix:** drop TLS entirely for OTA (both manifest and firmware download are plain HTTP now)
+and compensate with an **Ed25519 signature** over the manifest, verified on-device
+(`components/signed_update/`) before anything is ever trusted as an update. This is
+strictly *stronger* authenticity than the old `verify_ssl: false` HTTPS ever provided (which
+trusted the transport but validated no certificate — an on-path attacker had exactly as much
+power then as with plain HTTP now, just with TLS overhead and none of the memory cost). The
+firmware binary's integrity is still additionally checked by MD5 as before.
+
+**Signed message:** the manifest's `signature` field is an Ed25519 signature (128 hex
+chars / 64 bytes) over the fixed ASCII string `"<version>|<path>|<md5>"` — not the raw
+manifest JSON bytes, to avoid JSON-canonicalization edge cases. Binding all three fields
+together prevents replaying an old-but-validly-signed manifest entry against a different
+binary or version number.
+
+### Key custody
+
+- **Private key** — generated once, lives **outside this repository entirely**, by default
+  at `~/.cloud-lamp-release-secrets/ota-ed25519-private.key` (32 raw bytes; override the
+  path with the `RELEASE_SIGNING_KEY` environment variable). Never commit it, and back it up
+  somewhere durable — losing it means you can no longer publish trusted updates to devices
+  already in the field without also changing their public key (i.e. flashing them, which
+  defeats the purpose of online updates).
+- **Public key** — not a secret; compiled into every device via `cloud-lamp.yaml`'s
+  `ota_ed25519_pubkey` substitution (32 bytes, hex). Only the matching private key can
+  produce a signature that verifies against it.
+- To generate a new keypair (e.g. for initial setup, or a deliberate rotation), from a
+  Python environment with the `cryptography` package installed (already a dependency of
+  `tools/release.sh`):
+
+  ```python
+  from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+  from cryptography.hazmat.primitives import serialization
+
+  key = Ed25519PrivateKey.generate()
+  open("ota-ed25519-private.key", "wb").write(key.private_bytes(
+      encoding=serialization.Encoding.Raw,
+      format=serialization.PrivateFormat.Raw,
+      encryption_algorithm=serialization.NoEncryption(),
+  ))
+  print(key.public_key().public_bytes(
+      encoding=serialization.Encoding.Raw,
+      format=serialization.PublicFormat.Raw,
+  ).hex())
+  ```
+
+  Save the private key file with restrictive permissions (`chmod 600`) outside any synced
+  or version-controlled folder, and put the printed public key hex into
+  `ota_ed25519_pubkey` in `cloud-lamp.yaml`. **Rotating the key requires re-flashing every
+  device already in the field** (via push OTA or browser upload) with a build compiled
+  against the new public key before it will trust any future signed release — plan
+  accordingly, this isn't something to do casually.
+
+### Local testing without hardware
+
+`tools/mock-device.py` serves a validly-signed test manifest (signed with a throwaway,
+dev-only keypair hardcoded in that script — never the real production key) at
+`/firmware-dist/cloud-lamp/manifest.json`, standing in for the plain-HTTP host. To exercise
+the real on-device `components/signed_update/` logic against it (not just the web app's own
+simulated update-entity behavior), point a diagnostic build's `update_manifest_url` at
+`http://<this-machine's-LAN-IP>:<port>/firmware-dist/cloud-lamp/manifest.json` and its
+`ota_ed25519_pubkey` at the `OTA_TEST_PUBLIC_KEY_HEX` constant in that script.
