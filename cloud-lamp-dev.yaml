@@ -11,7 +11,7 @@
 #  Usage:  esphome run cloud-lamp-dev.yaml
 #
 #  NEVER publish binaries built from this file — they embed the Wi-Fi
-#  credentials from secrets.yaml. The public update channel (firmware-dist/)
+#  credentials from secrets.yaml. The public update channel (docs/firmware-dist/)
 #  is fed exclusively from cloud-lamp.yaml via tools/release.sh.
 #
 #  Note on updates: this dev build points at the same public update channel

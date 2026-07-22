@@ -1,9 +1,9 @@
 # ESPHome build cache
 .esphome/
 
-# NOTE: firmware-dist/ is intentionally TRACKED — it's the release history and a
-# manual-download fallback. Devices themselves fetch from the plain-HTTP host
-# tools/release.sh also publishes to (see docs/firmware-updates.md), not from here.
+# NOTE: docs/firmware-dist/ is intentionally TRACKED — it's the release history
+# AND the live update channel. GitHub Pages serves docs/ directly at the
+# custom domain the lamp checks (see docs/firmware-updates.md).
 
 # macOS
 .DS_Store
@@ -16,10 +16,6 @@ __pycache__/
 
 # Per-device credentials — never commit
 secrets.yaml
-
-# Release-machine-only config (HTTP host SSH target) — never commit
-tools/release.local.env
-
 # ioBroker VS Code extension config (contains private network address and username)
 .iobroker-config.json
 

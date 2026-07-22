@@ -40,20 +40,27 @@ Related documents:
 > so the web app, MQTT discovery and the update coach UI all keep working with no changes.
 > `tools/release.sh` now signs every manifest with an Ed25519 private key kept **outside
 > this repository** (never committed — see
-> [firmware-updates.md](./firmware-updates.md#key-custody)) and publishes atomically to
-> *both* GitHub (history/fallback) and a plain-HTTP host (what the lamp actually checks) —
-> failing loudly if either half doesn't complete, so the two can never silently drift out of
-> sync. `cloud-lamp.yaml` gained an `ota_ed25519_pubkey` substitution (the public half,
-> not a secret) and `update_manifest_url` now points at the plain-HTTP host (placeholder
-> pending final hosting details) instead of `raw.githubusercontent.com`. Verified: full
-> `esphome compile` succeeds with the new component and its vendored Ed25519 dependency
+> [firmware-updates.md](./firmware-updates.md#key-custody)). The plain-HTTP host is this
+> repo's own **GitHub Pages** site: `docs/` moved to also hold `docs/firmware-dist/`
+> (published releases), and a custom domain — `cloud-lamp.ddproductions.de`, DNS pointed at
+> GitHub Pages via CNAME, "Enforce HTTPS" deliberately left off — serves it as plain HTTP.
+> That collapses "publish" back down to a single `git push`: there is no second upload
+> target to keep in sync, since GitHub *is* the plain-HTTP host. (All-inkl.com, the
+> project's other webspace, was considered and set up first, but every HTTP request to a
+> subdomain there was unexpectedly 301-redirected to HTTPS by the host regardless of KAS
+> panel settings — an Apache-level behavior outside our control — which defeats the entire
+> point; GitHub Pages doesn't have that problem.) `cloud-lamp.yaml` gained an
+> `ota_ed25519_pubkey` substitution (the public half, not a secret) and
+> `update_manifest_url` now points at that custom domain instead of
+> `raw.githubusercontent.com`. Verified: full `esphome compile` succeeds with the new
+> component and its vendored Ed25519 dependency
 > ([operatorfoundation/Crypto](https://registry.platformio.org/libraries/operatorfoundation/Crypto),
 > a PlatformIO-registry mirror of rweather/arduinolibs' audited Crypto library, pulled
 > as-is rather than hand-copied) linked in, adding only ~8 KB to the final binary thanks to
 > linker dead-code elimination; a standalone Python sign/verify round-trip against both the
 > real production keypair and `tools/mock-device.py`'s throwaway test keypair. Still
-> pending: the plain-HTTP host's real hostname/credentials, and an on-hardware install test
-> once that host is live.
+> pending: DNS propagation for the custom domain, and an on-hardware install test once the
+> plain-HTTP endpoint is confirmed reachable.
 >
 > **Phase:** v2.3.4 — fixed the web app's REST calls to use ESPHome's new entity-Name-based
 > URL format (e.g. `/light/Cloud Light`) instead of the legacy object_id form
@@ -322,16 +329,16 @@ cloud-lamp/
 │   ├── brand.png                 # Header wordmark (transparent, /brand.png)
 │   └── logo.png                  # DD Productions logo (embedded, served at /logo.png)
 ├── assets/                       # Artwork sources (cloud-lamp-logo.png = project wordmark)
-├── firmware-dist/                # Published releases (update channel, see firmware-updates.md)
 ├── tools/
-│   ├── release.sh                # Build, sign + publish a firmware release for the updater
-│   ├── release.local.env         # Per-machine HTTP host upload target — git-ignored
-│   ├── release.local.env.example # Template for release.local.env
+│   ├── release.sh                # Build, sign + git-push a firmware release for the updater
 │   ├── build-manual.py           # Render docs/user-manual.md → docs/user-manual.pdf
 │   └── mock-device.py            # Local mock of the device API for web app development
-└── docs/                         # This folder
+└── docs/                         # This folder — served as-is by GitHub Pages at the
+    │                             #   cloud-lamp.ddproductions.de custom domain
     ├── user-manual.pdf           # End-user manual (permanent URL target of the sticker
     │                             #   QR code; regenerate with tools/build-manual.py)
+    ├── firmware-dist/            # Published releases = the live update channel AND
+    │                             #   history (see firmware-updates.md)
     ├── .nojekyll                 # Tells GitHub Pages to serve this folder's files as-is
     └── Label.lbx                 # Brother P-Touch template for the back sticker
                                   #   (required/optional fields: device-credentials.md)
@@ -520,9 +527,10 @@ platform swapped in for `http_request`'s own) before trusting anything in it; wh
 validly-signed version is found the web app shows an *Install* button; the image is
 downloaded (also plain HTTP), MD5-verified and written to the inactive flash area while the
 lamp keeps running; `safe_mode` catches boot loops after a bad flash. Releases are published
-to two places at once by `tools/release.sh` — this GitHub repo's `firmware-dist/` (history /
-manual-download fallback) and the plain-HTTP host the lamp actually fetches from — signing
-the manifest with a private key kept outside the repo. Plain HTTP replaced HTTPS in v2.4.0
+by `tools/release.sh` with a single `git push` — this repo's `docs/firmware-dist/` is both
+the release history and, via GitHub Pages' custom domain, the plain-HTTP host the lamp
+actually fetches from — signing the manifest with a private key kept outside the repo.
+Plain HTTP replaced HTTPS in v2.4.0
 because BearSSL's TLS handshake against GitHub's CDN needs more contiguous free heap than
 this device reliably has; see the [v2.4.0 changelog entry](#project-status) and
 [firmware-updates.md](./firmware-updates.md#plain-http--ed25519-signing) for the full story.

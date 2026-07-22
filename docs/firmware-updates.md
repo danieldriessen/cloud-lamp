@@ -15,15 +15,21 @@ them. Configured in `packages/updates.yaml`; user-facing UI in the web app's set
 
 ## How the online update works
 
-Releases live in two places, kept in sync by `tools/release.sh` (see
-[Publishing a release](#publishing-a-release-builder-workflow) below):
+Releases are published by `tools/release.sh` (see
+[Publishing a release](#publishing-a-release-builder-workflow) below) with a single
+`git push` to `danieldriessen/cloud-lamp` (public), into the tracked
+`docs/firmware-dist/` folder. That one folder serves two roles at once:
 
-- **GitHub** (`danieldriessen/cloud-lamp`, public), in the tracked `firmware-dist/`
-  folder — the source-of-truth history and a manual-download fallback.
-- **A plain-HTTP host** (`${update_manifest_url}` in `cloud-lamp.yaml`) — what the lamp
+- **Release history and a manual-download fallback** — browsable on GitHub like any other
+  tracked file.
+- **The live update channel** — this repo's GitHub Pages site serves `docs/` directly at a
+  custom domain (`${update_manifest_url}` in `cloud-lamp.yaml`), which is what the lamp
   itself actually fetches from. Plain HTTP, not HTTPS: see
   [Plain HTTP + Ed25519 signing](#plain-http--ed25519-signing) for why, and how the
   manifest's signature keeps this trustworthy anyway.
+
+Because both roles are the same files in the same folder, there is nothing to keep "in
+sync" — a `git push` updates the live endpoint and the history simultaneously.
 
 **Public-safety rule:** released binaries are built exclusively from `cloud-lamp.yaml`
 (the generic gift build) — no personal names, no Wi-Fi networks, no MQTT credentials.
@@ -81,16 +87,15 @@ if you hit this on a lamp still running an older firmware.
 1. Bump `project_version` in the `substitutions` block of the device's config.
 2. Run `tools/release.sh`. In order, it:
    - compiles the public build and verifies the binary contains no secrets;
-   - writes `firmware-dist/cloud-lamp/` with the binary and `manifest.json` (MD5 + version);
+   - writes `docs/firmware-dist/cloud-lamp/` with the binary and `manifest.json` (MD5 +
+     version);
    - **signs** the manifest with the Ed25519 private key (see
      [Plain HTTP + Ed25519 signing](#plain-http--ed25519-signing)) and adds the
      `signature` field;
-   - **publishes atomically**: commits + pushes `firmware-dist/cloud-lamp/` to GitHub, *and*
-     uploads `manifest.json` + the `.bin` to the plain-HTTP host — both required. If either
-     half fails, the script exits with an error listing which half didn't complete; **do not
-     consider the release done until it prints "published: GitHub + HTTP host both
-     updated."** Re-running it is safe (same version/MD5/signature every time) until both
-     succeed.
+   - **publishes**: commits + pushes `docs/firmware-dist/cloud-lamp/` to GitHub. That single
+     push republishes the live update channel too, since GitHub Pages serves `docs/`
+     directly — there is no separate upload step that can drift out of sync. Re-running the
+     script is safe (same version/MD5/signature every time) if the push needs retrying.
 
 The firmware is generic (lamps are personalised only by the physical front text), so **one
 release channel serves every lamp**. Builder/dev lamps running `cloud-lamp-dev.yaml` should
@@ -101,58 +106,51 @@ on both builds and configured from the web app, not compiled in).
 > Note: publishing the same version string twice is not offered to devices — always bump
 > `project_version` first.
 
-### HTTP host upload setup (one-time)
+### HTTP host setup (one-time): GitHub Pages custom domain
 
-The plain-HTTP host is the `cloud-lamp.ddproductions.de` subdomain (all-inkl.com/KAS
-hosting), with SSL available but not forced — the lamp deliberately uses `http://`, not
-`https://`, for this (see [Plain HTTP + Ed25519 signing](#plain-http--ed25519-signing)).
-Its webroot mirrors this repo's `firmware-dist/cloud-lamp/` layout exactly:
+The plain-HTTP host is this repo's own **GitHub Pages** site — no separate server, upload
+credentials, or publish step to maintain. `docs/` is already the Pages source folder (it's
+what serves [docs/user-manual.pdf](./user-manual.pdf) today), so `docs/firmware-dist/`
+piggybacks on that exact same deployment:
 
 ```
-cloud-lamp.ddproductions.de/        (webroot)
+cloud-lamp.ddproductions.de/        (custom domain → GitHub Pages → this repo's docs/)
 └── firmware-dist/
     └── cloud-lamp/
         ├── manifest.json
         └── cloud-lamp-<version>.bin
 ```
 
-`tools/release.sh` uploads there via **FTPS** (explicit FTP-over-TLS, so the credentials and
-files aren't sent in the clear), configured through a git-ignored `tools/release.local.env`:
+**One-time setup, on GitHub:**
 
-```
-cp tools/release.local.env.example tools/release.local.env
-# then fill in RELEASE_HTTP_FTP_HOST / _USER / _PASSWORD
-```
+1. Repo → **Settings → Pages**. Leave **Source** as the `docs/` folder on `main` (already
+   configured for the manual — do *not* change it to `/ (root)`, that would require moving
+   every doc and break the manual's existing URL).
+2. Under **Custom domain**, enter `cloud-lamp.ddproductions.de` and save. GitHub writes a
+   `docs/CNAME` file into the repo recording this.
+3. Leave **Enforce HTTPS** *unchecked*. This is the one setting that matters for the
+   ESP8266: checking it would make Pages 301-redirect all `http://` requests to `https://`,
+   which defeats the entire point (see
+   [Plain HTTP + Ed25519 signing](#plain-http--ed25519-signing)). Leaving it off still lets
+   humans reach the manual over HTTPS if they type it that way — it only stops Pages from
+   *forcing* the upgrade.
 
-SSH/rsync was the original plan, but all-inkl.com's KAS panel only supports **one**
-authorized public key per account-wide SSH login — reusing or replacing it would have
-affected every other project already relying on that key. FTP has no such restriction: KAS
-lets you create additional, independent FTP users scoped to a single folder.
+**One-time setup, at the DNS host (all-inkl.com/KAS, `ddproductions.de`):**
 
-**One-time FTP access setup:**
+4. Add a **CNAME** record: `cloud-lamp` → `danieldriessen.github.io`. (All-inkl.com was
+   originally set up to serve this itself, but every `http://` request to a subdomain there
+   was unexpectedly 301-redirected to `https://` regardless of KAS panel SSL settings — an
+   Apache-level behavior outside our control that defeats plain-HTTP serving. GitHub Pages
+   doesn't have that problem, so hosting moved there instead; the previously-configured
+   SSL/force-SSL settings on the `cloud-lamp` subdomain and the parent domain can be
+   reverted to their normal, secure defaults.)
+5. Wait for DNS propagation (can take anywhere from minutes to a few hours), then verify:
+   `curl -v http://cloud-lamp.ddproductions.de/firmware-dist/cloud-lamp/manifest.json`
+   should return `200` with no redirect, over plain HTTP.
 
-1. In the KAS control panel: **Tools → FTP-Zugänge** → create a new FTP user, with its home
-   directory scoped to the `cloud-lamp.ddproductions.de` folder specifically (not the main
-   webspace account) — this is a dedicated, minimal-privilege login used only by this
-   release script, isolated from every other site/project on the same all-inkl account.
-2. Put that user's host/username/password into `tools/release.local.env` as
-   `RELEASE_HTTP_FTP_HOST` / `_USER` / `_PASSWORD`.
-3. Because the FTP user's home directory is already the `cloud-lamp.ddproductions.de`
-   webroot, `RELEASE_HTTP_FTP_PATH` only needs the repo-relative part — the default
-   `/firmware-dist/cloud-lamp/` mirrors this repo's layout and normally doesn't need
-   changing.
-4. Verify manually if needed:
-   `curl --ssl-reqd --user "USER:PASSWORD" "ftp://HOST/firmware-dist/cloud-lamp/"` should
-   connect over TLS and list the (initially empty) directory.
-
-`tools/release.sh` uploads the `.bin` under its final name first (harmless even mid-transfer,
-since no manifest points to it yet), then uploads `manifest.json` to a temp name and
-FTP-renames it into place (`RNFR`/`RNTO`) — so a lamp polling mid-publish never sees a
-half-written manifest. `--ftp-create-dirs` means the remote `firmware-dist/cloud-lamp/`
-folders are created automatically on first run if they don't already exist.
-
-That same webroot path must be reachable at the `update_manifest_url` configured in
-`cloud-lamp.yaml`'s substitutions.
+That same path must be reachable at the `update_manifest_url` configured in
+`cloud-lamp.yaml`'s substitutions (it already is — no config change needed once the domain
+resolves).
 
 ### Manifest format
 
@@ -197,7 +195,7 @@ Recovery, in order of preference:
    most likely to hit on a manual "Check for updates now" in the first place. Then open the
    app; if the check succeeded, **Update available** should already be showing.
 2. **Browser upload OTA**, if step 1 doesn't help: download the latest `.bin` from
-   [`firmware-dist/cloud-lamp/`](../firmware-dist/cloud-lamp/) in this repo (the file named
+   [`docs/firmware-dist/cloud-lamp/`](../docs/firmware-dist/cloud-lamp/) in this repo (the file named
    in `manifest.json`'s `path`), then open `http://<lamp-ip-or-hostname>/update` (the stock
    ESPHome upload page) and upload it there. This bypasses the online-update check
    entirely, so it works regardless of the bug above.

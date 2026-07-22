@@ -12,7 +12,7 @@
 #  trusted the transport but not any particular certificate).
 #
 #  This is a drop-in replacement for http_request's `update:` platform: same
-#  manifest shape (see tools/release.sh / firmware-dist/*/manifest.json),
+#  manifest shape (see tools/release.sh / docs/firmware-dist/*/manifest.json),
 #  plus one additional required field, `builds[].ota.signature` — a 128-hex
 #  character (64-byte) Ed25519 signature over the ASCII string
 #  "<version>|<path>|<md5>", produced by tools/release.sh at publish time

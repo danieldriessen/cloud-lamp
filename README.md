@@ -142,8 +142,8 @@ assets/                    artwork sources (project wordmark, PWA/header derivat
 assets/cloud-lamp-logo.png project wordmark (README hero + source for web/brand + web/icon)
 web/brand.png              header wordmark (embedded as /brand.png)
 web/icon.png               home-screen / PWA icon (embedded as /icon.png; transparent trial)
-firmware-dist/             published firmware releases (online update channel)
 docs/                      project documentation
+docs/firmware-dist/        published firmware releases (online update channel, served via GitHub Pages)
 docs/Label.lbx             P-Touch label template for the sticker on the back
 tools/                     development and release helpers
 ```

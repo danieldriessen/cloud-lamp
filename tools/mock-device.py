@@ -15,8 +15,8 @@ hardware.
 Also serves a validly-signed OTA update manifest at
 /firmware-dist/cloud-lamp/manifest.json (plus the referenced .bin), so this
 can stand in for the real plain-HTTP host (see docs/firmware-updates.md)
-when testing components/signed_update/ against real hardware before the
-all-inkl.com host is configured. It's signed with a throwaway, dev-only
+when testing components/signed_update/ against real hardware without
+publishing a real release. It's signed with a throwaway, dev-only
 keypair (OTA_TEST_* below) — NOT the production key in
 ~/.cloud-lamp-release-secrets/ — so a real gift-build lamp won't trust it.
 To test the full accept path on real hardware, temporarily point a
@@ -52,10 +52,10 @@ OTA_TEST_PUBLIC_KEY_HEX = "dfc7c2587793ff522017f8d5671b7d031d6766c6ba5026c713d3e
 
 
 def signed_ota_manifest(device_name="cloud-lamp"):
-    """Re-signs the real committed firmware-dist/<device_name>/manifest.json
+    """Re-signs the real committed docs/firmware-dist/<device_name>/manifest.json
     with the throwaway test key, computing the MD5 live so it always matches
     whatever .bin is actually on disk."""
-    manifest_dir = ROOT / "firmware-dist" / device_name
+    manifest_dir = ROOT / "docs" / "firmware-dist" / device_name
     manifest = json.loads((manifest_dir / "manifest.json").read_text())
     build = manifest["builds"][0]["ota"]
     bin_path = manifest_dir / build["path"]
@@ -239,8 +239,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             # point real hardware at this for a full local signed_update test.
             self._send(200, json.dumps(signed_ota_manifest()).encode())
         elif path.startswith("/firmware-dist/cloud-lamp/") and path.endswith(".bin"):
-            bin_dir = (ROOT / "firmware-dist" / "cloud-lamp").resolve()
-            f = (ROOT / path.lstrip("/")).resolve()
+            bin_dir = (ROOT / "docs" / "firmware-dist" / "cloud-lamp").resolve()
+            f = (ROOT / "docs" / path.lstrip("/")).resolve()
             if bin_dir in f.parents and f.exists():
                 self._send(200, f.read_bytes(), "application/octet-stream")
             else:

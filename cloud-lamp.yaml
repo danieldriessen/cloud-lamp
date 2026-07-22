@@ -7,7 +7,7 @@
 #  so nothing device- or person-specific is ever compiled in. Wi-Fi is
 #  configured exclusively by the recipient via the captive portal
 #  ("Cloud-Lamp-XXXXXX" setup hotspot). Binaries built from this file are
-#  published to the public update channel (firmware-dist/), so NOTHING
+#  published to the public update channel (docs/firmware-dist/), so NOTHING
 #  device- or person-specific may be added here. The only embedded shared
 #  credentials are the sticker AP password and the shared OTA password
 #  (both deliberately non-secret, see docs).
@@ -83,10 +83,11 @@ substitutions:
   # stack can't reliably complete a TLS handshake within this device's free
   # contiguous heap (confirmed on hardware; see docs/firmware-updates.md).
   # Integrity/authenticity comes from the Ed25519 signature below instead of
-  # from transport security. Releases are published with tools/release.sh,
-  # which uploads both the manifest and the firmware binary here (mirrors
-  # this repo's firmware-dist/cloud-lamp/ layout 1:1 on the host, so the
-  # local folder can be rsync'd across with no path translation). An
+  # from transport security. This is a GitHub Pages custom domain — Pages
+  # serves this repo's docs/ folder directly, and docs/firmware-dist/cloud-lamp/
+  # is exactly this URL's path, so a plain `git push` (via tools/release.sh)
+  # republishes it with no separate upload step. "Enforce HTTPS" is
+  # deliberately left off for this domain so it stays plain HTTP. An
   # unreachable URL is harmless: the check fails quietly.
   update_manifest_url: "http://cloud-lamp.ddproductions.de/firmware-dist/cloud-lamp/manifest.json"
 
