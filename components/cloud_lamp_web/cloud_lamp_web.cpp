@@ -39,15 +39,34 @@ void CloudLampWeb::dump_config() {
                 "  Icon: %u bytes\n"
                 "  Brand: %u bytes\n"
                 "  Logo: %u bytes\n"
+                "  Header: %u bytes\n"
                 "  Serial: %s",
                 (unsigned) this->html_size_, (unsigned) this->setup_size_, (unsigned) this->icon_size_,
-                (unsigned) this->brand_size_, (unsigned) this->logo_size_,
+                (unsigned) this->brand_size_, (unsigned) this->logo_size_, (unsigned) this->header_size_,
                 device_serial().c_str());
 }
 
-// Just above the stock web_server (WIFI - 1.0) so our handler is registered
-// first and wins the "/" route; all other routes fall through to web_server.
-float CloudLampWeb::get_setup_priority() const { return setup_priority::WIFI - 0.5f; }
+// Above both the stock web_server (WIFI - 1.0) AND captive_portal (WIFI + 1.0),
+// not just web_server. web_server_base handlers are checked in *registration*
+// order (first canHandle()==true wins) and AsyncWebHandler registration order
+// is whatever order each component's setup() happens to run in — normally
+// captive_portal only starts later, dynamically, once Wi-Fi actually fails to
+// reconnect, by which point our setup() (and thus our handler registration)
+// has long since run. BUT: WiFiComponent::setup() takes a *different, much
+// earlier* path — calling captive_portal::start() directly, synchronously,
+// during its own setup() — whenever it finds no usable saved STA credentials
+// at boot (has_sta() false right after loading them from flash). If that
+// happens before our setup() has run, captive_portal's handler (which
+// unconditionally matches every GET while active — see its own canHandle())
+// gets registered first and permanently shadows ours for the rest of that
+// boot: EVERY route, not just "/", falls through to ESPHome's plain stock
+// portal page instead of our branded web/setup.html, no matter how the Wi-Fi
+// credentials went missing in the first place. Confirmed on real hardware
+// (curl to /, /app, /manifest.json, /device.json, /brand.png all returned the
+// same unstyled stock page while the portal was active). Setting our own
+// priority above captive_portal's removes the race entirely: our handler is
+// always registered first regardless of *which* path triggers the portal.
+float CloudLampWeb::get_setup_priority() const { return setup_priority::WIFI + 2.0f; }
 
 bool CloudLampWeb::portal_active_() const {
 #ifdef USE_CAPTIVE_PORTAL
@@ -73,7 +92,7 @@ bool CloudLampWeb::canHandle(AsyncWebServerRequest *request) const {
     return url != F("/config.json") && url != F("/wifisave");
   }
   return url == F("/") || url == F("/app") || url == F("/manifest.json") || url == F("/icon.png") ||
-         url == F("/brand.png") || url == F("/logo.png") || url == F("/device.json");
+         url == F("/brand.png") || url == F("/logo.png") || url == F("/header.png") || url == F("/device.json");
 }
 
 void CloudLampWeb::handleRequest(AsyncWebServerRequest *request) {
@@ -96,6 +115,8 @@ void CloudLampWeb::handleRequest(AsyncWebServerRequest *request) {
     this->handle_png_(request, this->brand_, this->brand_size_);
   } else if (url == F("/logo.png")) {
     this->handle_png_(request, this->logo_, this->logo_size_);
+  } else if (url == F("/header.png")) {
+    this->handle_png_(request, this->header_, this->header_size_);
   } else if (url == F("/device.json")) {
     this->handle_device_info_(request);
   } else {

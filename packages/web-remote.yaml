@@ -39,10 +39,17 @@ cloud_lamp_web:
   # apple-touch-icon pixels with black; switch to a dark solid backdrop if that
   # looks wrong on a real device after Add to Home Screen.
   icon_file: web/icon.png
-  # Transparent wordmark for the in-app header (not used as apple-touch-icon).
+  # Transparent wordmark used by the firmware-update overlay icon and by
+  # web/setup.html's own header (the Wi-Fi onboarding page) — NOT the
+  # app.html header, which uses header_file below instead.
   brand_file: web/brand.png
   # DD Productions logo (transparent PNG), shown in the app footer.
   logo_file: web/logo.png
+  # app.html header's own logo — a dedicated @2x-for-its-CSS-box asset
+  # (224x112 for a 112x56 CSS slot), kept separate from brand_file so this
+  # one spot can use a different resolution/aspect ratio without changing
+  # /brand.png's other uses above.
+  header_file: web/header.png
 
 # ---- Diagnostics shown in the web app's settings sheet ----
 sensor:

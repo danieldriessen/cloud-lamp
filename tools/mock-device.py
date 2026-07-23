@@ -200,7 +200,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         path = normalize_path(urllib.parse.unquote(urllib.parse.urlparse(self.path).path))
         # Simulate lamp reboot blackout during OTA (web app coach waits for return).
-        if state.get("fw_offline") and path not in ("/", "/app", "/brand.png", "/icon.png", "/logo.png", "/manifest.json"):
+        if state.get("fw_offline") and path not in ("/", "/app", "/brand.png", "/icon.png", "/logo.png", "/header.png", "/manifest.json"):
             self._send(503, b"{}")
             return
         if path in ("/", "/app"):
@@ -221,7 +221,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif path == "/wifisave":
             time.sleep(0.8)   # feels like the real save
             self._send(200, b"Saved. Connecting...", "text/plain")
-        elif path in ("/icon.png", "/brand.png", "/logo.png"):
+        elif path in ("/icon.png", "/brand.png", "/logo.png", "/header.png"):
             f = ROOT / "web" / path.lstrip("/")
             if f.exists():
                 self._send(200, f.read_bytes(), "image/png")

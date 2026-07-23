@@ -2,9 +2,12 @@
 
 Serves the single-file iOS-style web app (gzipped, from PROGMEM) at `/` and
 `/app`, plus the PWA manifest at `/manifest.json`, the home-screen icon at
-`/icon.png`, the in-app header brand mark at `/brand.png`, and the maker logo
-at `/logo.png`. Registers before the standard `web_server` component so it
-wins the `/` route while leaving the whole REST + /events API untouched.
+`/icon.png`, the firmware-update-overlay brand mark at `/brand.png`, the
+maker logo at `/logo.png`, and the app.html header's own logo at
+`/header.png` (kept separate from `/brand.png` so the header's asset can use
+a different resolution/aspect ratio without affecting the overlay icon).
+Registers before the standard `web_server` component so it wins the `/`
+route while leaving the whole REST + /events API untouched.
 
 While the captive portal (Wi-Fi setup) is active, the branded onboarding page
 (`setup_file`, web/setup.html) replaces ESPHome's stock portal page; the stock
@@ -37,11 +40,13 @@ CONF_SETUP_FILE = "setup_file"
 CONF_ICON_FILE = "icon_file"
 CONF_BRAND_FILE = "brand_file"
 CONF_LOGO_FILE = "logo_file"
+CONF_HEADER_FILE = "header_file"
 CONF_HTML_DATA_ID = "html_data_id"
 CONF_SETUP_DATA_ID = "setup_data_id"
 CONF_ICON_DATA_ID = "icon_data_id"
 CONF_BRAND_DATA_ID = "brand_data_id"
 CONF_LOGO_DATA_ID = "logo_data_id"
+CONF_HEADER_DATA_ID = "header_data_id"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -54,11 +59,13 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_ICON_FILE): cv.file_,
         cv.Optional(CONF_BRAND_FILE): cv.file_,
         cv.Optional(CONF_LOGO_FILE): cv.file_,
+        cv.Optional(CONF_HEADER_FILE): cv.file_,
         cv.GenerateID(CONF_HTML_DATA_ID): cv.declare_id(cg.uint8),
         cv.GenerateID(CONF_SETUP_DATA_ID): cv.declare_id(cg.uint8),
         cv.GenerateID(CONF_ICON_DATA_ID): cv.declare_id(cg.uint8),
         cv.GenerateID(CONF_BRAND_DATA_ID): cv.declare_id(cg.uint8),
         cv.GenerateID(CONF_LOGO_DATA_ID): cv.declare_id(cg.uint8),
+        cv.GenerateID(CONF_HEADER_DATA_ID): cv.declare_id(cg.uint8),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -112,3 +119,12 @@ async def to_code(config):
         logo_data = logo_path.read_bytes()
         logo_arr = cg.progmem_array(config[CONF_LOGO_DATA_ID], list(logo_data))
         cg.add(var.set_logo(logo_arr, len(logo_data)))
+
+    # Separate from brand_file: a dedicated, correctly-proportioned @2x asset
+    # for just the app.html header mark, so it can be swapped/resized without
+    # affecting /brand.png's other use (the firmware-update overlay icon).
+    if CONF_HEADER_FILE in config:
+        header_path = Path(CORE.relative_config_path(config[CONF_HEADER_FILE]))
+        header_data = header_path.read_bytes()
+        header_arr = cg.progmem_array(config[CONF_HEADER_DATA_ID], list(header_data))
+        cg.add(var.set_header(header_arr, len(header_data)))

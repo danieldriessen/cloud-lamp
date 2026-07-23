@@ -89,6 +89,14 @@
     }
 
     header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+    .langrow{display:flex;justify-content:flex-end;margin:0 2px 10px}
+    select.langsel{
+      appearance:none;-webkit-appearance:none;
+      background:rgba(0,0,0,.30);color:var(--text);border:1px solid var(--line);
+      border-radius:11px;padding:9px 30px 9px 12px;font-size:14px;font-family:var(--font);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23aab6cc' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+      background-repeat:no-repeat;background-position:right 10px center;
+    }
     .brand{display:flex;align-items:center;gap:10px;min-width:0}
     .brand .cloud{
       width:112px;height:56px;flex:0 0 auto;position:relative;
@@ -107,7 +115,8 @@
 
     .card{
       background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-      box-shadow:var(--shadow);padding:16px;margin:12px 0;backdrop-filter:blur(10px);
+      box-shadow:var(--shadow);padding:16px;margin:12px 0;
+      -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
     }
     .sec-label{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:2px 2px 10px;display:flex;justify-content:space-between;align-items:center}
     .sec-label .rescan{
@@ -200,7 +209,9 @@
       background:rgba(0,0,0,.35);border:1px solid var(--line);
       font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
       word-break:break-all;color:#cfe4ff;user-select:text;-webkit-user-select:text;
+      text-decoration:none;
     }
+    .steps .url:active{background:rgba(0,0,0,.5)}
     .foot{color:var(--muted);opacity:.75;font-size:11px;text-align:center;margin-top:18px;letter-spacing:.3px}
   </style>
 </head>
@@ -213,6 +224,8 @@
         </div>
         <span class="pill" id="serial">…</span>
       </header>
+
+      <div class="langrow"><select class="langsel" id="langSel"></select></div>
 
       <div class="hero">
         <h1 id="tTitle">Wi-Fi setup</h1>
@@ -250,7 +263,7 @@
           <p class="done-s" id="tDoneS"></p>
           <ol class="steps">
             <li id="tStep1">Reconnect your phone to your home Wi-Fi — this setup hotspot disappears once the lamp is connected.</li>
-            <li id="tStep2">Then open the lamp’s remote control in your browser:<span class="url" id="lampUrl">http://cloud-lamp-xxxxxx.local/</span></li>
+            <li id="tStep2">Then open the lamp’s remote control in your browser:<a class="url" id="lampUrl" href="http://cloud-lamp-xxxxxx.local/">http://cloud-lamp-xxxxxx.local/</a></li>
             <li id="tStep3">Wrong password? The lamp opens this setup hotspot again after about a minute — simply start over.</li>
           </ol>
         </div>
@@ -287,7 +300,19 @@
   }
   retryImgOnError($("brandLogoImg"), 3, 500);
 
-  /* ---------------- i18n (same languages as the app; auto-detected) ---------------- */
+  /* ---------------- i18n (same languages as the app; picked via the dropdown) ---------------- */
+  const LANGS = [
+    { code:"en", flag:"🇺🇸", name:"English" },
+    { code:"de", flag:"🇩🇪", name:"Deutsch" },
+    { code:"es", flag:"🇪🇸", name:"Español" },
+    { code:"fr", flag:"🇫🇷", name:"Français" },
+    { code:"it", flag:"🇮🇹", name:"Italiano" },
+    { code:"nl", flag:"🇳🇱", name:"Nederlands" },
+    { code:"pl", flag:"🇵🇱", name:"Polski" },
+    { code:"pt", flag:"🇵🇹", name:"Português" },
+    { code:"tr", flag:"🇹🇷", name:"Türkçe" },
+    { code:"ru", flag:"🇷🇺", name:"Русский" },
+  ];
   const I18N = {
     en:{title:"Wi-Fi setup",intro:"Choose your home Wi-Fi network and enter its password. The lamp saves it and connects automatically from then on.",
       networks:"Networks nearby",rescan:"Scan again",empty:"No networks found yet — the lamp keeps scanning.",other:"Other network…",
@@ -370,26 +395,38 @@
       step2:"Затем откройте пульт лампы в браузере:",
       step3:"Неверный пароль? Лампа снова откроет эту точку доступа примерно через минуту — просто начните заново."},
   };
-  const lang = (() => {
-    const cand = (navigator.languages || [navigator.language || "en"])
-      .map(l => String(l).slice(0, 2).toLowerCase());
-    return cand.find(c => I18N[c]) || "en";
-  })();
-  const T = I18N[lang];
-  document.documentElement.lang = lang;
+  // English is the default, matching the main app — the captive portal must
+  // never silently fall back to the phone's OS language (that's how users
+  // ended up staring at German text on an English-configured lamp). The
+  // dropdown lets them switch explicitly. Deliberately NOT persisted via
+  // localStorage: some captive-portal webviews (notably iOS's Captive
+  // Network Assistant) run in a restricted context where storage APIs can
+  // be unavailable, and this page is only ever seen once per onboarding
+  // anyway.
+  let lang = "en";
+  let T = I18N[lang];
+  let lastAps = [];            // last scanned AP list, re-rendered on language change
+  let lastConnectedSsid = "";  // set once credentials are sent, for the "done" screen text
 
-  $("tTitle").textContent = T.title;
-  $("tIntro").textContent = T.intro;
-  $("tNetworks").textContent = T.networks;
-  $("btnRescan").textContent = T.rescan;
-  $("tCreds").textContent = T.creds;
-  $("ssid").placeholder = T.ssid_ph;
-  $("psk").placeholder = T.psk_ph;
-  $("tHint").textContent = T.hint;
-  $("btnConnect").textContent = T.connect;
-  $("tDoneT").textContent = T.done_t;
-  $("tStep1").textContent = T.step1;
-  $("tStep3").textContent = T.step3;
+  function applyI18n() {
+    T = I18N[lang] || I18N.en;
+    document.documentElement.lang = lang;
+    $("tTitle").textContent = T.title;
+    $("tIntro").textContent = T.intro;
+    $("tNetworks").textContent = T.networks;
+    $("btnRescan").textContent = T.rescan;
+    $("tCreds").textContent = T.creds;
+    $("ssid").placeholder = T.ssid_ph;
+    $("psk").placeholder = T.psk_ph;
+    $("tHint").textContent = T.hint;
+    if (!$("btnConnect").disabled) $("btnConnect").textContent = T.connect;
+    $("tDoneT").textContent = T.done_t;
+    $("tStep1").textContent = T.step1;
+    $("tStep2").childNodes[0].textContent = T.step2;
+    $("tStep3").textContent = T.step3;
+    if (lastConnectedSsid) $("tDoneS").textContent = T.done_s.replace("{ssid}", lastConnectedSsid);
+    renderNets(lastAps);
+  }
 
   /* ---------------- state ---------------- */
   let deviceName = "";       // e.g. "cloud-lamp-cfb911"
@@ -461,7 +498,8 @@
       const serial = deviceName.includes("-")
         ? deviceName.slice(deviceName.lastIndexOf("-") + 1).toUpperCase() : "";
       if (serial) $("serial").textContent = serial;
-      renderNets((j.aps || []).slice(1));   // first element is a placeholder {}
+      lastAps = (j.aps || []).slice(1);   // first element is a placeholder {}
+      renderNets(lastAps);
     } catch (e) { /* keep last list; portal may be busy scanning */ }
   }
 
@@ -485,9 +523,12 @@
       if (!r.ok) throw new Error("http " + r.status);
       clearInterval(scanTimer);
       $("viewSetup").hidden = true;
+      lastConnectedSsid = ssid;
       $("tDoneS").textContent = T.done_s.replace("{ssid}", ssid);
       $("tStep2").childNodes[0].textContent = T.step2;
-      $("lampUrl").textContent = `http://${deviceName || "cloud-lamp-xxxxxx"}.local/`;
+      const lampHref = `http://${deviceName || "cloud-lamp-xxxxxx"}.local/`;
+      $("lampUrl").textContent = lampHref;
+      $("lampUrl").href = lampHref;
       $("viewDone").hidden = false;
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
@@ -498,6 +539,22 @@
       btn.textContent = T.connect;
     }
   });
+
+  // Language select — wired last so applyI18n() (fired on first render) can
+  // safely call renderNets(), which needs state (selSsid) declared above.
+  const langSel = $("langSel");
+  LANGS.forEach(l => {
+    const o = document.createElement("option");
+    o.value = l.code;
+    o.textContent = `${l.flag} ${l.name}`;
+    langSel.appendChild(o);
+  });
+  langSel.value = lang;
+  langSel.addEventListener("change", () => {
+    lang = langSel.value;
+    applyI18n();
+  });
+  applyI18n();
 
   scan();
   scanTimer = setInterval(scan, 10000);   // portal keeps scanning in background

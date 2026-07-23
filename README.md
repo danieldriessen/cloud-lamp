@@ -145,7 +145,8 @@ components/signed_update/  custom `update:` platform: plain-HTTP + Ed25519-signe
 web/                       web app + Wi-Fi setup page (embedded into the firmware at build time)
 assets/                    artwork sources (project wordmark, PWA/header derivatives, logos)
 assets/cloud-lamp-logo.png project wordmark (README hero + source for web/brand + web/icon)
-web/brand.png              header wordmark (embedded as /brand.png)
+web/header.png             app.html's own header wordmark (embedded as /header.png)
+web/brand.png              wordmark for the fw-update overlay + setup.html header (embedded as /brand.png)
 web/icon.png               home-screen / PWA icon (embedded as /icon.png; transparent trial)
 docs/                      project documentation
 docs/firmware-dist/        published firmware releases (online update channel, served via GitHub Pages)

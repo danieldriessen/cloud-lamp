@@ -19,8 +19,11 @@ namespace cloud_lamp_web {
  *                         handler only claims the routes listed here.
  *   GET /manifest.json -> web app manifest (name from friendly_name)
  *   GET /icon.png      -> home screen / PWA icon (if provided at compile time)
- *   GET /brand.png     -> transparent in-app header brand mark (if provided)
+ *   GET /brand.png     -> transparent brand mark for the firmware-update overlay (if provided)
  *   GET /logo.png      -> maker logo shown in the app (if provided)
+ *   GET /header.png    -> app.html header's own logo mark (if provided) — a
+ *                         separate file from /brand.png so it can use a
+ *                         different resolution/aspect ratio
  *   GET /device.json   -> device metadata (name, serial, version, mac)
  *
  * Registered with setup priority just above the stock web_server component so
@@ -66,6 +69,10 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
     this->logo_ = data;
     this->logo_size_ = size;
   }
+  void set_header(const uint8_t *data, size_t size) {
+    this->header_ = data;
+    this->header_size_ = size;
+  }
 
   bool canHandle(AsyncWebServerRequest *request) const override;
   void handleRequest(AsyncWebServerRequest *request) override;
@@ -91,6 +98,8 @@ class CloudLampWeb : public Component, public AsyncWebHandler {
   size_t brand_size_{0};
   const uint8_t *logo_{nullptr};
   size_t logo_size_{0};
+  const uint8_t *header_{nullptr};
+  size_t header_size_{0};
 };
 
 }  // namespace cloud_lamp_web

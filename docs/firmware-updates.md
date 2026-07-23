@@ -233,6 +233,30 @@ Recovery, in order of preference:
 Once the lamp is running v2.3.1 or newer, both the automatic and manual checks are
 protected against this contention (see `packages/updates.yaml`) and this should not recur.
 
+## Update install succeeds but the lamp goes dark / re-opens its setup Wi-Fi
+
+Reproduced on real hardware (not yet fully root-caused — see the v2.6.0 entry in
+[cloud-lamp-design.md](./cloud-lamp-design.md#project-status)): the web app
+shows **"Update failed — the previous firmware is still running"**, but the download,
+verification, and flash write actually completed successfully. What happens is the
+*freshly-flashed* firmware fails to reconnect to the home Wi-Fi network and falls back to
+its own setup hotspot (`Cloud-Lamp-XXXXXX`) instead — invisible to the web app, since it's
+no longer on the same network, so its 3-minute wait just times out and shows the generic
+failure. A power-cycle does **not** fix this on its own.
+
+Recovery: check whether your phone can see a **`Cloud-Lamp-XXXXXX`** Wi-Fi network again
+(the lamp's own setup hotspot). If so, reconnect it exactly like initial setup — connect to
+it, then either wait for the configuration page to open automatically or open
+`http://192.168.4.1` and re-enter your home Wi-Fi password (see
+[user-manual.md §5](./user-manual.md)). The lamp should then come back online at its usual
+address, already running the new firmware — no data is lost except locally-stored settings
+(Power Behavior, MQTT config, on/off state), which reset to defaults if this happens on the
+very first time the lamp boots a version with `esp8266: restore_from_flash: true` (v2.5.0+)
+after coming from an older one — reconfigure those in Settings afterwards.
+
+So far this has only been confirmed on a v2.4.0 → v2.5.1 jump. It's not yet known whether
+it also affects smaller version jumps (e.g. any update once already running v2.5.0+).
+
 ## Plain HTTP + Ed25519 signing
 
 Through v2.3.4, the manifest and firmware were fetched over HTTPS with `verify_ssl: false`

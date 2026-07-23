@@ -17,6 +17,194 @@ Related documents:
 
 ## Project status
 
+> **Phase:** v2.6.0 — a batch of captive-portal fixes/polish plus interim mitigations and
+> tuning, no architecture changes. Highlights (each has its own detailed entry further
+> down this section): **(1)** a real bug fix — the branded Wi-Fi onboarding page
+> (`web/setup.html`) was silently being shadowed by ESPHome's own unbranded stock captive
+> portal on some boots, due to a handler-registration race; `cloud_lamp_web`'s setup
+> priority raised above both `wifi` and `captive_portal` so it always wins. **(2)** the
+> captive portal now has its own language dropdown (same 10 languages as the app, English
+> default) instead of silently auto-detecting the phone's OS language. **(3)** an interim
+> mitigation for a real-hardware OTA update failure (v2.4.0 → v2.5.1): the update itself
+> succeeds, but the lamp can lose its Wi-Fi pairing and fall back to its own setup hotspot
+> on that specific version jump (root cause not fully confirmed, suspected first-ever
+> `restore_from_flash` write) — the in-app failure message now explains how to recover via
+> the captive portal. **(4)** Ring Ripple's inter-ripple pause shortened (was reading as
+> "did it turn off?") and Candlelight's flicker amplitude restored (had become an
+> almost-static colour after the previous tuning pass). **(5)** three small web-app fixes:
+> mobile header badge order (Connected always above Update available), title/serial
+> truncation when the update badge is shown, and the update-available badge not appearing
+> until a manual check (delayed the first automatic check past boot-time Wi-Fi/MQTT
+> contention). Verified: (1)-(2) live on real hardware; (3)-(5) browser/compile-verified
+> only, not yet re-tested on real hardware as this exact release build. See
+> [Behaviour reference](#behaviour-reference) and [Effects](#effects-effectsyaml) for the
+> resulting current-state reference; the entries below are the as-built record.
+>
+> **Phase:** v2.6.0 — found and fixed the real cause of a report that the
+> captive-portal Wi-Fi onboarding page "looks basic" when opened via the setup hotspot.
+> Ruled out CSS/CNA-sandbox theories first (the page renders fully styled in
+> `tools/mock-device.py`, and identically in real Safari and in the iOS setup-hotspot
+> popup — so it's not a rendering-environment issue). Live `curl` against a real lamp
+> stuck in AP-fallback proved it conclusively: **every** path (`/`, `/app`,
+> `/manifest.json`, `/device.json`, `/brand.png`) returned the exact same bytes — a
+> byte-for-byte match (verified by decompressing ESPHome's own `captive_index.h`) for the
+> **stock, unbranded** ESPHome captive-portal page. `web/setup.html` wasn't being served at
+> all. Root cause: `cloud_lamp_web`'s `AsyncWebHandler` and ESPHome's stock
+> `captive_portal` handler share one `AsyncWebServer`; whichever registers first wins for
+> *every* matching request (`AsyncWebServer::_attachHandler` stops at the first
+> `canHandle()==true`, in registration order) — captive_portal's own `canHandle()` matches
+> any GET unconditionally while active, so if it registers before `cloud_lamp_web`, it
+> shadows it completely, not just for `/`. `cloud_lamp_web::setup()` normally *does* run
+> first (its priority `WIFI - 0.5` vs. captive_portal's `WIFI + 1.0` — higher runs later —
+> only matters when captive_portal starts the *usual* way: dynamically, from `loop()`,
+> long after every component's `setup()` has already run, if the STA connection fails).
+> But `WiFiComponent::setup()` has a second, synchronous path: if it finds no usable saved
+> STA credentials (`has_sta()` false right after trying to load them from flash), it calls
+> `captive_portal::start()` **immediately**, still inside `setup()`, at priority `WIFI`
+> (250) — *before* `cloud_lamp_web` (`WIFI - 0.5` = 249.5) ever gets a chance to register.
+> This is exactly the boot state this lamp was in (still recovering from the original
+> post-OTA Wi-Fi-loss incident above), which is why it was reproducible. Confirmed the
+> same mechanism plausibly explains that *original* incident too: `wifi:`'s own saved-STA
+> preference has always been explicitly flash-backed
+> (`make_preference<SavedWifiSettings>(hash, true)`, independent of
+> `esp8266: restore_from_flash`) — but flash preference *offsets* are handed out
+> sequentially, in whatever order each component's `make_preference(..., in_flash=true)`
+> call happens to run at boot; turning on `esp8266: restore_from_flash: true` (v2.5.0) made
+> many *other* previously-RTC-only preferences flash-backed for the first time, which can
+> shift where Wi-Fi's own preference lands relative to the one it was written at under the
+> older firmware — landing on stale/foreign bytes fails the stored CRC, `has_sta()` comes
+> back false, and the cascade above begins. This second half remains a plausible, evidence-
+> consistent theory rather than a fully proven one (would need flash-offset instrumentation
+> to nail down definitively) — but it's no longer a shot in the dark either.
+> **Fix shipped:** `CloudLampWeb::get_setup_priority()` raised from `WIFI - 0.5` to
+> `WIFI + 2.0` — strictly above *both* `captive_portal` (`WIFI + 1.0`) and `wifi`
+> (`WIFI`) itself, so `cloud_lamp_web` always registers first regardless of which of the
+> two startup paths triggers the portal. Verified on the real, still-affected lamp: pushed
+> the fixed build via the browser-upload OTA endpoint (`http://192.168.4.1/update`, reachable
+> even mid-portal since it's a `POST`, which the portal's GET-only catch-all doesn't shadow)
+> and re-ran the same `curl` probes — all now return the actual branded `web/setup.html`
+> (`Content-Length: 11094`, matching its content, not the stock page's `1462`). Separately
+> confirmed via `esphome compile` + inspecting the generated `main.cpp` that
+> `web/setup.html` has always been correctly compiled in (`set_setup(..., 11041)` bytes
+> gzipped) — so this was never a missing-content bug, only a handler-race one. Two earlier,
+> low-risk hardening tweaks shipped alongside this (harmless either way, kept for
+> consistency): `-webkit-backdrop-filter` alongside the unprefixed property on `.card` in
+> both `web/setup.html` and `web/app.html`, and the success screen's
+> `http://cloud-lamp-xxxxxx.local/` reconnect address is now a tappable `<a>` link instead
+> of inert text. Separately, confirmed the "how do I get back to the lamp" ask was already
+> covered end-to-end (success screen's numbered steps, `user-manual.md` §5,
+> `firmware-updates.md`'s troubleshooting section — all point at the mDNS hostname); a true
+> instant hand-off to the lamp's real IP isn't possible from inside a locked-down portal
+> webview, so that's the practical ceiling, not a gap. Also confirmed (real device, real
+> iPhone) that the setup-hotspot popup sometimes not appearing automatically is iOS's own
+> "seen this SSID before" heuristic, not a device-side delay — the device responds
+> instantly once a real navigation is attempted; nothing to fix there. Not yet
+> re-verified end-to-end from a genuine factory-reset boot (only from the specific
+> already-broken state this lamp was already in) or folded into an official release build.
+> Follow-up in the same session: added a language-selector dropdown to `web/setup.html`
+> itself (same 10 languages as the app, English default). Previously the page
+> auto-detected from `navigator.languages` — exactly why a German-language phone saw the
+> *whole* onboarding page in German even though the main app defaults to English; the
+> dropdown replaces that auto-detect entirely, matching the app's own policy that English
+> is the default and every other language is an explicit user choice. Deliberately not
+> persisted via `localStorage` — some captive-portal webviews (notably iOS's Captive
+> Network Assistant) run in a restricted context where storage APIs can be unavailable,
+> and the page is only ever seen once per onboarding anyway — so the choice lives in a
+> page-local JS variable, with a new `applyI18n()` re-rendering every static label plus
+> the live network list (so "Other network…" / the empty-state text follow the selection
+> too). Browser-verified against `tools/mock-device.py` (English → German → English,
+> including the network list); not yet tested on real hardware. Also dug further into the
+> "auto-popup sometimes doesn't appear / is slow" heuristic noted just above, by reading
+> ESPHome's actual `captive_portal.cpp`: confirmed the wildcard DNS server
+> (`dns_server_->start(53, "*", ip)`, both the ESP32 and the Arduino/ESP8266 build this
+> project uses) and our own `canHandle()` (`url != "/config.json" && url != "/wifisave"`
+> while the portal is active — i.e. *every other* GET, including OS captive-detection
+> probes like `/hotspot-detect.html`, `/generate_204`, `/ncsi.txt`) were already correct
+> before today; the branded page is already served for those probe paths too, not just
+> `/`. No code-level bug found — the remaining unreliability lines up with well-documented,
+> device-independent iOS behaviour beyond the SSID-seen-before heuristic already noted:
+> (1) the very first captive-check probe can race and lose if a phone joins the AP in the
+> brief window before its DNS/HTTP stack has finished starting inside
+> `captive_portal::start()`; (2) an active VPN or encrypted DNS (DoH) profile on the phone
+> bypasses the local DNS interception the whole mechanism depends on. The standard,
+> Apple-acknowledged workaround — manually opening Safari and navigating to any address
+> (the lamp's own, or a throwaway one like `1.1.1.1`) — always triggers it instantly,
+> matching what was already observed. Nothing changed on the device side; there is no safe
+> device-side fix for OS-level caching/heuristics.
+>
+> **Phase:** v2.6.0 — second real-hardware tuning pass on two effects from the
+> v2.5.0 batch, both confirmed too subtle on the bench lamp rather than "final calibration"
+> (as flagged at the time). **Ring Ripple:** the 3 s pause between ripples (plus the
+> ripple's own soft fade-in/out runout either side of it) added up to a stretch long enough
+> to read as "did it turn off?" rather than a deliberate calm beat between waves;
+> `ring_ripple_pause_ms` `3000` → `1200` (substitution only, lambda unchanged).
+> **Candlelight:** now reads as a fixed warm-orange colour with no visible flicker at all —
+> confirmed as amplitude, not the snap/jumpiness the *previous* pass fixed. The v2.5.0
+> rewrite fixed two separate, previously-conflated bugs at once: (1) each ring **snapped**
+> to a fresh random target every 90 ms (the actual "disco" cause, fixed by the continuous
+> `dip[r] += (target - dip) * ease` glide), and (2) `candle_depth` wasn't a real cap at all
+> (the old normalisation divided by the same constant it multiplied by, so depth changes
+> had ~no effect on range) — fixing *that* into a genuine cap, while keeping the same
+> default (`60`) chosen for the old, non-functional-cap formula, made the reachable dip a
+> mere ~0-24% of the full base→ember shift instead of the old ~0-100% — calm turned into
+> practically invisible. Only the snap needed fixing, not the range: `candle_depth` `60` →
+> `150` restores a visible ember dip while the (unrelated, already-fixed) glide keeps it
+> smooth; also nudged the ease factor `0.05` → `0.07` so the glide keeps up with each new
+> target (re-rolled every `candle_interval_ms` = 320 ms) a bit better instead of mostly
+> averaging itself out. Both changes are substitution/constant tweaks verified with a clean
+> `esphome compile`; **not yet re-tested on real hardware** after this second pass.
+>
+> **Phase:** v2.6.0 — reproduced a real OTA failure on real hardware and shipped
+> an interim mitigation; root cause not yet fully confirmed. Repro method: checked out the
+> exact `v2.4.0` git tag into a throwaway worktree, added `api:` for live Wi-Fi log
+> streaming (the same method as the `cloud-lamp-dev.yaml` diagnostic builds described
+> below), push-OTA'd it to a real lamp, then triggered the real pull-OTA update to the
+> currently-published v2.5.1 via the device's own REST API while watching logs live.
+> Result: the download, MD5 check, and flash write all completed cleanly (100% in 14s,
+> "Update complete") — but the freshly-flashed v2.5.1 image never reconnected to the home
+> Wi-Fi network afterwards, falling back to its own setup hotspot instead; it stayed that
+> way for **hours**, and a power cycle did not recover it — only manually re-pairing Wi-Fi
+> via the captive portal (`192.168.4.1`) brought it back online. So the update itself
+> genuinely succeeds; the lamp simply loses its Wi-Fi pairing on that specific version
+> jump, which is what makes the web app's 3-minute polling window give up and show
+> "previous firmware still running" — a real but *secondary* symptom, not the cause.
+> Leading (unconfirmed) suspect: this is the first time this physical unit ever exercises
+> `esp8266: restore_from_flash: true` (new in v2.5.0), which starts writing to a flash
+> sector never touched by any earlier version — but this has not been proven at the flash
+> level, and an unrelated toolchain/partition difference between when v2.4.0 was
+> originally built and today's rebuild can't be ruled out either. Side effect observed:
+> all persisted settings (Power Behavior, MQTT config, on/off state) reset to defaults
+> after the incident, consistent with a genuinely first-ever flash-preferences write.
+> **Interim mitigation shipped now** (doesn't require knowing the exact root cause):
+> `fw_hint_fail` (`web/app.html`, all 10 languages) now tells the user to check whether the
+> lamp re-created its own Wi-Fi network and, if so, reconnect it the same way as initial
+> setup — turning a "looks bricked" dead end into a known, documented recovery path for
+> anyone (including other gift recipients on pre-v2.5.0 firmware) who hits this. Proper
+> root-causing (and, ideally, a real fix or a guarded/staged rollout for the
+> `restore_from_flash` transition) remains open.
+>
+> **Phase:** v2.6.0 — three small web-app fixes. **(1)** On the mobile header
+> layout, the "Update available" badge used to wrap onto its own line *above* the
+> "Connected" pill when both couldn't fit on one line (pure DOM-order artifact of
+> `flex-wrap`); swapped so Connected is always the top line and the badge (only shown when
+> relevant) wraps below it. **(2)** The "Cloud-Lamp" title and serial-number subtitle in
+> the header were getting ellipsis-truncated whenever the update badge appeared, even with
+> visually obvious room to spare — a flexbox quirk where a wrapping flex item's un-wrapped
+> (max-content) width is used for shrink-distribution purposes, so the brand name shrank
+> too even though the badge/pill group had room to wrap instead. Fixed with
+> `.brand{flex-shrink:0}`, so all squeeze pressure lands on the badge/pill group (which can
+> absorb it by wrapping) and the brand text is never truncated. **(3)** The "Update
+> available" badge sometimes didn't appear until the user manually pressed "Check for New
+> Updates" in Settings, even though the manifest genuinely had a newer version — traced to
+> `packages/updates.yaml`'s periodic manifest check firing its *first* automatic check
+> within a few seconds of boot (ESPHome's default `PollingComponent` startup behaviour),
+> often before Wi-Fi has even finished associating and right as MQTT's own connect burst is
+> competing for heap; that first check would silently fail with no retry until the next
+> full 6h tick. Added `startup_delay: 90s` to that `interval:` so the first automatic check
+> happens well after boot-time Wi-Fi/MQTT contention has settled, instead of racing it.
+> Verified: (1) and (2) browser-verified against `tools/mock-device.py`; (3) is an ESPHome
+> config change confirmed with `esphome config`, not yet tested on real hardware.
+>
 > **Phase:** v2.5.1 — MQTT settings save behaviour changed from silent auto-commit
 > (on blur/change) to an explicit **Save** button: the four broker fields (Broker/Port/
 > Username/Password) now only stage edits locally — nothing is sent to the device, and no
@@ -434,6 +622,19 @@ Related documents:
 > considered too (smaller transfers hold a connection slot for less time, marginally
 > reducing contention odds) but wasn't necessary once the images reliably retry through a
 > transient failure; revisit if the issue resurfaces.
+> **Dedicated, smaller header logo (no version bump yet):** the issue above did
+> resurface for the header specifically, so following through on "revisit if it
+> resurfaces" — the app.html header now loads its own `/header.png` (224×112, a correctly
+> proportioned @2x asset for its 112×56 CSS slot, losslessly optimized with `optipng`:
+> 22.0 KB) instead of sharing `/brand.png` (28.7 KB, and letterboxed within that slot
+> since its aspect ratio didn't match). Smaller + faster to fully transfer, so a lost
+> connection race during the initial request burst is less likely. `/brand.png` itself is
+> unchanged and still used by the firmware-update overlay icon and `web/setup.html`'s own
+> header — this is a new, separate file/route (`header_file` in
+> `packages/web-remote.yaml`, `/header.png` in `components/cloud_lamp_web`) specifically
+> so those other spots are unaffected. `web/setup.html` was deliberately left on
+> `/brand.png` for now (not asked for); revisit together if the header fix should extend
+> there too.
 > **Brightness icon (no firmware change, v2.5.0):** the icon next to the
 > Brightness slider changed from a half-filled circle to a line-drawn light bulb (stroke
 > style, matching the Speed slider's icon and the rest of the app's icon language) —
@@ -637,7 +838,7 @@ Related documents:
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.5.1
+> **Firmware:** ESPHome 2026.6.0, project version 2.6.0
 
 ### GitHub Pages setup
 
@@ -707,7 +908,8 @@ cloud-lamp/
 │   ├── app.html                  # Single-file iOS-style web app (gzipped into firmware)
 │   ├── setup.html                # Branded captive-portal Wi-Fi onboarding page
 │   ├── icon.png                  # Home-screen / PWA icon (wordmark, transparent)
-│   ├── brand.png                 # Header wordmark (transparent, /brand.png)
+│   ├── brand.png                 # Wordmark for the fw-update overlay + setup.html header (/brand.png)
+│   ├── header.png                # Wordmark for app.html's own header, @2x for its CSS slot (/header.png)
 │   └── logo.png                  # DD Productions logo (embedded, served at /logo.png)
 ├── assets/                       # Artwork sources (cloud-lamp-logo.png = project wordmark)
 ├── tools/
@@ -808,9 +1010,11 @@ guarantee no LED can stay lit from an undefined boot state.
   the sticker) with a captive portal for entering home Wi-Fi credentials. The lamp keeps
   working as a lamp the whole time; `reboot_timeout: 0s` means it never reboots over Wi-Fi.
 - The portal shows the **branded onboarding page** (`web/setup.html`, served by
-  `cloud_lamp_web`): same design language as the app, auto-localised (same ten languages),
-  network list with signal strength, password reveal, and a success view that tells the
-  user to rejoin their home Wi-Fi and open the lamp's `.local` address. The stock
+  `cloud_lamp_web`): same design language as the app, a language dropdown (same ten
+  languages as the app, English default — a deliberate, explicit choice rather than
+  auto-detecting the phone's OS language), network list with signal strength, password
+  reveal, and a success view that tells the user to rejoin their home Wi-Fi and open the
+  lamp's `.local` address. The stock
   captive-portal endpoints (`/config.json` scan, `/wifisave` save) keep doing the work
   underneath; without a compiled-in setup page the stock ESPHome page appears instead.
 
@@ -823,8 +1027,10 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
 - **Delivery:** `web/app.html` is gzip-compressed at compile time and embedded in flash
   (PROGMEM) by the custom `cloud_lamp_web` component. The component also serves
   `/manifest.json` (PWA manifest, name = friendly name), `/icon.png` (home-screen / PWA
-  icon), `/brand.png` (transparent cloud mark in the app header), `/logo.png` (DD
-  Productions maker logo in the footer) and `/device.json` (name, serial, MAC, version).
+  icon), `/header.png` (transparent cloud mark in the app header), `/brand.png` (the same
+  wordmark, used by the firmware-update overlay icon and `web/setup.html`'s own header —
+  see below), `/logo.png` (DD Productions maker logo in the footer) and `/device.json`
+  (name, serial, MAC, version).
 - **PWA icon (`/icon.png`):** the project wordmark on a square transparent canvas
   (512×512). Used for Add to Home Screen / manifest icons. iOS may still fill
   transparent `apple-touch-icon` pixels with black — check on a real device after each
@@ -835,9 +1041,12 @@ A single-file iOS-style web app served by the lamp itself at `http://<lamp-ip>/`
   Safari's site-icon cache is known to ignore `Cache-Control` and can get stuck on a
   stale favicon/home-screen icon otherwise (see changelog). Changing `web/icon.png`'s
   content is enough; the hash (and therefore the URL) updates itself automatically.
-- **Header brand (`/brand.png`):** the same wordmark, cropped landscape, for the in-app
-  header only (`object-fit: contain`, no background box; not used as the home-screen
-  icon).
+- **Header brand (`/header.png`):** the same wordmark, its own dedicated file
+  (224×112 — a proper @2x asset for the header's 112×56 CSS slot, `object-fit: contain`,
+  no background box; not used as the home-screen icon). Deliberately a separate file
+  from `/brand.png` (which still serves the firmware-update overlay icon and
+  `web/setup.html`'s header) so this one spot's resolution/aspect ratio/file size can be
+  tuned independently — see the changelog entry below for why.
 - **PWA:** a top-of-page button *Create a remote control app* opens a structured sheet with
   step-by-step iOS home-screen instructions (including the lamp’s own unique
   `http://cloud-lamp-<serial>.local/` address — same six-hex serial as the header). The button is shown only when

@@ -75,18 +75,27 @@ update:
 # Automatic check heap guard: update:'s own update_interval polling has no
 # on_begin/on_error hooks to extend (unlike ota_via_http above, or the manual
 # "Check for updates now" button's on_press list below) — and ESPHome's
-# scheduler runs a PollingComponent's *first* update shortly after boot (a
-# small random offset, not the full interval), exactly when MQTT's own
-# connect + discovery burst is competing hardest for the ESP8266's tight
-# contiguous heap. Confirmed directly while diagnosing the original HTTPS
-# install failure: adding three extra MQTT-published debug sensors was
-# enough to tip that post-boot window over the edge. Kept as defense-in-depth
-# after the move to plain HTTP (see the header comment above) — a plain GET
-# is far lighter than the TLS handshake that originally motivated this, but
-# it's a cheap guard to keep. Drive the periodic check ourselves with the
-# same disable/check/enable order as check_for_updates_btn.
+# scheduler would otherwise run a PollingComponent's *first* update within a
+# few seconds of boot, exactly when MQTT's own connect + discovery burst is
+# competing hardest for the ESP8266's tight contiguous heap, *and* often
+# before Wi-Fi has even finished associating — so that first check either
+# loses the heap race or simply has no network yet, silently fails, and (with
+# no on_error retry) leaves the "Update available" badge dark for up to a
+# full 6h until the next tick, even though the manifest genuinely has a
+# newer version. `startup_delay` pushes the *first* automatic check to 90s
+# after boot instead — long past Wi-Fi association/DHCP and MQTT's initial
+# connect burst on any network this lamp is likely to be on, but still
+# "shortly after boot" from the user's point of view. Confirmed directly
+# while diagnosing the original HTTPS install failure: adding three extra
+# MQTT-published debug sensors was enough to tip that post-boot window over
+# the edge. Kept as defense-in-depth after the move to plain HTTP (see the
+# header comment above) — a plain GET is far lighter than the TLS handshake
+# that originally motivated this, but it's a cheap guard to keep. Drive the
+# periodic check ourselves with the same disable/check/enable order as
+# check_for_updates_btn.
 interval:
   - interval: 6h
+    startup_delay: 90s
     then:
       - lambda: 'mqtt::global_mqtt_client->disable();'
       - update.check: firmware_update

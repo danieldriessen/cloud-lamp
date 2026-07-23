@@ -148,12 +148,15 @@
     /* Row 1: brand on the left, connection pill pinned to the top-right
        corner (align-items:flex-start keeps the pill glued to the top edge
        rather than centred against the taller logo block). The update badge
-       sits just left of the pill so it's visible without opening Settings,
-       and wraps onto its own line on narrow screens instead of overlapping. */
+       sits just right of the pill, wrapping onto its own line *below* the
+       pill (not above it — DOM order matters here) on narrow screens
+       instead of overlapping. flex-shrink:0 on .brand means all the
+       squeezing happens on .hdr-status (which can absorb it by wrapping)
+       instead of truncating the brand name/serial. */
     .hdr-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
     .hdr-status{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
     .hdr-row2{display:flex;align-items:center;justify-content:flex-end;gap:10px}
-    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0}
     /* Wordmark logo (cloud + "Lamp") — landscape slot, transparent PNG. */
     .brand .cloud{
       position:relative;overflow:visible;
@@ -187,7 +190,8 @@
 
     .card{
       background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-      box-shadow:var(--shadow);padding:16px;margin:12px 0;backdrop-filter:blur(10px);
+      box-shadow:var(--shadow);padding:16px;margin:12px 0;
+      -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
     }
     .sec-label{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:2px 2px 10px}
 
@@ -477,7 +481,7 @@
           <div class="brand">
             <div class="cloud" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M17.5 18H7a4 4 0 1 1 .7-7.94 5.5 5.5 0 0 1 10.63 1.55A3.7 3.7 0 0 1 17.5 18z"/></svg>
-              <img id="brandLogoImg" src="/brand.png" alt="">
+              <img id="brandLogoImg" src="/header.png" alt="">
             </div>
             <div style="min-width:0">
               <h1 id="devName">Cloud Lamp</h1>
@@ -485,8 +489,8 @@
             </div>
           </div>
           <div class="hdr-status">
-            <span class="upd-badge avail" id="fwBadgeMain" role="button" tabindex="0" hidden data-i18n="update_available">Update available</span>
             <div class="pill"><span class="dot" id="connDot"></span><span id="connText">…</span></div>
+            <span class="upd-badge avail" id="fwBadgeMain" role="button" tabindex="0" hidden data-i18n="update_available">Update available</span>
           </div>
         </div>
         <div class="hdr-row2">
@@ -733,7 +737,7 @@
   const $ = id => document.getElementById(id);
 
   /* ---------------- Robust logo image loading ----------------
-     /brand.png and /logo.png are small PNGs served by the lamp itself
+     /header.png (header) and /logo.png (footer) are small PNGs served by the lamp itself
      alongside a burst of other near-simultaneous requests on page load
      (icon.png, manifest.json, the long-lived /events SSE stream and a
      dozen initial REST state fetches) — the ESP8266's web server only has
@@ -803,7 +807,7 @@
       install_step1:"Open Settings → Apps → Safari and turn off “Not Secure Connection Warning”.",
       install_step2:"In Safari, open this lamp’s address (type it with http:// — do not search for it):",
       install_step3:"Tap Share → Add to Home Screen → Add. The lamp then opens like an app.",
-      fw_updating:"Updating firmware",fw_phase_install:"Installing update…",fw_phase_reboot:"Restarting…",fw_phase_wait:"Waiting for the lamp…",fw_phase_done:"Update complete",fw_phase_fail:"Update failed",fw_hint_install:"Keep the lamp plugged in. This usually takes under a minute. Controls pause until the lamp restarts.",fw_hint_reboot:"The new firmware is installed. The lamp is restarting…",fw_hint_wait:"Reconnecting — this can take up to a minute.",fw_hint_done:"Your settings were kept.",fw_hint_fail:"The previous firmware is still running. Check that the lamp has internet access, then try again.",fw_continue:"Continue",fw_retry:"Try again",fw_cancel:"Cancel",fx_colors:"Colors",fx_special:"Special effects",fx_custom:"Custom color",
+      fw_updating:"Updating firmware",fw_phase_install:"Installing update…",fw_phase_reboot:"Restarting…",fw_phase_wait:"Waiting for the lamp…",fw_phase_done:"Update complete",fw_phase_fail:"Update failed",fw_hint_install:"Keep the lamp plugged in. This usually takes under a minute. Controls pause until the lamp restarts.",fw_hint_reboot:"The new firmware is installed. The lamp is restarting…",fw_hint_wait:"Reconnecting — this can take up to a minute.",fw_hint_done:"Your settings were kept.",fw_hint_fail:"The previous firmware is still running. If the lamp created its own Wi-Fi network again (like during setup), reconnect it the same way, then try again.",fw_continue:"Continue",fw_retry:"Try again",fw_cancel:"Cancel",fx_colors:"Colors",fx_special:"Special effects",fx_custom:"Custom color",
       day:"d",hour:"h",min:"m"},
     de:{brightness:"Helligkeit",speed:"Geschwindigkeit",effects:"Effekt-Presets",settings:"Einstellungen",general:"Allgemein",language:"Sprache",
       power_behavior:"Nach Stromausfall",power_behavior_d:"Verhalten, wenn der Strom zurückkehrt",
@@ -830,7 +834,7 @@
       install_step1:"Öffne Einstellungen → Apps → Safari und schalte „Warnung bei unsicherer Verbindung“ aus.",
       install_step2:"Öffne in Safari die Adresse dieser Lampe (mit http:// eintippen — nicht über die Suche):",
       install_step3:"Tippe auf Teilen → Zum Home-Bildschirm → Hinzufügen. Die Lampe öffnet sich danach wie eine App.",
-      fw_updating:"Firmware wird aktualisiert",fw_phase_install:"Update wird installiert…",fw_phase_reboot:"Neustart…",fw_phase_wait:"Warte auf die Lampe…",fw_phase_done:"Update abgeschlossen",fw_phase_fail:"Update fehlgeschlagen",fw_hint_install:"Lass die Lampe eingesteckt. Das dauert gewöhnlich unter einer Minute. Die Steuerung pausiert bis zum Neustart.",fw_hint_reboot:"Die neue Firmware ist installiert. Die Lampe startet neu…",fw_hint_wait:"Verbindung wird wiederhergestellt — das kann bis zu einer Minute dauern.",fw_hint_done:"Deine Einstellungen bleiben erhalten.",fw_hint_fail:"Die bisherige Firmware läuft weiter. Prüfe, ob die Lampe Internetzugang hat, und versuche es erneut.",fw_continue:"Weiter",fw_retry:"Erneut versuchen",fw_cancel:"Abbrechen",fx_colors:"Farben",fx_special:"Spezialeffekte",fx_custom:"Eigene Farbe",
+      fw_updating:"Firmware wird aktualisiert",fw_phase_install:"Update wird installiert…",fw_phase_reboot:"Neustart…",fw_phase_wait:"Warte auf die Lampe…",fw_phase_done:"Update abgeschlossen",fw_phase_fail:"Update fehlgeschlagen",fw_hint_install:"Lass die Lampe eingesteckt. Das dauert gewöhnlich unter einer Minute. Die Steuerung pausiert bis zum Neustart.",fw_hint_reboot:"Die neue Firmware ist installiert. Die Lampe startet neu…",fw_hint_wait:"Verbindung wird wiederhergestellt — das kann bis zu einer Minute dauern.",fw_hint_done:"Deine Einstellungen bleiben erhalten.",fw_hint_fail:"Die bisherige Firmware läuft weiter. Falls die Lampe wieder ihr eigenes WLAN aufgebaut hat (wie bei der Einrichtung), verbinde sie auf die gleiche Weise neu und versuche es dann erneut.",fw_continue:"Weiter",fw_retry:"Erneut versuchen",fw_cancel:"Abbrechen",fx_colors:"Farben",fx_special:"Spezialeffekte",fx_custom:"Eigene Farbe",
       day:"T",hour:"Std",min:"Min"},
     es:{brightness:"Brillo",speed:"Velocidad",effects:"Preajustes de efectos",settings:"Ajustes",general:"General",language:"Idioma",
       power_behavior:"Tras un corte de luz",power_behavior_d:"Comportamiento al volver la corriente",
@@ -857,7 +861,7 @@
       install_step1:"Ve a Ajustes → Apps → Safari y desactiva «Aviso de conexión no segura».",
       install_step2:"En Safari, abre la dirección de esta lámpara (escríbela con http:// — no la busques):",
       install_step3:"Toca Compartir → Añadir a pantalla de inicio → Añadir. La lámpara se abrirá como una app.",
-      fw_updating:"Actualizando firmware",fw_phase_install:"Instalando actualización…",fw_phase_reboot:"Reiniciando…",fw_phase_wait:"Esperando a la lámpara…",fw_phase_done:"Actualización completada",fw_phase_fail:"Actualización fallida",fw_hint_install:"Mantén la lámpara enchufada. Suele tardar menos de un minuto. Los controles se pausan hasta que reinicie.",fw_hint_reboot:"El nuevo firmware está instalado. La lámpara se está reiniciando…",fw_hint_wait:"Reconectando: puede tardar hasta un minuto.",fw_hint_done:"Se conservan tus ajustes.",fw_hint_fail:"Sigue ejecutándose el firmware anterior. Comprueba que la lámpara tenga internet e inténtalo de nuevo.",fw_continue:"Continuar",fw_retry:"Reintentar",fw_cancel:"Cancelar",fx_colors:"Colores",fx_special:"Efectos especiales",fx_custom:"Color personalizado",
+      fw_updating:"Actualizando firmware",fw_phase_install:"Instalando actualización…",fw_phase_reboot:"Reiniciando…",fw_phase_wait:"Esperando a la lámpara…",fw_phase_done:"Actualización completada",fw_phase_fail:"Actualización fallida",fw_hint_install:"Mantén la lámpara enchufada. Suele tardar menos de un minuto. Los controles se pausan hasta que reinicie.",fw_hint_reboot:"El nuevo firmware está instalado. La lámpara se está reiniciando…",fw_hint_wait:"Reconectando: puede tardar hasta un minuto.",fw_hint_done:"Se conservan tus ajustes.",fw_hint_fail:"Sigue ejecutándose el firmware anterior. Si la lámpara ha creado de nuevo su propia red Wi-Fi (como durante la configuración), reconéctala del mismo modo y vuelve a intentarlo.",fw_continue:"Continuar",fw_retry:"Reintentar",fw_cancel:"Cancelar",fx_colors:"Colores",fx_special:"Efectos especiales",fx_custom:"Color personalizado",
       day:"d",hour:"h",min:"min"},
     fr:{brightness:"Luminosité",speed:"Vitesse",effects:"Préréglages d'effets",settings:"Réglages",general:"Général",language:"Langue",
       power_behavior:"Après une coupure",power_behavior_d:"Comportement au retour du courant",
@@ -884,7 +888,7 @@
       install_step1:"Ouvrez Réglages → Apps → Safari et désactivez « Alerte de connexion non sécurisée ».",
       install_step2:"Dans Safari, ouvrez l'adresse de cette lampe (tapez-la avec http:// — ne passez pas par la recherche) :",
       install_step3:"Touchez Partager → Sur l'écran d'accueil → Ajouter. La lampe s'ouvre alors comme une appli.",
-      fw_updating:"Mise à jour du micrologiciel",fw_phase_install:"Installation de la mise à jour…",fw_phase_reboot:"Redémarrage…",fw_phase_wait:"En attente de la lampe…",fw_phase_done:"Mise à jour terminée",fw_phase_fail:"Échec de la mise à jour",fw_hint_install:"Laissez la lampe branchée. Cela prend généralement moins d'une minute. Les commandes sont en pause jusqu'au redémarrage.",fw_hint_reboot:"Le nouveau micrologiciel est installé. La lampe redémarre…",fw_hint_wait:"Reconnexion — cela peut prendre jusqu'à une minute.",fw_hint_done:"Vos réglages sont conservés.",fw_hint_fail:"L'ancien micrologiciel continue de fonctionner. Vérifiez l'accès Internet de la lampe, puis réessayez.",fw_continue:"Continuer",fw_retry:"Réessayer",fw_cancel:"Annuler",fx_colors:"Couleurs",fx_special:"Effets spéciaux",fx_custom:"Couleur personnalisée",
+      fw_updating:"Mise à jour du micrologiciel",fw_phase_install:"Installation de la mise à jour…",fw_phase_reboot:"Redémarrage…",fw_phase_wait:"En attente de la lampe…",fw_phase_done:"Mise à jour terminée",fw_phase_fail:"Échec de la mise à jour",fw_hint_install:"Laissez la lampe branchée. Cela prend généralement moins d'une minute. Les commandes sont en pause jusqu'au redémarrage.",fw_hint_reboot:"Le nouveau micrologiciel est installé. La lampe redémarre…",fw_hint_wait:"Reconnexion — cela peut prendre jusqu'à une minute.",fw_hint_done:"Vos réglages sont conservés.",fw_hint_fail:"L'ancien micrologiciel continue de fonctionner. Si la lampe a de nouveau créé son propre réseau Wi-Fi (comme lors de la configuration), reconnectez-la de la même façon, puis réessayez.",fw_continue:"Continuer",fw_retry:"Réessayer",fw_cancel:"Annuler",fx_colors:"Couleurs",fx_special:"Effets spéciaux",fx_custom:"Couleur personnalisée",
       day:"j",hour:"h",min:"min"},
     it:{brightness:"Luminosità",speed:"Velocità",effects:"Preset effetti",settings:"Impostazioni",general:"Generale",language:"Lingua",
       power_behavior:"Dopo un'interruzione",power_behavior_d:"Comportamento al ritorno della corrente",
@@ -911,7 +915,7 @@
       install_step1:"Apri Impostazioni → App → Safari e disattiva «Avviso connessione non sicura».",
       install_step2:"In Safari apri l'indirizzo di questa lampada (digitalo con http:// — non cercarlo):",
       install_step3:"Tocca Condividi → Aggiungi a Home → Aggiungi. La lampada si aprirà come un'app.",
-      fw_updating:"Aggiornamento firmware",fw_phase_install:"Installazione aggiornamento…",fw_phase_reboot:"Riavvio…",fw_phase_wait:"In attesa della lampada…",fw_phase_done:"Aggiornamento completato",fw_phase_fail:"Aggiornamento non riuscito",fw_hint_install:"Lascia la lampada collegata. Di solito richiede meno di un minuto. I comandi restano in pausa fino al riavvio.",fw_hint_reboot:"Il nuovo firmware è installato. La lampada si sta riavviando…",fw_hint_wait:"Riconnessione: può richiedere fino a un minuto.",fw_hint_done:"Le impostazioni sono state conservate.",fw_hint_fail:"Il firmware precedente è ancora in esecuzione. Verifica che la lampada abbia Internet e riprova.",fw_continue:"Continua",fw_retry:"Riprova",fw_cancel:"Annulla",fx_colors:"Colori",fx_special:"Effetti speciali",fx_custom:"Colore personalizzato",
+      fw_updating:"Aggiornamento firmware",fw_phase_install:"Installazione aggiornamento…",fw_phase_reboot:"Riavvio…",fw_phase_wait:"In attesa della lampada…",fw_phase_done:"Aggiornamento completato",fw_phase_fail:"Aggiornamento non riuscito",fw_hint_install:"Lascia la lampada collegata. Di solito richiede meno di un minuto. I comandi restano in pausa fino al riavvio.",fw_hint_reboot:"Il nuovo firmware è installato. La lampada si sta riavviando…",fw_hint_wait:"Riconnessione: può richiedere fino a un minuto.",fw_hint_done:"Le impostazioni sono state conservate.",fw_hint_fail:"Il firmware precedente è ancora in esecuzione. Se la lampada ha creato di nuovo la propria rete Wi-Fi (come durante la configurazione), riconnettila nello stesso modo e riprova.",fw_continue:"Continua",fw_retry:"Riprova",fw_cancel:"Annulla",fx_colors:"Colori",fx_special:"Effetti speciali",fx_custom:"Colore personalizzato",
       day:"g",hour:"h",min:"min"},
     nl:{brightness:"Helderheid",speed:"Snelheid",effects:"Effectpresets",settings:"Instellingen",general:"Algemeen",language:"Taal",
       power_behavior:"Na stroomuitval",power_behavior_d:"Gedrag als de stroom terugkeert",
@@ -938,7 +942,7 @@
       install_step1:"Open Instellingen → Apps → Safari en zet 'Waarschuwing onveilige verbinding' uit.",
       install_step2:"Open in Safari het adres van deze lamp (typ het met http:// — niet zoeken):",
       install_step3:"Tik op Deel → Zet op beginscherm → Voeg toe. De lamp opent daarna als een app.",
-      fw_updating:"Firmware bijwerken",fw_phase_install:"Update installeren…",fw_phase_reboot:"Opnieuw opstarten…",fw_phase_wait:"Wachten op de lamp…",fw_phase_done:"Update voltooid",fw_phase_fail:"Update mislukt",fw_hint_install:"Laat de lamp aangesloten. Dit duurt meestal minder dan een minuut. Bediening pauzeert tot de herstart.",fw_hint_reboot:"De nieuwe firmware is geïnstalleerd. De lamp start opnieuw…",fw_hint_wait:"Opnieuw verbinden — dit kan tot een minuut duren.",fw_hint_done:"Je instellingen blijven bewaard.",fw_hint_fail:"De vorige firmware draait nog. Controleer of de lamp internet heeft en probeer het opnieuw.",fw_continue:"Doorgaan",fw_retry:"Opnieuw proberen",fw_cancel:"Annuleren",fx_colors:"Kleuren",fx_special:"Speciale effecten",fx_custom:"Eigen kleur",
+      fw_updating:"Firmware bijwerken",fw_phase_install:"Update installeren…",fw_phase_reboot:"Opnieuw opstarten…",fw_phase_wait:"Wachten op de lamp…",fw_phase_done:"Update voltooid",fw_phase_fail:"Update mislukt",fw_hint_install:"Laat de lamp aangesloten. Dit duurt meestal minder dan een minuut. Bediening pauzeert tot de herstart.",fw_hint_reboot:"De nieuwe firmware is geïnstalleerd. De lamp start opnieuw…",fw_hint_wait:"Opnieuw verbinden — dit kan tot een minuut duren.",fw_hint_done:"Je instellingen blijven bewaard.",fw_hint_fail:"De vorige firmware draait nog. Als de lamp opnieuw zijn eigen wifinetwerk heeft aangemaakt (zoals tijdens de installatie), verbind hem dan op dezelfde manier opnieuw en probeer het daarna nogmaals.",fw_continue:"Doorgaan",fw_retry:"Opnieuw proberen",fw_cancel:"Annuleren",fx_colors:"Kleuren",fx_special:"Speciale effecten",fx_custom:"Eigen kleur",
       day:"d",hour:"u",min:"min"},
     pl:{brightness:"Jasność",speed:"Prędkość",effects:"Presety efektów",settings:"Ustawienia",general:"Ogólne",language:"Język",
       power_behavior:"Po zaniku zasilania",power_behavior_d:"Zachowanie po powrocie zasilania",
@@ -965,7 +969,7 @@
       install_step1:"Otwórz Ustawienia → Aplikacje → Safari i wyłącz „Ostrzeżenie o niezabezpieczonym połączeniu”.",
       install_step2:"W Safari otwórz adres tej lampy (wpisz go z http:// — nie wyszukuj):",
       install_step3:"Stuknij Udostępnij → Do ekranu początkowego → Dodaj. Lampa otworzy się jak aplikacja.",
-      fw_updating:"Aktualizacja oprogramowania",fw_phase_install:"Instalowanie aktualizacji…",fw_phase_reboot:"Ponowne uruchamianie…",fw_phase_wait:"Oczekiwanie na lampę…",fw_phase_done:"Aktualizacja zakończona",fw_phase_fail:"Aktualizacja nie powiodła się",fw_hint_install:"Pozostaw lampę podłączoną. Zwykle trwa to poniżej minuty. Sterowanie jest wstrzymane do restartu.",fw_hint_reboot:"Nowe oprogramowanie jest zainstalowane. Lampa uruchamia się ponownie…",fw_hint_wait:"Ponowne łączenie — może to potrwać do minuty.",fw_hint_done:"Twoje ustawienia zostały zachowane.",fw_hint_fail:"Poprzednie oprogramowanie nadal działa. Sprawdź dostęp do internetu i spróbuj ponownie.",fw_continue:"Kontynuuj",fw_retry:"Spróbuj ponownie",fw_cancel:"Anuluj",fx_colors:"Kolory",fx_special:"Efekty specjalne",fx_custom:"Własny kolor",
+      fw_updating:"Aktualizacja oprogramowania",fw_phase_install:"Instalowanie aktualizacji…",fw_phase_reboot:"Ponowne uruchamianie…",fw_phase_wait:"Oczekiwanie na lampę…",fw_phase_done:"Aktualizacja zakończona",fw_phase_fail:"Aktualizacja nie powiodła się",fw_hint_install:"Pozostaw lampę podłączoną. Zwykle trwa to poniżej minuty. Sterowanie jest wstrzymane do restartu.",fw_hint_reboot:"Nowe oprogramowanie jest zainstalowane. Lampa uruchamia się ponownie…",fw_hint_wait:"Ponowne łączenie — może to potrwać do minuty.",fw_hint_done:"Twoje ustawienia zostały zachowane.",fw_hint_fail:"Poprzednie oprogramowanie nadal działa. Jeśli lampa ponownie utworzyła własną sieć Wi-Fi (jak podczas konfiguracji), połącz się z nią w ten sam sposób, a potem spróbuj ponownie.",fw_continue:"Kontynuuj",fw_retry:"Spróbuj ponownie",fw_cancel:"Anuluj",fx_colors:"Kolory",fx_special:"Efekty specjalne",fx_custom:"Własny kolor",
       day:"d",hour:"godz.",min:"min"},
     pt:{brightness:"Brilho",speed:"Velocidade",effects:"Predefinições de efeitos",settings:"Definições",general:"Geral",language:"Idioma",
       power_behavior:"Após falha de energia",power_behavior_d:"Comportamento quando a energia volta",
@@ -992,7 +996,7 @@
       install_step1:"Abre Definições → Apps → Safari e desativa «Aviso de ligação não segura».",
       install_step2:"No Safari, abre o endereço desta lâmpada (escreve-o com http:// — não pesquises):",
       install_step3:"Toca em Partilhar → Adicionar ao ecrã principal → Adicionar. A lâmpada abre depois como uma app.",
-      fw_updating:"A atualizar o firmware",fw_phase_install:"A instalar a atualização…",fw_phase_reboot:"A reiniciar…",fw_phase_wait:"A aguardar a lâmpada…",fw_phase_done:"Atualização concluída",fw_phase_fail:"A atualização falhou",fw_hint_install:"Mantém a lâmpada ligada. Normalmente demora menos de um minuto. Os controlos ficam em pausa até reiniciar.",fw_hint_reboot:"O novo firmware está instalado. A lâmpada está a reiniciar…",fw_hint_wait:"A voltar a ligar — pode demorar até um minuto.",fw_hint_done:"As tuas definições foram mantidas.",fw_hint_fail:"O firmware anterior continua a funcionar. Verifica se a lâmpada tem internet e tenta novamente.",fw_continue:"Continuar",fw_retry:"Tentar novamente",fw_cancel:"Cancelar",fx_colors:"Cores",fx_special:"Efeitos especiais",fx_custom:"Cor personalizada",
+      fw_updating:"A atualizar o firmware",fw_phase_install:"A instalar a atualização…",fw_phase_reboot:"A reiniciar…",fw_phase_wait:"A aguardar a lâmpada…",fw_phase_done:"Atualização concluída",fw_phase_fail:"A atualização falhou",fw_hint_install:"Mantém a lâmpada ligada. Normalmente demora menos de um minuto. Os controlos ficam em pausa até reiniciar.",fw_hint_reboot:"O novo firmware está instalado. A lâmpada está a reiniciar…",fw_hint_wait:"A voltar a ligar — pode demorar até um minuto.",fw_hint_done:"As tuas definições foram mantidas.",fw_hint_fail:"O firmware anterior continua a funcionar. Se a lâmpada criou novamente a sua própria rede Wi-Fi (como durante a configuração), volta a ligá-la da mesma forma e depois tenta novamente.",fw_continue:"Continuar",fw_retry:"Tentar novamente",fw_cancel:"Cancelar",fx_colors:"Cores",fx_special:"Efeitos especiais",fx_custom:"Cor personalizada",
       day:"d",hour:"h",min:"min"},
     tr:{brightness:"Parlaklık",speed:"Hız",effects:"Efekt ön ayarları",settings:"Ayarlar",general:"Genel",language:"Dil",
       power_behavior:"Elektrik kesintisinden sonra",power_behavior_d:"Elektrik geri geldiğinde davranış",
@@ -1019,7 +1023,7 @@
       install_step1:"Ayarlar → Uygulamalar → Safari'yi açın ve “Güvenli Olmayan Bağlantı Uyarısı”nı kapatın.",
       install_step2:"Safari'de bu lambanın adresini açın (http:// ile yazın — aramayın):",
       install_step3:"Paylaş → Ana Ekrana Ekle → Ekle'ye dokunun. Lamba artık bir uygulama gibi açılır.",
-      fw_updating:"Donanım yazılımı güncelleniyor",fw_phase_install:"Güncelleme yükleniyor…",fw_phase_reboot:"Yeniden başlatılıyor…",fw_phase_wait:"Lamba bekleniyor…",fw_phase_done:"Güncelleme tamamlandı",fw_phase_fail:"Güncelleme başarısız",fw_hint_install:"Lambayı fişte bırakın. Genellikle bir dakikadan az sürer. Yeniden başlayana kadar denetimler duraklar.",fw_hint_reboot:"Yeni yazılım yüklendi. Lamba yeniden başlıyor…",fw_hint_wait:"Yeniden bağlanılıyor — bir dakikaya kadar sürebilir.",fw_hint_done:"Ayarlarınız korundu.",fw_hint_fail:"Önceki yazılım hâlâ çalışıyor. Lambanın interneti olduğunu kontrol edip yeniden deneyin.",fw_continue:"Devam",fw_retry:"Yeniden dene",fw_cancel:"İptal",fx_colors:"Renkler",fx_special:"Özel efektler",fx_custom:"Özel renk",
+      fw_updating:"Donanım yazılımı güncelleniyor",fw_phase_install:"Güncelleme yükleniyor…",fw_phase_reboot:"Yeniden başlatılıyor…",fw_phase_wait:"Lamba bekleniyor…",fw_phase_done:"Güncelleme tamamlandı",fw_phase_fail:"Güncelleme başarısız",fw_hint_install:"Lambayı fişte bırakın. Genellikle bir dakikadan az sürer. Yeniden başlayana kadar denetimler duraklar.",fw_hint_reboot:"Yeni yazılım yüklendi. Lamba yeniden başlıyor…",fw_hint_wait:"Yeniden bağlanılıyor — bir dakikaya kadar sürebilir.",fw_hint_done:"Ayarlarınız korundu.",fw_hint_fail:"Önceki yazılım hâlâ çalışıyor. Lamba kurulum sırasındaki gibi kendi Wi-Fi ağını yeniden oluşturduysa, aynı şekilde yeniden bağlanın ve ardından tekrar deneyin.",fw_continue:"Devam",fw_retry:"Yeniden dene",fw_cancel:"İptal",fx_colors:"Renkler",fx_special:"Özel efektler",fx_custom:"Özel renk",
       day:"g",hour:"sa",min:"dk"},
     ru:{brightness:"Яркость",speed:"Скорость",effects:"Пресеты эффектов",settings:"Настройки",general:"Общие",language:"Язык",
       power_behavior:"После отключения питания",power_behavior_d:"Поведение при восстановлении питания",
@@ -1046,7 +1050,7 @@
       install_step1:"Откройте Настройки → Приложения → Safari и отключите «Предупреждение о небезопасном подключении».",
       install_step2:"В Safari откройте адрес этой лампы (введите его с http:// — не через поиск):",
       install_step3:"Нажмите Поделиться → На экран «Домой» → Добавить. Лампа будет открываться как приложение.",
-      fw_updating:"Обновление прошивки",fw_phase_install:"Установка обновления…",fw_phase_reboot:"Перезапуск…",fw_phase_wait:"Ожидание лампы…",fw_phase_done:"Обновление завершено",fw_phase_fail:"Не удалось обновить",fw_hint_install:"Не отключайте лампу. Обычно это занимает меньше минуты. Управление недоступно до перезапуска.",fw_hint_reboot:"Новая прошивка установлена. Лампа перезапускается…",fw_hint_wait:"Повторное подключение — это может занять до минуты.",fw_hint_done:"Ваши настройки сохранены.",fw_hint_fail:"Работает прежняя прошивка. Проверьте доступ лампы к интернету и повторите попытку.",fw_continue:"Продолжить",fw_retry:"Повторить",fw_cancel:"Отмена",fx_colors:"Цвета",fx_special:"Спецэффекты",fx_custom:"Свой цвет",
+      fw_updating:"Обновление прошивки",fw_phase_install:"Установка обновления…",fw_phase_reboot:"Перезапуск…",fw_phase_wait:"Ожидание лампы…",fw_phase_done:"Обновление завершено",fw_phase_fail:"Не удалось обновить",fw_hint_install:"Не отключайте лампу. Обычно это занимает меньше минуты. Управление недоступно до перезапуска.",fw_hint_reboot:"Новая прошивка установлена. Лампа перезапускается…",fw_hint_wait:"Повторное подключение — это может занять до минуты.",fw_hint_done:"Ваши настройки сохранены.",fw_hint_fail:"Работает прежняя прошивка. Если лампа снова создала собственную сеть Wi-Fi (как при настройке), подключитесь к ней так же и повторите попытку.",fw_continue:"Продолжить",fw_retry:"Повторить",fw_cancel:"Отмена",fx_colors:"Цвета",fx_special:"Спецэффекты",fx_custom:"Свой цвет",
       day:"д",hour:"ч",min:"мин"},
   };
   // Effect display names per language (fallback: raw firmware name)

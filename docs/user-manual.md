@@ -89,6 +89,8 @@ You only need this once (and again if you move or change your Wi-Fi password):
    **`Cloud-Lamp-`** followed by the **S/N** on the sticker (e.g. `Cloud-Lamp-CFB911`),
    using the **WiFi-Passw. on the sticker**.
 3. A configuration page opens automatically (if not, open `192.168.4.1` in your browser).
+   It starts in English — use the language menu at the top of the page for one of the
+   other nine languages listed in [section 6](#6-the-remote-control-app).
 4. Choose your home Wi-Fi, enter its password, save.
 5. The lamp connects to your Wi-Fi. Reconnect your phone to your home Wi-Fi.
 
@@ -167,6 +169,12 @@ opens its setup hotspot again after ~1 minute — just repeat
 1. Make sure your phone is on the **same Wi-Fi** as the lamp.
 2. Type the Hostname exactly as printed on the sticker.
 3. Unplug the lamp, wait 5 seconds, plug it back in, wait a minute.
+
+**Update finished but the lamp can't be reached afterwards?** In rare cases the lamp can
+lose its Wi-Fi connection right after installing an update and reopen its own setup
+hotspot, just like during initial setup (look for `Cloud-Lamp-XXXXXX` in your phone's
+Wi-Fi list). If so, simply repeat [Wi-Fi setup](#5-connecting-the-lamp-to-your-wi-fi) —
+the update itself and all your other settings are unaffected.
 
 **Lamp doesn't react to the button?** Unplug and replug the power. The button works even
 without any Wi-Fi — if it still doesn't respond, contact the builder.
