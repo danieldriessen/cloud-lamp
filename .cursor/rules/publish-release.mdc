@@ -44,37 +44,58 @@ releases work this way: `docs/cloud-lamp-design.md#project-status`.
    fields/naming changed), `tools/mock-device.py` (if effects/entities changed), and any
    other doc that names a version number, effect, or entity that changed. Don't limit
    yourself to this list — reason about what this specific change actually touched.
-6. **Commit the source + doc changes** (version bump, README, manual, PDF, code, and any
-   other files from steps 1–5) as one clean commit *before* running `tools/release.sh` —
-   keep the release commit that script makes limited to the binary + manifest.
-7. **Run `tools/release.sh`** from the repo root. In order it: compiles the **public**
+6. **Security scan — before committing anything, since this whole repo is public.**
+   Everything from steps 1–5 (README, manual markdown + rebuilt PDF, design doc, any other
+   touched file) is about to become a public GitHub commit. Before staging:
+   - Grep the diff for every real value in `secrets.yaml` (Wi-Fi SSID/password, MQTT
+     broker host/user/password, anything else it holds). None of those may appear
+     literally anywhere in the repo — the *only* exception is the shared, deliberately
+     public AP + OTA password already documented in `docs/device-credentials.md`.
+   - Confirm `secrets.yaml` itself, any `.env` file, and the Ed25519 **private** signing
+     key are not staged (they must never be tracked — the key lives outside the repo by
+     design, see step 8).
+   - Scan for anything else that shouldn't be public but could've been pasted in while
+     debugging: real IP addresses/hostnames from your own network, personal contact info,
+     device serials tied to a specific unit, API tokens, device-flow/login codes, etc.
+   - This covers the *docs and repo*; it's in addition to (not a replacement for) the
+     binary-level secret scan `tools/release.sh` already runs on the compiled firmware in
+     step 9.
+   - If you find anything, stop and remove it before committing — don't publish first and
+     clean up after. Git history keeps old commits visible even once a file is edited
+     later, so anything that already leaked needs the credential rotated, not just a
+     follow-up commit; flag that to the user immediately rather than silently fixing it.
+7. **Commit the source + doc changes** (version bump, README, manual, PDF, code, and any
+   other files from steps 1–5, now scanned per step 6) as one clean commit *before* running
+   `tools/release.sh` — keep the release commit that script makes limited to the binary +
+   manifest.
+8. **Run `tools/release.sh`** from the repo root. In order it: compiles the **public**
    build (`cloud-lamp.yaml` — never `cloud-lamp-dev.yaml`, which has compiled-in Wi-Fi
    credentials) and scans the binary for secrets; writes `docs/firmware-dist/cloud-lamp/`
    (the `.bin` + `manifest.json`); **signs** the manifest with the Ed25519 private key kept
    **outside this repo** (default `~/.cloud-lamp-release-secrets/ota-ed25519-private.key`,
    override via `$RELEASE_SIGNING_KEY` — see `docs/firmware-updates.md#key-custody`); then
    **publishes** by committing + pushing `docs/firmware-dist/cloud-lamp/` (and, via that
-   same `git push`, the commit from step 6) to GitHub.
-8. **That single `git push` is the entire publish step for the OTA channel.** `docs/` is
+   same `git push`, the commit from step 7) to GitHub.
+9. **That single `git push` is the entire publish step for the OTA channel.** `docs/` is
    this repo's GitHub Pages source, served at the custom domain
    `cloud-lamp.ddproductions.de` over **plain HTTP** (not HTTPS — "Enforce HTTPS" is
    deliberately off; see `docs/firmware-updates.md#plain-http--ed25519-signing`), which is
    exactly the URL every lamp polls (`update_manifest_url` in `cloud-lamp.yaml`). There is
    no separate upload target, FTP step, or CDN to keep in sync.
-9. **`tools/release.sh` also tags the release and creates a GitHub Release** (`vX.Y.Z`,
-   with the `.bin` attached) via the `gh` CLI — see
-   `docs/firmware-updates.md#github-releases-human-facing-downloads`. This is purely a
-   human-facing download/browse page; it's unrelated to how the lamp itself updates, and
-   the script skips it gracefully (warning, not a failure) if `gh` isn't
-   installed/authenticated on the release machine. Don't treat a skipped GitHub Release as
-   a failed publish — the OTA channel (steps 7–8) is what devices depend on.
-10. **Verify the live manifest**, e.g. `curl http://cloud-lamp.ddproductions.de/firmware-dist/cloud-lamp/manifest.json`
+10. **`tools/release.sh` also tags the release and creates a GitHub Release** (`vX.Y.Z`,
+    with the `.bin` attached) via the `gh` CLI — see
+    `docs/firmware-updates.md#github-releases-human-facing-downloads`. This is purely a
+    human-facing download/browse page; it's unrelated to how the lamp itself updates, and
+    the script skips it gracefully (warning, not a failure) if `gh` isn't
+    installed/authenticated on the release machine. Don't treat a skipped GitHub Release
+    as a failed publish — the OTA channel (steps 8–9) is what devices depend on.
+11. **Verify the live manifest**, e.g. `curl http://cloud-lamp.ddproductions.de/firmware-dist/cloud-lamp/manifest.json`
     and confirm it reports the new version. GitHub Pages can take a minute or two to
     redeploy after the push — if it still shows the old version, wait and re-check rather
     than assuming something failed.
-11. Devices pick it up automatically (checked every 6 h and shortly after boot), or
+12. Devices pick it up automatically (checked every 6 h and shortly after boot), or
     immediately if the owner presses "Check for updates now" in the web app.
-12. **Post a short release report as your final reply — mandatory, every time.** Right
+13. **Post a short release report as your final reply — mandatory, every time.** Right
     after the checklist finishes (success, partial, or blocked), give the user a compact
     report, not a play-by-play of the steps above. Target ~6-10 lines total:
     - **Version:** old → new, and which bump size (patch/minor/major).
@@ -83,9 +104,12 @@ releases work this way: `docs/cloud-lamp-design.md#project-status`.
     - **Docs touched:** one line naming which files got real edits (or "none needed" if a
       full audit genuinely found nothing stale — don't skip the audit just because nothing
       changed last time).
-    - **Published:** confirm the live manifest now shows the new version (from step 10),
+    - **Published:** confirm the live manifest now shows the new version (from step 11),
       and whether the GitHub Release was created or skipped (and why, if skipped).
-    - **Not done / blocked:** anything from steps 1–10 that didn't complete, with the exact
+    - **Security:** one line confirming step 6's scan found nothing (or exactly what it
+      found and how it was handled — see step 6's rotation note if something had already
+      leaked).
+    - **Not done / blocked:** anything from steps 1–11 that didn't complete, with the exact
       reason — never silently omit a skipped or failed step.
     Keep it scannable — short bullets, no restating this checklist's mechanics back to the
     user.
