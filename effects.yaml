@@ -27,17 +27,19 @@ substitutions:
 
   # --- Pulse ("breathing") — pixel-level so it never overwrites brightness_pct.
   # Floor kept well above "looks off", especially once the light's own
-  # brightness/colour-correct scale it down further.
-  pulse_min_level: "115"        # ~45% of 255
+  # brightness/colour-correct scale it down further. Raised once already
+  # (this is the second pass) — still looked close to "off" at the dimmest
+  # point, so the floor went up again and the cycle got a touch slower.
+  pulse_min_level: "150"        # ~59% of 255 (was 115 / ~45%)
   pulse_max_level: "225"        # ~88% of 255
-  pulse_period_ms: "8000"       # Full there-and-back cycle at speed 50
+  pulse_period_ms: "8800"       # Full there-and-back cycle at speed 50 (was 8000)
 
   # --- Rainbow ---
   rainbow_width: "24"           # One full spectrum across all 3 rings
   rainbow_period_ms: "12000"    # Full hue lap at speed 50
 
   # --- Blue Color Wipe (blue → violet, wider than before) ---
-  wipe_led_interval_ms: "400"   # Per-LED step at speed 50; 24 LEDs ≈ 9.6 s per colour
+  wipe_led_interval_ms: "350"   # Per-LED step at speed 50; 24 LEDs ≈ 8.4 s per colour (was 400)
 
   # --- Sky Breathing (slow crossfade between two blues) ---
   sky_breath_period_s: "14"     # Seconds for a full there-and-back crossfade at speed 50
@@ -45,14 +47,28 @@ substitutions:
   # --- Aurora Drift (moving pastel gradient, per-ring depth) ---
   aurora_period_s: "22"         # Seconds for one full drift cycle at speed 50
 
-  # --- Candlelight — deeper, more responsive flicker with a colour shift
-  # (dims AND reddens, like a real flame) so it reads clearly through the
-  # diffuser instead of just a faint brightness wobble.
-  candle_interval_ms: "90"      # Flicker update rate at speed 50
-  candle_depth:        "140"    # Max flicker dip (0-255); higher = more nervous flame
+  # --- Candlelight — gentle, nursery-safe ember glow. This lamp is a
+  # decorative/night light (often right next to where a baby sleeps), not a
+  # room light, so the flicker is deliberately understated: a smoothly-eased
+  # warm glow with small, soft dips "here and there" rather than a fast,
+  # jumpy, disco-like strobe. Each ring eases continuously toward a new
+  # target every candle_interval_ms instead of snapping to it, and
+  # candle_depth caps how dark/red a dip can ever get (as a fraction of 255)
+  # — both together are what keep it calm. Raise either for a livelier flame.
+  candle_interval_ms: "320"     # New per-ring flicker target every ~this long, at speed 50
+  candle_depth:        "60"     # Max dip depth (0-255, fraction of the base->ember shift)
+
+  # --- Ring Ripple (soft wave travelling ring 1 -> ring 2 -> ring 3, see
+  # "Power injection" in cloud-lamp-design.md for the physical ring-wiring
+  # order) — the one motion this lamp's 3-ring build supports that no other
+  # effect here uses; every other "travelling" effect moves along the
+  # flattened LED strip instead. ---
+  ring_ripple_travel_ms: "6000" # One ripple's full 3-ring sweep at speed 50
+  ring_ripple_pause_ms:  "3000" # Calm gap between ripples at speed 50
+  ring_ripple_sigma:     "0.6"  # Ripple width in ring-units; higher = softer/more cross-ring overlap
 
   # --- Spectrum Fade (whole lamp crossfades through the 18-colour palette) ---
-  spectrum_fade_period_s: "36"  # Seconds for one full lap of the palette at speed 50
+  spectrum_fade_period_s: "48"  # Seconds for one full lap of the palette at speed 50 (was 36)
 
   # --- Spectrum Flow (same palette, travelling gradient across the LEDs) ---
   spectrum_flow_period_s: "30"  # Seconds for one full lap of the palette at speed 50
@@ -180,11 +196,21 @@ light:
       # Sky Breathing: very slow sinusoidal crossfade between a deep ocean
       # blue and a pale, almost-white sky blue — a wide lightness/hue swing
       # so the fade reads clearly even through the diffuser.
+      # The "deep ocean blue" end used to be (15, 55, 190) — at its darkest
+      # point (m=0) that read as almost off in a lit room. Two compounding
+      # reasons: it's a genuinely dark colour to begin with, AND the light's
+      # own `color_correct: [100%, 75%, 60%]` (see cloud-lamp.yaml) knocks
+      # the blue channel down to 60% on top of that — a blue-heavy colour
+      # loses proportionally more perceived brightness to colour_correct
+      # than a white/warm one does. This is applied on top of whatever
+      # `${effect_speed}`/brightness the user has set; it isn't a "not using
+      # full brightness" bug, the trough colour itself was just too dark.
+      # Brightened (kept the same deep-blue hue, raised R/G more than B).
       - addressable_lambda:
           name: "Sky Breathing"
           update_interval: 50ms
           lambda: |-
-            const Color a(15, 55, 190);     // deep ocean blue
+            const Color a(40, 110, 225);    // deep ocean blue (brighter — was 15,55,190)
             const Color b(160, 230, 255);   // pale sky blue
             float spd = id(effect_speed).state;
             if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
@@ -198,15 +224,28 @@ light:
               (uint8_t)(a.g + (b.g - a.g) * m),
               (uint8_t)(a.b + (b.b - a.b) * m));
 
-      # Candlelight: warm orange with a deep, responsive random-walk flicker
-      # per ring (8 LEDs each). Each dip both dims AND reddens towards a
-      # smouldering-ember tone — like a real flame — so it stays clearly
-      # visible through the diffuser instead of just a faint brightness wobble.
+      # Candlelight: warm orange with a gentle, smoothly-eased flicker per
+      # ring (8 LEDs each) that dims AND reddens slightly towards a
+      # smouldering-ember tone — like a real, calm flame in a quiet room —
+      # rather than a fast, jumpy, disco-like strobe. Deliberately subtle:
+      # this lamp is a decorative night light, plausibly right next to a
+      # baby's cradle, not a room light.
       - addressable_lambda:
           name: "Candlelight"
           update_interval: 40ms
           lambda: |-
-            static uint8_t dip[3] = {0, 0, 0};
+            // `dip`/`target` are 0 (steady, full base colour) .. 1 (deepest,
+            // most-ember dip a ring is currently allowed to reach). `dip`
+            // eases continuously toward `target` every frame instead of
+            // snapping straight to it — that continuous glide, not the
+            // per-ring randomness itself, is what makes this read as a soft
+            // flicker instead of a strobe. Each ring re-rolls its own target
+            // independently and on its own schedule for a natural, never
+            // perfectly-synchronised look, but the small ${candle_depth}
+            // ceiling (a fraction of the full 0-255 base->ember shift) keeps
+            // every dip gentle no matter what gets rolled.
+            static float dip[3] = {0.0f, 0.0f, 0.0f};
+            static float target[3] = {0.0f, 0.0f, 0.0f};
             static uint32_t last_step = 0;
             const Color base(255, 147, 41);   // classic candle colour
             const Color ember(150, 45, 5);    // dim, reddened low point
@@ -214,24 +253,74 @@ light:
             if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
             if (spd > 100.0f) spd = 100.0f;
             uint32_t interval = (uint32_t)(${candle_interval_ms} * 50.0f / spd);
-            if (interval < 20) interval = 20;
+            if (interval < 80) interval = 80;
             uint32_t now = millis();
             if (last_step == 0 || now - last_step >= interval) {
               last_step = now;
-              for (int r = 0; r < 3; r++) {
-                uint8_t target = random_uint32() % ${candle_depth};
-                // Responsive: mostly follows the new target instead of
-                // averaging it away, so dips are actually felt.
-                dip[r] = (dip[r] + target * 3) / 4;
-              }
+              for (int r = 0; r < 3; r++)
+                target[r] = (random_uint32() % 256) / 255.0f * (${candle_depth} / 255.0f);
             }
             for (int r = 0; r < 3; r++) {
-              float m = dip[r] / (float) ${candle_depth};   // 0 (steady) .. 1 (deepest dip)
+              // Continuous ease, independent of update_interval's 40ms: a
+              // fixed fraction of the remaining distance is closed every
+              // frame, so the glow visibly glides rather than steps.
+              dip[r] += (target[r] - dip[r]) * 0.05f;
               Color c(
-                (uint8_t)(base.r + (ember.r - base.r) * m),
-                (uint8_t)(base.g + (ember.g - base.g) * m),
-                (uint8_t)(base.b + (ember.b - base.b) * m));
+                (uint8_t)(base.r + (ember.r - base.r) * dip[r]),
+                (uint8_t)(base.g + (ember.g - base.g) * dip[r]),
+                (uint8_t)(base.b + (ember.b - base.b) * dip[r]));
               for (int i = r * 8; i < (r + 1) * 8 && i < it.size(); i++)
+                it[i] = c;
+            }
+
+      # Ring Ripple: a single soft brightness wave that travels physically
+      # ring 1 -> ring 2 -> ring 3 (the data-wiring order — see "Power
+      # injection" under Hardware in cloud-lamp-design.md), fades out past
+      # the last ring, pauses briefly, then the next ripple begins — like a
+      # slow ripple spreading across still water. This is a genuinely
+      # different motion from every other "travelling" effect in this file
+      # (Rainbow, Spectrum Flow, Blue Color Wipe all move along the
+      # flattened LED strip); it's the one thing the lamp's actual 3-ring
+      # construction supports that those don't use. Purely per-ring — no
+      # per-LED gradient within a ring — and stateless (no static vars
+      # needed; every frame is computed directly from millis()).
+      - addressable_lambda:
+          name: "Ring Ripple"
+          update_interval: 40ms
+          lambda: |-
+            const Color base(55, 65, 95);     // dim, cool "resting cloud" floor
+            const Color peak(230, 230, 245);  // pale near-white ripple crest
+            const int rings = 3;
+            const int per_ring = it.size() / rings;
+            float spd = id(effect_speed).state;
+            if (std::isnan(spd) || spd < 1.0f) spd = 50.0f;
+            if (spd > 100.0f) spd = 100.0f;
+            uint32_t travel = (uint32_t)(${ring_ripple_travel_ms} * 50.0f / spd);
+            if (travel < 800) travel = 800;
+            uint32_t pause = (uint32_t)(${ring_ripple_pause_ms} * 50.0f / spd);
+            uint32_t period = travel + pause;
+            uint32_t phase = millis() % period;
+            // `wave` is the ripple's centre in continuous ring-space: ring r
+            // sits at r+0.5. `runout` (3.5 sigma, <0.1% residual) is extra
+            // travel distance *before* ring 0 and *after* the last ring so
+            // the Gaussian bump below has fully decayed to ~0 at both ends
+            // of `travel` — without it the ripple would pop in/out abruptly
+            // right as the sweep starts/ends instead of gliding smoothly
+            // down to the same floor colour the pause phase already holds.
+            const float runout = 3.5f * ${ring_ripple_sigma};
+            const float wave_start = 0.5f - runout;
+            const float wave_end = (rings - 0.5f) + runout;
+            float wave = (phase < travel)
+              ? wave_start + (phase / (float) travel) * (wave_end - wave_start)
+              : -1000.0f;
+            for (int r = 0; r < rings; r++) {
+              float d = wave - (r + 0.5f);
+              float m = expf(-(d * d) / (2.0f * ${ring_ripple_sigma} * ${ring_ripple_sigma}));
+              Color c(
+                (uint8_t)(base.r + (peak.r - base.r) * m),
+                (uint8_t)(base.g + (peak.g - base.g) * m),
+                (uint8_t)(base.b + (peak.b - base.b) * m));
+              for (int i = r * per_ring; i < (r + 1) * per_ring && i < it.size(); i++)
                 it[i] = c;
             }
 
@@ -364,13 +453,24 @@ light:
       # across. Deliberately stays in the blue/violet family (not a full
       # rainbow — that's what Rainbow is for) but spans a wider hue range
       # than before, reusing the named Sky Blue/Blue/Indigo/Purple solids.
+      # The wipe boundary used to be an integer LED index, so each step
+      # snapped exactly one LED from the old colour straight to the new one
+      # — clearly visible as individual LEDs "popping" on. Rainbow doesn't
+      # show this because its hue is a continuous per-pixel gradient with no
+      # hard edge anywhere. Fixed the same way: `pos` is now a float that
+      # advances continuously (real elapsed time × speed, not a per-LED
+      # tick), and the one LED the moving edge is currently crossing is
+      # blended smoothly between the old and new colour instead of flipping
+      # outright — same wipe, same speed character, but the edge itself now
+      # glides rather than steps. Also nudged a little faster per your
+      # feedback (see wipe_led_interval_ms).
       - addressable_lambda:
           name: "Blue Color Wipe"
           update_interval: 40ms
           lambda: |-
-            static int pos = 0;
+            static float pos = 0.0f;
             static int col = 0;
-            static uint32_t last_step = 0;
+            static uint32_t last_frame = 0;
             const Color colors[4] = {
               Color(0x52, 0xD6, 0xFC),  // Sky Blue
               Color(0x00, 0x56, 0xD6),  // Blue
@@ -384,19 +484,29 @@ light:
             uint32_t interval = (uint32_t)(${wipe_led_interval_ms} * 50.0f / spd);
             if (interval < 30) interval = 30;
             uint32_t now = millis();
-            if (last_step == 0) last_step = now;
-            while (now - last_step >= interval) {
-              last_step += interval;
-              pos++;
-              if (pos > it.size()) {
-                pos = 1;
-                col = (col + 1) % n;
-              }
+            if (last_frame == 0) last_frame = now;
+            // Fractional LEDs advanced since the last frame (real elapsed
+            // time, not a fixed per-tick step) — this is what lets the edge
+            // glide continuously instead of jumping a whole LED at once.
+            pos += (now - last_frame) / (float) interval;
+            last_frame = now;
+            while (pos >= it.size()) {
+              pos -= it.size();
+              col = (col + 1) % n;
             }
             Color cur = colors[col];
             Color prev = colors[(col + n - 1) % n];
-            for (int i = 0; i < it.size(); i++)
-              it[i] = (i < pos) ? cur : prev;
+            for (int i = 0; i < it.size(); i++) {
+              // 0 (still "prev") .. 1 (fully "cur"); only the single LED the
+              // edge is currently crossing sits strictly between the two.
+              float m = pos - i;
+              if (m < 0.0f) m = 0.0f;
+              if (m > 1.0f) m = 1.0f;
+              it[i] = Color(
+                (uint8_t)(prev.r + (cur.r - prev.r) * m),
+                (uint8_t)(prev.g + (cur.g - prev.g) * m),
+                (uint8_t)(prev.b + (cur.b - prev.b) * m));
+            }
 
       # Rainbow: full spectrum across the three rings, drifting slowly.
       - addressable_lambda:
@@ -418,7 +528,8 @@ light:
       # Pulse: gentle breathing between two comfortable pixel levels. Never
       # fully dark and never harsh full power. Implemented as an addressable
       # effect (not the built-in brightness pulse) so it cannot overwrite the
-      # user's saved brightness_pct via on_state.
+      # user's saved brightness_pct via on_state. Floor raised and cycle
+      # slowed slightly (again) — see pulse_min_level/pulse_period_ms above.
       - addressable_lambda:
           name: "Pulse"
           update_interval: 50ms

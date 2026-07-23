@@ -48,7 +48,7 @@ substitutions:
   device_friendly_name: "Cloud-Lamp"   # Human-readable display name (web app title)
 
   # --- Firmware version (bump for every release; used by the online updater) ---
-  project_version: "2.4.0"
+  project_version: "2.5.0"
 
   # --- LED ring count ---
   # ring_count is informational only — it is never referenced directly in the firmware.
@@ -178,6 +178,18 @@ esphome:
 
 esp8266:
   board: d1_mini
+  # Every `restore_value`/`restore_mode`-persisted entity in this config (the
+  # globals below, Power Behavior, MQTT enabled/broker/port/username/password)
+  # otherwise defaults to ESP8266 RTC memory, which is lost on an actual power
+  # cut and only survives software reboots/deep sleep — silently defeating
+  # "Restore Last State" for the one scenario it exists for. `true` moves all
+  # of it to a dedicated flash sector instead, so it genuinely survives a
+  # power cut. Costs a small amount of flash wear from periodic preference
+  # writes (deduped to at most once/second while a value is actively
+  # changing, or once per deliberate reboot's shutdown flush) — inconsequential
+  # for how rarely brightness/effect/on-off actually change on a decorative
+  # lamp. See docs/cloud-lamp-design.md#project-status for the full writeup.
+  restore_from_flash: true
 
 logger:
   level: INFO
@@ -375,12 +387,33 @@ script:
                 }
             - delay: 60ms
 
-  # Applied at the end of boot: user-selectable power-cut behaviour.
+  # Applied at the end of boot: user-selectable power-cut behaviour — except
+  # after a deliberate software reboot (a successful OTA update via any of
+  # the three ota: platforms above, the web app's Restart button, MQTT
+  # Set/Reboot, or safe_mode's own retry-reboot), which is NOT a power cut
+  # and must always resume exactly how the lamp was the instant before it,
+  # regardless of the Power Behaviour setting below (that setting is only
+  # about genuine power loss). ESP8266 reports reset reason
+  # "Software/System restart" (system_restart(), what App.safe_reboot()
+  # calls under the hood — see application.cpp's safe_reboot()) only for
+  # that case; an actual power-on, external reset or watchdog reset reports
+  # something else, which is when the Power Behaviour choice applies.
+  # (A failed/aborted/canceled update never reboots at all — the running
+  # firmware and the light are simply untouched — so those need no special
+  # case here; only a *successful* update reaches this lambda at all.)
   - id: apply_boot_light_state
     mode: single
     then:
       - lambda: |-
-          if (id(power_behavior).current_option() == "Restore Last State" && id(saved_on)) {
+          if (ESP.getResetReason() == "Software/System restart") {
+            if (id(saved_on)) {
+              ESP_LOGI("boot", "Software reboot: resuming last state (on)");
+              id(lamp_turn_on).execute();
+            } else {
+              ESP_LOGI("boot", "Software reboot: resuming last state (off)");
+              id(lamp_turn_off).execute();
+            }
+          } else if (id(power_behavior).current_option() == "Restore Last State" && id(saved_on)) {
             ESP_LOGI("boot", "Power-cut behaviour: restoring last state (on)");
             id(lamp_turn_on).execute();
           } else {

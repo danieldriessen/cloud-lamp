@@ -74,7 +74,9 @@ Everything can be done with the single push-button:
 | **Press and hold** | Dim up / down while held (direction alternates each time) |
 | **Hold while plugging in power, keep holding ~10 s** | Factory reset — the lamp pulses **red** as a warning; release early to cancel |
 
-The lamp remembers brightness and effect — also after unplugging.
+The lamp remembers brightness and effect — also after unplugging. Whether it also turns
+itself back **on** after a power cut is a separate setting,
+**Power Behavior** — see the note in [§6](#6-the-remote-control-app).
 
 ---
 
@@ -127,6 +129,12 @@ home screen like a normal app.
 > are kept even if you switch it off again. If you don't recognise these terms, you can
 > safely ignore this feature.
 
+> **Power Behavior:** under Settings you can choose what the lamp does after a power cut
+> — **Start switched off** (the default) or **Restore Last State** (turns itself back on,
+> with the same brightness and effect, if it was on when the power went out). This only
+> affects an actual power cut: after a firmware update or pressing Restart, the lamp
+> always comes back exactly how it was beforehand either way.
+
 ---
 
 ## 7. Firmware updates
@@ -139,8 +147,11 @@ reconnecting — keep the lamp plugged in and wait until it says **Update comple
 can also check manually with **Check for updates now**.
 
 Updates are safe: a failed download or power cut during the update cannot break the lamp,
-and all your settings are kept. While the update runs, the lamp may briefly stop answering
-the web app (that is normal — it is writing the new firmware and then restarting).
+and all your settings are kept — the lamp also comes back on (or stays off) exactly as it
+was right before the update, regardless of the Power Behavior setting mentioned in
+[§6](#6-the-remote-control-app). While the update runs, the lamp may briefly stop
+answering the web app (that is normal — it is writing the new firmware and then
+restarting).
 
 ---
 
@@ -183,7 +194,7 @@ afterwards the lamp opens its setup hotspot again (sticker).
 | Light source | 24 addressable RGB LEDs (WS2812) |
 | Radio | Wi-Fi 2.4 GHz (802.11 b/g/n) — 5 GHz-only networks are not supported |
 | Controls | 1 push-button, web app (10 languages) |
-| Effects | 27 (solid colours + special effects) plus a free colour picker in the web app |
+| Effects | 28 (solid colours + special effects) plus a free colour picker in the web app |
 | Firmware | Open source: `github.com/danieldriessen/cloud-lamp` |
 
 ---

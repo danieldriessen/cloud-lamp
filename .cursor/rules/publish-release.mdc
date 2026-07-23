@@ -1,0 +1,39 @@
+---
+description: How to publish a new Cloud-Lamp firmware release / OTA update. Use whenever asked to publish, release, ship, cut, or push out a new firmware version, bump project_version, or run tools/release.sh.
+alwaysApply: false
+---
+
+# Publishing a Cloud-Lamp firmware release
+
+Canonical, full-detail doc: `docs/firmware-updates.md#publishing-a-release-builder-workflow`
+(read it before publishing — this rule is only a quick-reference checklist). Background on
+*why* releases work this way: `docs/cloud-lamp-design.md#project-status`, the v2.4.0 entry.
+
+1. **Bump `project_version`** in `cloud-lamp.yaml`'s `substitutions` block. Never re-publish
+   the same version string — the online updater won't offer a version it's already seen.
+2. **Re-verify the manual/sticker docs** — see `.cursor/rules/manual-release-check.mdc`
+   (`docs/user-manual.md`, `docs/device-credentials.md`) — before publishing, since any
+   button/Wi-Fi/update-flow change could make them stale.
+3. **Run `tools/release.sh`** from the repo root. In order it: compiles the **public**
+   build (`cloud-lamp.yaml` — never `cloud-lamp-dev.yaml`, which has compiled-in Wi-Fi
+   credentials) and scans the binary for secrets; writes `docs/firmware-dist/cloud-lamp/`
+   (the `.bin` + `manifest.json`); **signs** the manifest with the Ed25519 private key kept
+   **outside this repo** (default `~/.cloud-lamp-release-secrets/ota-ed25519-private.key`,
+   override via `$RELEASE_SIGNING_KEY` — see `docs/firmware-updates.md#key-custody`); then
+   **publishes** by committing + pushing `docs/firmware-dist/cloud-lamp/` to GitHub.
+4. **That single `git push` is the entire publish step.** `docs/` is this repo's GitHub
+   Pages source, served at the custom domain `cloud-lamp.ddproductions.de` over **plain
+   HTTP** (not HTTPS — "Enforce HTTPS" is deliberately off; see
+   `docs/firmware-updates.md#plain-http--ed25519-signing`), which is exactly the URL every
+   lamp polls (`update_manifest_url` in `cloud-lamp.yaml`). There is no separate upload
+   target, FTP step, or CDN to keep in sync — the git push to `main` *is* the release.
+5. Devices pick it up automatically (checked every 6 h and shortly after boot), or
+   immediately if the owner presses "Check for updates now" in the web app. Nothing else
+   to do after the push.
+
+Re-running `tools/release.sh` after a failed/partial push is safe — it produces the exact
+same version/MD5/signature every time.
+
+**If asked to troubleshoot instead of publish** (e.g. "a lamp won't update" / "stuck on an
+old version"), see `docs/firmware-updates.md#stuck-on-an-old-version-with-up-to-date-showing`
+first — do not skip straight to re-publishing.

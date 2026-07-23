@@ -3,11 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <!-- No theme-color on purpose: iOS Safari (15+) then samples the page itself
-       to tint its top/bottom bars, so the background gradient visually reaches
-       the display edges. A fixed theme-color painted flat dark bands instead.
-       (The PWA manifest keeps its own background/theme colours for the
-       standalone app and Android.) -->
+  <!-- theme-color matches --bg1 (and the PWA manifest's own background/theme
+       colours — see components/cloud_lamp_web/cloud_lamp_web.cpp) for Chrome
+       and pre-26 Safari, which tint their top/bottom bars from this value
+       instead of guessing. Safari 26 dropped theme-color support entirely —
+       it now derives bar colours from the plain background-color of a
+       fixed/sticky element touching the viewport edge (falling back to
+       html/body's), never from a gradient or this meta tag. That's handled
+       by html/body's background-color below; keep all three in sync. -->
+  <meta name="theme-color" content="#0b0f18">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Cloud Lamp">
@@ -47,19 +51,43 @@
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     [hidden]{display:none !important}
-    /* Full-bleed canvas on iOS: html/body are locked to the viewport
-       (height:100%, overflow:hidden) instead of letting the document itself
-       scroll. All real scrolling happens inside .wrap. That way Safari's
-       collapsing address bar and rubber-band bounce never move the page
-       relative to the fixed gradient layer behind it, so there's no seam
-       left for them to reveal at the top/bottom edges. */
+    /* Full-bleed canvas: the page gradient lives directly on the root
+       element instead of the position:fixed .app-bg backdrop div used
+       through v2.4.0. The root background is painted across the entire
+       canvas — under the status bar/notch, Safari's toolbars and the home
+       indicator (viewport-fit=cover) — and its background-color is Safari
+       26's documented bar-tint fallback. position:fixed full-bleed layers
+       are exactly the element class with confirmed Safari 26
+       clipping/tinting bugs (WebKit #300965 et al.), so the background no
+       longer uses one at all.
+       html/body are also no longer overflow:hidden-locked: Safari 26's
+       bar-tint sampling breaks when the whole document is locked, leaving
+       the bars plain black/white no matter what colours the page declares
+       (https://1ar.io/updates/safari-26-liquid-glass-web/ — "do not lock
+       the whole document"). The document still cannot actually scroll:
+       body's only content (.wrap) is exactly one viewport tall, so there is
+       no overflow, the address bar never collapses from a document scroll,
+       and all real scrolling stays inside .wrap. Rubber-band bounce is
+       suppressed via overscroll-behavior on html/body plus
+       overscroll-behavior:contain on .wrap — and even if a bounce ever got
+       through, the canvas background extends past the document edges, so
+       there's no seam for it to reveal. */
     html{
-      margin:0;padding:0;height:100%;overflow:hidden;
-      background-color:var(--bg0);
+      margin:0;padding:0;height:100%;
+      /* The flat colour Safari 26 samples for its bar tint — keep in sync
+         with the theme-color meta above and the PWA manifest (#0b0f18). */
+      background-color:var(--bg1);
       background-image:
-        radial-gradient(1100px 650px at 15% 0%, rgba(108,178,255,.20), transparent 55%),
+        radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),
+        radial-gradient(850px 550px at 95% 18%, rgba(124,240,201,.08), transparent 60%),
+        radial-gradient(900px 900px at 45% 96%, rgba(140,90,235,.10), transparent 55%),
         linear-gradient(180deg,var(--bg0),var(--bg1));
+      /* Any canvas area beyond the root box (overscroll, safe areas in odd
+         viewport states) shows the flat background-color instead of a
+         tiled repeat of the gradient. */
+      background-repeat:no-repeat;
       -webkit-text-size-adjust:none;text-size-adjust:none;
+      overscroll-behavior:none;
       /* iOS Safari (10+) ignores the viewport meta's user-scalable=no for
          pinch-zoom on purpose (accessibility). touch-action is a separate
          mechanism it does respect: allowing pan-x/pan-y but omitting
@@ -68,24 +96,28 @@
       touch-action:pan-x pan-y;
     }
     body{
-      margin:0;padding:0;height:100%;overflow:hidden;
+      margin:0;padding:0;height:100%;
+      /* Deliberately no background: body must stay transparent so the root
+         gradient above shows through (a body background would paint over
+         it, and Safari 26's tint fallback reads html's background-color
+         when body has none). */
       font-family:var(--font);color:var(--text);
       overscroll-behavior:none;
       -webkit-user-select:none;user-select:none;
       -webkit-touch-callout:none;
     }
-    .app-bg{
-      position:fixed;z-index:0;pointer-events:none;inset:0;
-      background:
-        radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),
-        radial-gradient(850px 550px at 95% 18%, rgba(124,240,201,.08), transparent 60%),
-        radial-gradient(900px 900px at 45% 96%, rgba(140,90,235,.10), transparent 55%),
-        linear-gradient(180deg,var(--bg0),var(--bg1));
-    }
     .load-overlay{
       position:fixed;inset:0;z-index:80;
       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
-      background:linear-gradient(180deg,var(--bg0),var(--bg1));
+      /* Duplicates the root background-color: as a full-bleed fixed element
+         this overlay is what Safari 26 samples for its bar tint during the
+         initial render, so it must resolve to the same colour the root
+         fallback gives once it's gone. After fading out it is display:none'd
+         entirely (see markReady) — Safari samples opacity:0 fixed elements
+         too, and at rest the root background should be the only tint
+         source. */
+      background-color:var(--bg1);
+      background-image:linear-gradient(180deg,var(--bg0),var(--bg1));
       opacity:1;transition:opacity .35s ease;
     }
     .load-overlay.hide{opacity:0;pointer-events:none}
@@ -97,10 +129,18 @@
     .load-text{font-size:13px;color:var(--muted);letter-spacing:.2px}
     @keyframes load-spin{to{transform:rotate(360deg)}}
     .wrap{
-      position:relative;z-index:1;max-width:520px;margin:0 auto;
+      position:relative;z-index:1;
       height:100%;height:100svh;height:100dvh;height:-webkit-fill-available;
       overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
       -webkit-overflow-scrolling:touch;
+    }
+    /* Centred content column, kept separate from .wrap itself so .wrap can
+       span the full viewport width. Otherwise, on wide desktop windows, the
+       mouse wheel does nothing while the cursor sits in the empty margin
+       beside the centred column — that margin belongs to <body>, which
+       never has scrollable overflow (see the html comment above). */
+    .inner{
+      max-width:520px;margin:0 auto;
       padding:calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
     }
 
@@ -167,7 +207,13 @@
       transition:background .25s ease,border-color .25s ease,box-shadow .25s ease;
     }
     .pwr-toggle .knob{
-      position:absolute;top:4px;left:4px;width:44px;height:44px;border-radius:50%;
+      /* top:50% + translateY(-50%) instead of a fixed top offset: exactly
+         centers the knob regardless of the track's border width (this page's
+         global box-sizing:border-box means a fixed px top has to account for
+         the 1px border eating into the track's inner height on both edges,
+         which a plain "top:4px" didn't — it landed 1px low). */
+      position:absolute;top:50%;left:4px;width:44px;height:44px;border-radius:50%;
+      transform:translateY(-50%);
       background:linear-gradient(180deg,#fff6f5,#ffd0cb);
       box-shadow:0 4px 10px rgba(0,0,0,.4);
       transition:left .25s cubic-bezier(.5,1.6,.4,1),background .25s ease;
@@ -185,7 +231,6 @@
     /* Brightness */
     .bri-row{display:flex;align-items:center;gap:12px}
     .bri-row svg{width:22px;height:22px;flex:0 0 auto;color:var(--muted);stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-    .bri-row svg .half{fill:currentColor;stroke:none;opacity:.55}
     .bri-val{min-width:52px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:15px}
     input[type=range]{
       flex:1;appearance:none;-webkit-appearance:none;height:34px;background:transparent;
@@ -220,15 +265,15 @@
     }
     .fx-none{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:12px 0}
     /* Custom-colour button: its own section between Colors and Special
-       effects, one full-width white button (not a swatch tile). The native
-       colour input covers the whole button invisibly, so a tap opens the
-       OS colour picker directly. */
+       effects, full-width like a section divider (not a swatch tile), but
+       otherwise the same background/border/text as every other effect
+       tile — an earlier plain-white background made it look distractingly
+       "selected" even when it wasn't. The native colour input covers the
+       whole button invisibly, so a tap opens the OS colour picker directly. */
     .fx-btn.fx-custom{
       position:relative;grid-column:1/-1;justify-content:center;
-      background:#fff;border-color:rgba(0,0,0,.10);color:#11151f;
     }
     .fx-btn.fx-custom.sel{
-      background:#fff;border-color:rgba(108,178,255,.7);
       box-shadow:0 0 0 2px rgba(108,178,255,.35) inset;
     }
     .fx-btn.fx-custom input[type=color]{
@@ -418,7 +463,6 @@
   </style>
 </head>
 <body role="application">
-  <div class="app-bg" aria-hidden="true"></div>
   <!-- Shown until the lamp's real state (on/off, brightness, effect) has
        actually loaded — without this, the UI briefly shows its JS defaults
        (e.g. "Off") which can be flat-out wrong if the lamp is really on. -->
@@ -427,87 +471,90 @@
     <div class="load-text" data-i18n="loading">Loading…</div>
   </div>
   <div class="wrap">
-    <header>
-      <div class="hdr-row1">
-        <div class="brand">
-          <div class="cloud" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M17.5 18H7a4 4 0 1 1 .7-7.94 5.5 5.5 0 0 1 10.63 1.55A3.7 3.7 0 0 1 17.5 18z"/></svg>
-            <img src="/brand.png" alt="" onerror="this.remove()">
+    <div class="inner">
+      <header>
+        <div class="hdr-row1">
+          <div class="brand">
+            <div class="cloud" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M17.5 18H7a4 4 0 1 1 .7-7.94 5.5 5.5 0 0 1 10.63 1.55A3.7 3.7 0 0 1 17.5 18z"/></svg>
+              <img id="brandLogoImg" src="/brand.png" alt="">
+            </div>
+            <div style="min-width:0">
+              <h1 id="devName">Cloud Lamp</h1>
+              <div class="sub" id="devSerial">&nbsp;</div>
+            </div>
           </div>
-          <div style="min-width:0">
-            <h1 id="devName">Cloud Lamp</h1>
-            <div class="sub" id="devSerial">&nbsp;</div>
-          </div>
-        </div>
-        <div class="hdr-status">
-          <span class="upd-badge avail" id="fwBadgeMain" role="button" tabindex="0" hidden data-i18n="update_available">Update available</span>
-          <div class="pill"><span class="dot" id="connDot"></span><span id="connText">…</span></div>
-        </div>
-      </div>
-      <div class="hdr-row2">
-        <div class="hdr-right">
-          <div class="iconbtn" id="btnManual" role="button" tabindex="0" aria-label="Manual">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          </div>
-          <div class="iconbtn" id="btnSettings" role="button" tabindex="0" aria-label="Settings">
-            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.46a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.55 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5z"/></svg>
+          <div class="hdr-status">
+            <span class="upd-badge avail" id="fwBadgeMain" role="button" tabindex="0" hidden data-i18n="update_available">Update available</span>
+            <div class="pill"><span class="dot" id="connDot"></span><span id="connText">…</span></div>
           </div>
         </div>
-      </div>
-    </header>
-
-    <div class="card install-entry" id="installEntry" hidden>
-      <button class="btn" type="button" id="btnInstallApp" data-i18n="install_app_btn">Create a remote control app</button>
-    </div>
-
-    <div class="card">
-      <div class="power">
-        <div class="state">
-          <div class="big" id="pwrLabel">—</div>
-          <div class="fx" id="pwrEffect">&nbsp;</div>
+        <div class="hdr-row2">
+          <div class="hdr-right">
+            <div class="iconbtn" id="btnManual" role="button" tabindex="0" aria-label="Manual">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <div class="iconbtn" id="btnSettings" role="button" tabindex="0" aria-label="Settings">
+              <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 2h-3.8a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.46a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.38 1.05.7 1.63.94l.36 2.54c.04.24.25.42.49.42h3.8c.24 0 .45-.18.49-.42l.36-2.54c.58-.23 1.12-.55 1.63-.94l2.39.96c.24.1.51.01.64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5z"/></svg>
+            </div>
+          </div>
         </div>
-        <div class="pwr-toggle" id="pwrToggle" role="switch" tabindex="0" aria-checked="false">
-          <div class="knob"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></div>
+      </header>
+
+      <div class="card install-entry" id="installEntry" hidden>
+        <button class="btn" type="button" id="btnInstallApp" data-i18n="install_app_btn">Create a remote control app</button>
+      </div>
+
+      <div class="card">
+        <div class="power">
+          <div class="state">
+            <div class="big" id="pwrLabel">—</div>
+            <div class="fx" id="pwrEffect">&nbsp;</div>
+          </div>
+          <div class="pwr-toggle" id="pwrToggle" role="switch" tabindex="0" aria-checked="false">
+            <div class="knob"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="sec-label" data-i18n="brightness">Brightness</div>
-      <div class="bri-row">
-        <!-- Half-filled circle = brightness (replaces the sun/rays icon) -->
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="9"/>
-          <path class="half" d="M12 3a9 9 0 0 0 0 18z"/>
-        </svg>
-        <input type="range" id="briSlider" min="10" max="100" value="70">
-        <div class="bri-val" id="briVal">—</div>
+      <div class="card">
+        <div class="sec-label" data-i18n="brightness">Brightness</div>
+        <div class="bri-row">
+          <!-- Light bulb = brightness (replaces the half-filled circle) -->
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/>
+            <path d="M9 18h6"/>
+            <path d="M10 22h4"/>
+          </svg>
+          <input type="range" id="briSlider" min="10" max="100" value="70">
+          <div class="bri-val" id="briVal">—</div>
+        </div>
       </div>
-    </div>
 
-    <div class="card" id="speedCard" hidden>
-      <div class="sec-label" data-i18n="speed">Speed</div>
-      <div class="bri-row">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M12 12l4.5-4.5"/>
-          <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
-        </svg>
-        <input type="range" id="spdSlider" min="1" max="100" value="50">
-        <div class="bri-val" id="spdVal">—</div>
+      <div class="card" id="speedCard" hidden>
+        <div class="sec-label" data-i18n="speed">Speed</div>
+        <div class="bri-row">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 12l4.5-4.5"/>
+            <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+          </svg>
+          <input type="range" id="spdSlider" min="1" max="100" value="50">
+          <div class="bri-val" id="spdVal">—</div>
+        </div>
       </div>
-    </div>
 
-    <div class="card">
-      <div class="sec-label" data-i18n="effects">Effects</div>
-      <div class="fx-grid" id="fxGrid">
-        <div class="fx-none" data-i18n="loading">Loading…</div>
+      <div class="card">
+        <div class="sec-label" data-i18n="effects">Effects</div>
+        <div class="fx-grid" id="fxGrid">
+          <div class="fx-none" data-i18n="loading">Loading…</div>
+        </div>
       </div>
-    </div>
 
-    <div class="maker" aria-hidden="true">
-      <img src="/logo.png" alt="DD Productions" onerror="this.remove()">
-      <div class="copy">© 2026 DD Productions</div>
+      <div class="maker" aria-hidden="true">
+        <img id="footerLogoImg" src="/logo.png" alt="DD Productions">
+        <div class="copy">© 2026 DD Productions</div>
+      </div>
     </div>
   </div>
 
@@ -681,6 +728,38 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
+
+  /* ---------------- Robust logo image loading ----------------
+     /brand.png and /logo.png are small PNGs served by the lamp itself
+     alongside a burst of other near-simultaneous requests on page load
+     (icon.png, manifest.json, the long-lived /events SSE stream and a
+     dozen initial REST state fetches) — the ESP8266's web server only has
+     a handful of concurrent TCP connection slots, so one of these can
+     occasionally lose that race and get reset before the image loads.
+     Most noticeable on desktop Chrome, which opens more parallel
+     connections per page load than mobile Safari. A single dropped
+     request used to fall straight through to the "no logo" fallback (the
+     header's small SVG cloud placeholder, revealed via the `:has(img)`
+     CSS rule once the failed <img> removes itself). Retry a few times
+     with a growing delay first — by then the initial request burst has
+     settled and a plain refetch almost always succeeds — before giving up
+     and removing the element for the same fallback as before. */
+  function retryImgOnError(img, maxAttempts, delayMs) {
+    if (!img) return;
+    const src = img.getAttribute("src");
+    let attempt = 0;
+    img.onerror = () => {
+      attempt++;
+      if (attempt > maxAttempts) {
+        img.onerror = null;
+        img.remove();
+        return;
+      }
+      setTimeout(() => { img.src = src + "?r=" + Date.now(); }, delayMs * attempt);
+    };
+  }
+  retryImgOnError($("brandLogoImg"), 3, 500);
+  retryImgOnError($("footerLogoImg"), 3, 500);
 
   /* ---------------- i18n ---------------- */
   const LANGS = [
@@ -964,63 +1043,63 @@
         "Magenta":"Magenta","Salmon":"Lachs","Red":"Rot","Peach":"Pfirsich","Apricot":"Aprikose",
         "Orange":"Orange","Amber":"Bernstein","Honey":"Honig","Gold":"Gold","Vanilla":"Vanille",
         "Yellow":"Gelb","Chartreuse":"Gelbgrün","Green":"Grün",
-        "Sky Breathing":"Himmel-Atmen","Aurora Drift":"Aurora","Candlelight":"Kerzenlicht",
+        "Sky Breathing":"Himmel-Atmen","Aurora Drift":"Aurora","Candlelight":"Kerzenlicht","Ring Ripple":"Ringwelle",
         "Twinkle":"Sternenfunkeln","Blue Color Wipe":"Blauer Farbverlauf","Rainbow":"Regenbogen","Pulse":"Pulsieren",
         "Spectrum Fade":"Spektrum-Überblendung","Spectrum Flow":"Spektrum-Fluss"},
     es:{"White":"Blanco","Sky Blue":"Azul cielo","Blue":"Azul","Indigo":"Índigo","Purple":"Púrpura",
         "Magenta":"Magenta","Salmon":"Salmón","Red":"Rojo","Peach":"Melocotón","Apricot":"Albaricoque",
         "Orange":"Naranja","Amber":"Ámbar","Honey":"Miel","Gold":"Oro","Vanilla":"Vainilla",
         "Yellow":"Amarillo","Chartreuse":"Verde amarillo","Green":"Verde",
-        "Sky Breathing":"Cielo respirante","Aurora Drift":"Aurora","Candlelight":"Luz de vela",
+        "Sky Breathing":"Cielo respirante","Aurora Drift":"Aurora","Candlelight":"Luz de vela","Ring Ripple":"Onda de anillos",
         "Twinkle":"Destellos","Blue Color Wipe":"Barrido azul","Rainbow":"Arcoíris","Pulse":"Pulso",
         "Spectrum Fade":"Fundido espectral","Spectrum Flow":"Flujo espectral"},
     fr:{"White":"Blanc","Sky Blue":"Bleu ciel","Blue":"Bleu","Indigo":"Indigo","Purple":"Pourpre",
         "Magenta":"Magenta","Salmon":"Saumon","Red":"Rouge","Peach":"Pêche","Apricot":"Abricot",
         "Orange":"Orange","Amber":"Ambre","Honey":"Miel","Gold":"Or","Vanilla":"Vanille",
         "Yellow":"Jaune","Chartreuse":"Chartreuse","Green":"Vert",
-        "Sky Breathing":"Ciel respirant","Aurora Drift":"Aurore","Candlelight":"Bougie",
+        "Sky Breathing":"Ciel respirant","Aurora Drift":"Aurore","Candlelight":"Bougie","Ring Ripple":"Vague d'anneaux",
         "Twinkle":"Scintillement","Blue Color Wipe":"Balayage bleu","Rainbow":"Arc-en-ciel","Pulse":"Pulsation",
         "Spectrum Fade":"Fondu du spectre","Spectrum Flow":"Flux du spectre"},
     it:{"White":"Bianco","Sky Blue":"Azzurro cielo","Blue":"Blu","Indigo":"Indaco","Purple":"Porpora",
         "Magenta":"Magenta","Salmon":"Salmone","Red":"Rosso","Peach":"Pesca","Apricot":"Albicocca",
         "Orange":"Arancione","Amber":"Ambra","Honey":"Miele","Gold":"Oro","Vanilla":"Vaniglia",
         "Yellow":"Giallo","Chartreuse":"Verde giallo","Green":"Verde",
-        "Sky Breathing":"Cielo che respira","Aurora Drift":"Aurora","Candlelight":"Lume di candela",
+        "Sky Breathing":"Cielo che respira","Aurora Drift":"Aurora","Candlelight":"Lume di candela","Ring Ripple":"Onda ad anelli",
         "Twinkle":"Scintillio","Blue Color Wipe":"Onda blu","Rainbow":"Arcobaleno","Pulse":"Pulsazione",
         "Spectrum Fade":"Dissolvenza spettro","Spectrum Flow":"Flusso spettro"},
     nl:{"White":"Wit","Sky Blue":"Hemelsblauw","Blue":"Blauw","Indigo":"Indigo","Purple":"Paars",
         "Magenta":"Magenta","Salmon":"Zalm","Red":"Rood","Peach":"Perzik","Apricot":"Abrikoos",
         "Orange":"Oranje","Amber":"Amber","Honey":"Honing","Gold":"Goud","Vanilla":"Vanille",
         "Yellow":"Geel","Chartreuse":"Geelgroen","Green":"Groen",
-        "Sky Breathing":"Ademende hemel","Aurora Drift":"Aurora","Candlelight":"Kaarslicht",
+        "Sky Breathing":"Ademende hemel","Aurora Drift":"Aurora","Candlelight":"Kaarslicht","Ring Ripple":"Ringgolf",
         "Twinkle":"Fonkeling","Blue Color Wipe":"Blauwe kleurgolf","Rainbow":"Regenboog","Pulse":"Pulseren",
         "Spectrum Fade":"Spectrumovergang","Spectrum Flow":"Spectrumstroom"},
     pl:{"White":"Biały","Sky Blue":"Błękit nieba","Blue":"Niebieski","Indigo":"Indygo","Purple":"Purpurowy",
         "Magenta":"Magenta","Salmon":"Łososiowy","Red":"Czerwony","Peach":"Brzoskwiniowy","Apricot":"Morelowy",
         "Orange":"Pomarańczowy","Amber":"Bursztynowy","Honey":"Miodowy","Gold":"Złoty","Vanilla":"Waniliowy",
         "Yellow":"Żółty","Chartreuse":"Żółto-zielony","Green":"Zielony",
-        "Sky Breathing":"Oddychające niebo","Aurora Drift":"Zorza","Candlelight":"Blask świecy",
+        "Sky Breathing":"Oddychające niebo","Aurora Drift":"Zorza","Candlelight":"Blask świecy","Ring Ripple":"Fala pierścieni",
         "Twinkle":"Migotanie","Blue Color Wipe":"Niebieska fala koloru","Rainbow":"Tęcza","Pulse":"Pulsowanie",
         "Spectrum Fade":"Przejście spektrum","Spectrum Flow":"Przepływ spektrum"},
     pt:{"White":"Branco","Sky Blue":"Azul-céu","Blue":"Azul","Indigo":"Índigo","Purple":"Púrpura",
         "Magenta":"Magenta","Salmon":"Salmão","Red":"Vermelho","Peach":"Pêssego","Apricot":"Alperce",
         "Orange":"Laranja","Amber":"Âmbar","Honey":"Mel","Gold":"Dourado","Vanilla":"Vanília",
         "Yellow":"Amarelo","Chartreuse":"Verde-amarelado","Green":"Verde",
-        "Sky Breathing":"Céu a respirar","Aurora Drift":"Aurora","Candlelight":"Luz de vela",
+        "Sky Breathing":"Céu a respirar","Aurora Drift":"Aurora","Candlelight":"Luz de vela","Ring Ripple":"Onda em anéis",
         "Twinkle":"Cintilação","Blue Color Wipe":"Onda azul","Rainbow":"Arco-íris","Pulse":"Pulsação",
         "Spectrum Fade":"Transição do espectro","Spectrum Flow":"Fluxo do espectro"},
     tr:{"White":"Beyaz","Sky Blue":"Gök mavisi","Blue":"Mavi","Indigo":"İndigo","Purple":"Mor",
         "Magenta":"Eflatun","Salmon":"Somon","Red":"Kırmızı","Peach":"Şeftali","Apricot":"Kayısı",
         "Orange":"Turuncu","Amber":"Kehribar","Honey":"Bal","Gold":"Altın","Vanilla":"Vanilya",
         "Yellow":"Sarı","Chartreuse":"Sarı-yeşil","Green":"Yeşil",
-        "Sky Breathing":"Nefes alan gökyüzü","Aurora Drift":"Kutup ışığı","Candlelight":"Mum ışığı",
+        "Sky Breathing":"Nefes alan gökyüzü","Aurora Drift":"Kutup ışığı","Candlelight":"Mum ışığı","Ring Ripple":"Halka Dalgası",
         "Twinkle":"Yıldız parıltısı","Blue Color Wipe":"Mavi renk dalgası","Rainbow":"Gökkuşağı","Pulse":"Nabız",
         "Spectrum Fade":"Spektrum Geçişi","Spectrum Flow":"Spektrum Akışı"},
     ru:{"White":"Белый","Sky Blue":"Небесно-голубой","Blue":"Синий","Indigo":"Индиго","Purple":"Пурпурный",
         "Magenta":"Маджента","Salmon":"Лососёвый","Red":"Красный","Peach":"Персиковый","Apricot":"Абрикосовый",
         "Orange":"Оранжевый","Amber":"Янтарный","Honey":"Медовый","Gold":"Золотой","Vanilla":"Ванильный",
         "Yellow":"Жёлтый","Chartreuse":"Желто-зелёный","Green":"Зелёный",
-        "Sky Breathing":"Дышащее небо","Aurora Drift":"Северное сияние","Candlelight":"Свеча",
+        "Sky Breathing":"Дышащее небо","Aurora Drift":"Северное сияние","Candlelight":"Свеча","Ring Ripple":"Кольцевая волна",
         "Twinkle":"Мерцание","Blue Color Wipe":"Синяя волна цвета","Rainbow":"Радуга","Pulse":"Пульсация",
         "Spectrum Fade":"Переход спектра","Spectrum Flow":"Течение спектра"},
   };
@@ -1036,6 +1115,7 @@
     "Sky Breathing":"linear-gradient(135deg,#0f37be,#a0e6ff)",
     "Aurora Drift":"linear-gradient(135deg,#00e6d2,#aa1eff)",
     "Candlelight":"linear-gradient(135deg,#ff9329,#962d05)",
+    "Ring Ripple":"linear-gradient(135deg,#37415f,#e6e6f5)",
     "Twinkle":"linear-gradient(135deg,#0b1030,#e8ecff)",
     "Blue Color Wipe":"linear-gradient(135deg,#52D6FC,#0056D6,#4D22B2,#BE38F3)",
     "Rainbow":"linear-gradient(135deg,#ff4040,#ffc040,#40ff70,#40c8ff,#a040ff)",
@@ -1100,7 +1180,7 @@
   const BRI_MIN = 10;
   // Effects that honour the Effect Speed number entity (solids do not).
   const SPEED_FX = new Set([
-    "Sky Breathing","Aurora Drift","Candlelight","Twinkle",
+    "Sky Breathing","Aurora Drift","Candlelight","Ring Ripple","Twinkle",
     "Blue Color Wipe","Rainbow","Pulse","Spectrum Fade","Spectrum Flow",
   ]);
   const st = {
@@ -1127,7 +1207,12 @@
   function markReady(){
     if (st.ready) return;
     st.ready = true;
-    $("loadOverlay").classList.add("hide");
+    const ov = $("loadOverlay");
+    ov.classList.add("hide");
+    // Remove it from the render tree once faded: Safari 26 still samples
+    // opacity:0 fixed elements for its bar tint, and at rest the root
+    // background should be the only tint source (see .load-overlay's CSS).
+    setTimeout(() => { ov.hidden = true; }, 400);
   }
   function renderPower(){
     $("pwrLabel").textContent = st.on ? t("on") : t("off");
@@ -1157,7 +1242,7 @@
     const s = $("spdSlider");
     s.value = st.speed;
     s.style.setProperty("--fill", ((st.speed - 1) / 99 * 100) + "%");
-    $("spdVal").textContent = String(st.speed);
+    $("spdVal").textContent = st.speed + " %";
   }
   // Rebuild the grid only when the effect list or language changes; selection
   // highlighting is a cheap class toggle so taps feel instant on iOS.
@@ -1544,7 +1629,7 @@
     spdDragging = true;
     const v = parseInt(spdSlider.value, 10);
     spdSlider.style.setProperty("--fill", ((v - 1) / 99 * 100) + "%");
-    $("spdVal").textContent = String(v);
+    $("spdVal").textContent = v + " %";
   });
   spdSlider.addEventListener("change", () => {
     const v = parseInt(spdSlider.value, 10);

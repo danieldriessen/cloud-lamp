@@ -78,8 +78,9 @@ ICON_VERSION = hashlib.md5(_icon_path.read_bytes()).hexdigest()[:8] if _icon_pat
 EFFECTS = ["White", "Sky Blue", "Blue", "Indigo", "Purple", "Magenta", "Salmon",
            "Red", "Peach", "Apricot", "Orange", "Amber", "Honey", "Gold",
            "Vanilla", "Yellow", "Chartreuse", "Green",
-           "Aurora Drift", "Sky Breathing", "Candlelight", "Spectrum Fade",
-           "Spectrum Flow", "Twinkle", "Blue Color Wipe", "Rainbow", "Pulse"]
+           "Aurora Drift", "Sky Breathing", "Candlelight", "Ring Ripple",
+           "Spectrum Fade", "Spectrum Flow", "Twinkle", "Blue Color Wipe",
+           "Rainbow", "Pulse"]
 
 state = {
     "on": False,

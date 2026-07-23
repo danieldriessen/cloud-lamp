@@ -17,6 +17,27 @@ Related documents:
 
 ## Project status
 
+> **Phase:** v2.5.0 — a batch of correctness fixes and web-app/effects polish, no
+> architecture changes. Highlights (each has its own detailed entry further down this
+> section): **(1)** a real power-loss bug fix — every persisted setting (on/off,
+> brightness, effect, Power Behavior itself) defaulted to ESP8266 RTC memory, which does
+> not survive an actual power cut; now flash-backed (`esp8266: restore_from_flash: true`)
+> so "Restore Last State" genuinely works. **(2)** boot logic now tells a deliberate
+> reboot (a successful update, the Restart button, MQTT `Set/Reboot`) apart from a real
+> power cut, and always resumes the pre-reboot on/off state for the former, regardless of
+> the Power Behavior setting. **(3)** a new effect, **Ring Ripple**, plus a tuning pass
+> across four existing effects (Candlelight calmed down for nursery use; Spectrum Fade
+> slowed; Sky Breathing's trough brightened; Blue Color Wipe smoothed and slightly sped
+> up; Pulse's floor raised and slowed further). **(4)** several web-app fixes: header/
+> footer logo images now retry instead of silently falling back, the brightness icon is
+> now a light bulb, the Custom Color button no longer looks permanently "selected", the
+> Speed slider now shows its `%` unit, and the power on/off toggle's knob is now exactly
+> vertically centred (was 1px off due to a border/box-sizing interaction). All verified
+> with `esphome compile`; not yet tested on real hardware except the UI-only web-app
+> changes (checked against the mock device server). See
+> [Behaviour reference](#behaviour-reference) and [Effects](#effects-effectsyaml) for the
+> resulting current-state reference; the entries below are the as-built record.
+>
 > **Phase:** v2.4.0 — root-caused and fixed the OTA install/check failures that had been
 > "still investigating" since v2.3.2: **BearSSL's HTTPS handshake against GitHub's CDN
 > needs roughly 16-20 KB of *contiguous* free heap** — confirmed directly on hardware with
@@ -58,9 +79,14 @@ Related documents:
 > a PlatformIO-registry mirror of rweather/arduinolibs' audited Crypto library, pulled
 > as-is rather than hand-copied) linked in, adding only ~8 KB to the final binary thanks to
 > linker dead-code elimination; a standalone Python sign/verify round-trip against both the
-> real production keypair and `tools/mock-device.py`'s throwaway test keypair. Still
-> pending: DNS propagation for the custom domain, and an on-hardware install test once the
-> plain-HTTP endpoint is confirmed reachable.
+> real production keypair and `tools/mock-device.py`'s throwaway test keypair. **DNS
+> propagation for the custom domain is now confirmed** — `curl
+> http://cloud-lamp.ddproductions.de/firmware-dist/cloud-lamp/manifest.json` returns `200`
+> over plain HTTP with no redirect, serving the live, signed manifest. Still pending: a
+> confirmed on-hardware test of the actual online-updater's check+install cycle against
+> this endpoint end-to-end (the public build has been pushed to the bench lamp via push-OTA
+> with the new `update_manifest_url` compiled in, but push-OTA bypasses
+> `components/signed_update/` entirely, so it doesn't exercise the code path being tested).
 >
 > **Phase:** v2.3.4 — fixed the web app's REST calls to use ESPHome's new entity-Name-based
 > URL format (e.g. `/light/Cloud Light`) instead of the legacy object_id form
@@ -257,11 +283,346 @@ Related documents:
 > (`.wrap`, `.sheet`) untouched. Also bumped the MQTT settings text inputs (`.row
 > input.ctl`) from 14px to 16px, since iOS Safari auto-zooms the page when a focused text
 > input's font is under 16px, regardless of the viewport meta.
-> **Still open:** per-effect user presets (store brightness + speed per effect, applied on
+> **Desktop mouse-wheel scroll fix (no firmware change):** the zoom-prevention fix above
+> made `.wrap` (not `body`) the only scrollable element, and `.wrap` was also the centred,
+> `max-width:520px` content column — so on wide desktop windows, the mouse wheel did
+> nothing whenever the cursor sat in the empty margin beside that column (hit-testing
+> resolves to `body`, which is intentionally `overflow:hidden`/non-scrollable). Only
+> noticeable on desktop Chrome; iPhone was unaffected since its viewport width is close to
+> `.wrap`'s cap, so virtually the whole screen was already "inside" it. Fixed by splitting
+> the two roles: `.wrap` now spans the full viewport width and is the only element with
+> `overflow-y:auto`, while a new `.inner` div (nested one level in, `max-width:520px;
+> margin:0 auto`, carrying `.wrap`'s old padding) does the visual centring. Applied to both
+> `web/app.html` and `web/setup.html`; no JS changes needed since `wrapEl`/`.wrap` is still
+> the scrollable element the settings-sheet scroll lock reads/writes.
+> **Full-bleed background fix, take 2 (no firmware change):** v2.1.6 dropped the explicit
+> `theme-color` meta on the theory that iOS Safari (15+) would auto-sample the page's own
+> background and tint its top/bottom bars to match, making the gradient look truly
+> edge-to-edge. In practice that auto-sampling never reliably delivered — it still left a
+> visible seam/cut-off at the screen edges. No page content can paint into the browser's
+> native chrome either way; the only lever is `theme-color`. Restored
+> `<meta name="theme-color" content="#0b0f18">` (matching `--bg1` and the PWA manifest's
+> existing `background_color`/`theme_color`, both already `#0b0f18` —
+> `components/cloud_lamp_web/cloud_lamp_web.cpp`) in `web/app.html`, and added the same to
+> `web/setup.html` (which never had one). This mirrors the Bed-LEDs/Custom_WLED
+> remote-control app (`wled00/data/remote-control.htm` + its manifest), which uses the
+> identical fixed dark-navy `theme-color` and does reliably look edge-to-edge.
+> **Full-bleed background fix, take 3 (no firmware change):** take 2's `theme-color` meta
+> still left a solid black bar under the status bar on-device (iOS 26 Safari, confirmed via
+> screenshot on the bench lamp). Root cause: Safari 26 dropped `theme-color` support
+> entirely — it now tints the top/bottom bars by sampling the plain CSS `background-color`
+> of a `position:fixed`/`sticky` element touching the viewport edge (≥~80% width), falling
+> back to `<body>`'s `background-color`, and to plain black/white if neither exists. Our
+> `.app-bg`/`.load-overlay` only ever set a gradient via the `background` shorthand, which
+> carries no flat `background-color`, and `<body>` had none either — so Safari fell through
+> to its black default. Fixed by giving `.app-bg` (and, as a fallback, `<body>` and
+> `.load-overlay`) an explicit `background-color:var(--bg1)` alongside their existing
+> gradients, in both `web/app.html` and `web/setup.html`. Left the `theme-color` meta in
+> place too (harmless, and still honoured by Chrome/Android and pre-26 Safari). Source:
+> WebKit's Wenson Hseih on the change's rationale, and
+> https://nasedk.in/blog/ios26-safari-toolbar-colors/ / https://arpit.blog/articles/2025/11/safari-drops-support-theme-color/
+> for the exact fallback chain and size thresholds.
+> **Full-bleed background fix, take 4 (no firmware change):** take 3's `background-color`
+> addition was confirmed deployed (byte-diffed the live `/` response) but produced zero
+> visible change on-device — same solid black status-bar bar, in a fresh tab and in Private
+> Browsing, ruling out tab-level toolbar-tint caching. Closed the one remaining structural
+> gap versus the Bed-LEDs/Custom_WLED reference (`body::before`): added
+> `transform:translateZ(0)` to `.app-bg` (and `.load-overlay`) in both `web/app.html` and
+> `web/setup.html`, promoting the fixed full-bleed layer to its own GPU compositing layer.
+> iOS Safari has a long history of a `position:fixed` element nested inside an
+> `overflow:hidden` html/body chain mis-computing its extent under the safe-area insets
+> (notch/status bar, home-indicator) without this, even though it paints correctly
+> everywhere else on screen — plausible root cause given the fix was otherwise byte-for-byte
+> correct. **Did not fix it** — on-device retest (regular Safari tab) showed no change.
+> **Full-bleed background fix, take 5 — root cause confirmed (no firmware change):** the
+> user noticed the top/bottom behaved differently between a regular Safari tab and the same
+> page added-to-home-screen (standalone PWA): standalone mode fixed the *top* seam
+> completely (status bar goes translucent and correctly shows the page through it in that
+> mode) but left the *bottom* edge cut off by a solid black band — a different symptom from
+> the plain-tab case, and the key clue. Matches a confirmed Safari 26 bug (Edoardo Lunardi,
+> "Safari 26 and the Strange Case of Fixed Overlays"): a `position:fixed;inset:0` layer with
+> a fully *opaque* background gets clipped short by Safari 26's new floating bottom bar,
+> while the identical layer at `opacity<1` is composited on a separate layer and correctly
+> covers the full viewport — `opacity:1` takes a "simple fill" fast path that gets clipped,
+> anything less routes through the compositor and doesn't. Fixed by adding `opacity:.999`
+> (visually indistinguishable from 1, and doubly so since `<body>` behind it already matches)
+> to `.app-bg` in both `web/app.html` and `web/setup.html`. Whether this incidentally also
+> fixes the still-black top bar seen in regular (non-standalone) Safari tab browsing —
+> possibly the same clipping bug was breaking Safari's ability to detect `.app-bg` as a
+> valid edge-bordering element for its tint-derivation — is unconfirmed pending retest of
+> both modes. **Did not fix it** — retest showed both symptoms unchanged.
+> **Full-bleed background fix, take 6 — structural (no firmware change):** takes 3–5 all
+> tuned the *colours/compositing* of the fixed `.app-bg` layer while keeping the page's two
+> structural oddities; a May-2026 field report that matches our exact symptoms
+> (https://1ar.io/updates/safari-26-liquid-glass-web/, "Safari 26 Liquid Glass") identifies
+> both as tint-breakers, which would explain why every colour-side fix produced zero
+> change: (1) a fully `overflow:hidden`-locked `html`/`body` breaks Safari 26's
+> viewport/chrome tint sampling outright ("do not lock the whole document"), leaving the
+> bars at the system black/white default no matter what background-colors the page
+> declares — exactly our symptom in both regular-tab (black status bar + untinted toolbar)
+> and standalone mode (black home-indicator band; the top was already handled there by the
+> older `black-translucent` meta, which is why standalone only showed the bottom symptom);
+> and (2) full-bleed `position:fixed` layers are precisely the element class with Safari
+> 26's confirmed clipping/tinting bugs (WebKit #300965/#302272, the fancyapps/MUI reports).
+> Restructured both `web/app.html` and `web/setup.html` accordingly: `html`/`body` keep
+> `height:100%` but drop `overflow:hidden` — the document still can't actually scroll,
+> since its only content (`.wrap`) is exactly one viewport tall, so the address-bar/
+> rubber-band seam the lock was protecting against can't return (overscroll is additionally
+> suppressed by the existing `overscroll-behavior` rules), and `.wrap`'s internal scrolling,
+> the desktop mouse-wheel fix, the pinch-zoom `touch-action` and the settings-sheet scroll
+> lock are all untouched. The `.app-bg` div is deleted entirely; its full gradient +
+> `background-color:var(--bg1)` moved onto `html` itself (with `background-repeat:
+> no-repeat`, so any canvas beyond the root box shows the flat colour, not a tiled
+> gradient). The root background is painted across the entire canvas — under the status
+> bar, toolbars and home indicator with `viewport-fit=cover` — and its `background-color`
+> is Safari 26's documented tint fallback, so no fixed element is needed at all and the
+> whole buggy code path is sidestepped. `body` is now deliberately background-less
+> (transparent) so it neither hides the root gradient nor shadows the root tint fallback.
+> `.load-overlay` (still fixed, still navy — it's what Safari samples during initial load)
+> is now `display:none`d via `hidden` ~400 ms after its fade-out (`markReady`), since
+> Safari 26 keeps sampling `opacity:0` fixed elements; at rest the root background is the
+> only tint source. Verified in a desktop browser (390px-emulated and full width): document
+> has zero scrollable overflow, `.wrap`/`.sheet` scrolling and the settings sheet behave as
+> before, gradient renders full-bleed.
+> **On-device iOS 26 retest of take 6 — did not fix it, investigation paused:** in the
+> standalone home-screen app the top edge now does stretch correctly (an improvement — the
+> `black-translucent` status-bar meta was already covering that case, but the root-background
+> restructure didn't regress it), but the **bottom edge still shows a blank/black band** —
+> the exact same symptom take 5 already identified. In a plain Safari tab (not added to the
+> home screen) the page **doesn't even stretch to the top**, so that mode is arguably no
+> better off than before either. Six iterative, independently-plausible fixes in a row
+> (takes 1-6: `theme-color`, a flat `background-color` fallback, GPU compositing via
+> `transform:translateZ(0)`, the `opacity:.999` compositing-path workaround, and finally
+> removing the `position:fixed`/`overflow:hidden` structure Safari 26's own tint-sampling
+> code is documented to mishandle) have now failed to close out either symptom. **Treating
+> this as a known, deferred defect rather than continuing to iterate blindly** — see the
+> "Still open" note below for the summary and possible future directions. Purely
+> cosmetic — the app remains fully usable either way, no functionality is affected.
+> **Header logo reliability fix (no firmware change, v2.5.0):** the header brand
+> mark (`/brand.png`) and footer maker logo (`/logo.png`) occasionally failed to load —
+> reported mainly on desktop Chrome — falling straight through to their existing
+> `onerror`-triggered fallback (removing the `<img>`, which for the header reveals the
+> small SVG cloud placeholder underneath via the `:has(img)` CSS rule; the footer just goes
+> blank). Root cause: on page load the app fires a burst of ~12-14 near-simultaneous HTTP
+> requests (icon.png, brand.png, logo.png, manifest.json, the long-lived `/events` SSE
+> stream, and a dozen initial REST state fetches for the light, MQTT fields, Power Behavior
+> and Firmware) against the ESP8266's web server, which only has a handful of concurrent
+> TCP connection slots; losing that race gets a request reset before the image loads.
+> Desktop Chrome opens more parallel per-origin connections on page load than mobile
+> Safari, which is why it surfaced there first, but the same race exists on any browser.
+> Fixed in `web/app.html` and `web/setup.html`: both images now retry up to 3 times with a
+> growing delay (500 ms, 1000 ms, 1500 ms) via a small `retryImgOnError()` helper before
+> falling back exactly as before — by the time a retry fires, the initial request burst has
+> settled and a plain refetch almost always succeeds. This does not change the root
+> resource-contention issue (still only a handful of TCP slots), just makes a lost race
+> self-heal instead of visibly failing. Reducing the icon/brand image file sizes was
+> considered too (smaller transfers hold a connection slot for less time, marginally
+> reducing contention odds) but wasn't necessary once the images reliably retry through a
+> transient failure; revisit if the issue resurfaces.
+> **Brightness icon (no firmware change, v2.5.0):** the icon next to the
+> Brightness slider changed from a half-filled circle to a line-drawn light bulb (stroke
+> style, matching the Speed slider's icon and the rest of the app's icon language) —
+> clearer at a glance than the circle, which some testers read as unrelated to lighting.
+> `web/app.html` only; no JS/behaviour change. **Not released yet** — bundled for the next
+> version bump alongside whatever else lands before the next `tools/release.sh` run.
+> **Candlelight — calmed down for nursery use (`effects.yaml`, v2.5.0):** the
+> lamp is decorative — plausibly sitting right next to where a baby sleeps — not a room
+> light, and the original Candlelight read as fast, jumpy, almost disco-like rather than a
+> calm flame. Root cause was two-fold: (1) each ring **snapped** most of the way to a fresh
+> random target every 90 ms instead of easing smoothly, so the colour visibly *stepped*
+> roughly 11 times a second; (2) `candle_depth` never actually capped how deep a dip could
+> go — the dip value was normalised by dividing by that same constant, so the effective
+> flicker range was always ~0-100% of the full base→ember shift regardless of its value,
+> despite the substitution's "higher = more nervous flame" comment implying otherwise.
+> Redesigned: `dip[r]` now **eases continuously** toward a `target[r]` every 40 ms frame
+> (`dip += (target - dip) * 0.05`) instead of jumping, so the glow visibly glides between
+> levels; `candle_depth` (default lowered `140` → `60`) now genuinely scales the *maximum*
+> reachable dip as a fraction of the full colour shift, so it's a real "how nervous" knob;
+> `candle_interval_ms` (default raised `90` → `320`) re-rolls each ring's target roughly
+> 3-4× less often. Net effect: a smooth, mostly-steady warm ember glow with small, soft,
+> unsynchronised dips per ring "here and there" rather than a fast strobe — same warm
+> orange→ember palette as before, same per-ring independence for a natural (not
+> synchronised) look, same `effect_speed` slider control. Verified with `esphome compile`
+> (clean build, no lambda errors); **not yet tested on real hardware** — the visual "feel"
+> (glide speed `0.05`, depth `60`, interval `320 ms`) is a first pass meant to be tuned by
+> eye on the bench lamp before release, not a final calibration.
+> **Effect tuning pass — Spectrum Fade, Sky Breathing, Blue Color Wipe, Pulse
+> (`effects.yaml`, v2.5.0):**
+> - **Spectrum Fade** was a little too fast: `spectrum_fade_period_s` `36` → `48` (one full
+>   18-colour lap now takes 48 s at speed 50, i.e. ~2.7 s per colour-to-colour crossfade
+>   instead of ~2 s). Substitution only, lambda unchanged.
+> - **Sky Breathing** looked almost off at its darkest point in a lit room — not a "not
+>   using full brightness" bug (the light's Brightness slider and `color_correct` are
+>   applied on top of whatever the effect renders, same as every other effect); the deep
+>   ocean-blue trough colour `(15, 55, 190)` was just genuinely dark, made worse by
+>   `color_correct: [100%, 75%, 60%]` (`cloud-lamp.yaml`) knocking its dominant blue
+>   channel down further — a blue-heavy colour loses proportionally more perceived
+>   brightness to that correction than a white/warm one does. Brightened the trough colour
+>   to `(40, 110, 225)` (same hue, ~16% → ~30% perceived luminance after colour-correction;
+>   the pale sky-blue peak is unchanged at ~65%) — still clearly the darker of the two ends,
+>   just no longer reads as "off".
+> - **Blue Color Wipe**: the moving colour boundary was an *integer* LED index, so each
+>   step snapped exactly one LED from the old colour straight to the new one — visible as
+>   individual LEDs "popping" on, exactly as reported. Rainbow doesn't show this because its
+>   hue is a continuous per-pixel gradient with no hard edge anywhere to snap. Fixed the
+>   same way: the boundary position is now a `float` that advances by real elapsed time
+>   (not a fixed per-tick integer step), and only the single LED the edge is currently
+>   crossing is blended smoothly between the old and new colour instead of flipping
+>   outright — the edge now glides continuously across that one LED instead of stepping.
+>   Also nudged `wipe_led_interval_ms` `400` → `350` (~12% faster) per the "just a little
+>   bit" speed request. Verified the blend math in isolation (a standalone Python
+>   simulation of the same formula): transitions land exactly on schedule and the blend
+>   factor rises smoothly 0→1 across exactly one LED width every time, with no
+>   off-by-one/wraparound glitches.
+> - **Pulse** had already had its floor raised once before; the dimmest point still read as
+>   close to off. Raised `pulse_min_level` `115` (~45%) → `150` (~59%) (max unchanged at
+>   `225`/~88%) and slowed the cycle slightly further, `pulse_period_ms` `8000` → `8800`.
+> All four: substitution/lambda changes in `effects.yaml` only, no entity/API changes.
+> Verified with `esphome compile` (clean build); **not yet tested on real hardware** — a
+> first pass meant to be tuned further by eye on the bench lamp before release.
+> **Custom Color button styling (no firmware change, v2.5.0):** the full-width
+> "Custom Color" tile in the Effect Presets grid had a plain white background, unlike every
+> other effect tile's dark/translucent one — that made it look distractingly like it was
+> always the *selected* tile even when a different effect was actually active. Now uses the
+> exact same default background/border/text colour as the other tiles (via the shared
+> `.fx-btn` rule, no more `.fx-custom`-specific overrides) and the same blue-tinted
+> highlight as other tiles once selected (`.fx-btn.sel`), keeping only its full-width span
+> (`grid-column:1/-1`) and centred label as what sets it apart. `web/app.html` CSS only; no
+> JS/behaviour change.
+> **Speed slider now shows its unit (no firmware change, v2.5.0):** the Speed
+> slider's value used to render as a bare number ("50"), unlike the Brightness slider right
+> above it ("70 %"), so it wasn't obvious what unit — if any — it was in. It's **%**: every
+> animated effect's period/interval scales as `base * 50 / spd`, so the *rate* is directly
+> proportional to `spd` — `100` is exactly double the default `50`'s animation rate, `1` is
+> 1/50th of it — a genuine linear percentage of maximum speed, not a decorative number. See
+> [Effect Speed](#effect-speed-numbereffect_speed) for the full explanation. `web/app.html`
+> now appends `" %"` in `renderSpeed()` and the slider's live-drag `input` handler, mirroring
+> `renderBrightness()`. Display-only change; no JS logic/behaviour change.
+> **New effect: Ring Ripple (`effects.yaml`, v2.5.0):** added after a deliberate
+> gap-analysis of the existing nine animated effects (see chat) — every "travelling" effect
+> already here (Rainbow, Spectrum Flow, Blue Color Wipe) moves along the flattened 24-LED
+> strip, and every per-ring effect (Candlelight) only randomises independently per ring, so
+> none of them actually use the lamp's real 3-ring construction as a *direction of motion*.
+> Ring Ripple does: a single soft brightness wave travels physically ring 1 → ring 2 → ring
+> 3 (the data-wiring order — see [Hardware](#hardware)), fades out past the last ring,
+> pauses briefly at the dim floor colour, then the next ripple begins — like a slow ripple
+> spreading across still water. Deliberately coarse (whole-ring, not per-LED, brightness
+> steps) since that's what makes it read as "ring motion" rather than another LED-strip
+> effect. Stateless — every frame computed straight from `millis()`, no static variables
+> needed, unlike every other travelling/flicker effect in this file. Implementation note:
+> the wave position is eased in and out with an explicit `runout` margin (3.5×
+> `ring_ripple_sigma`) *before* ring 1 and *after* ring 3 so the Gaussian brightness bump
+> has already decayed to a negligible ~0.1% before the travel phase ends and the pause
+> phase's flat floor colour takes over — without that margin the ripple would pop in/out
+> abruptly right at the sweep's start/end instead of gliding all the way down smoothly (the
+> same class of bug the Blue Color Wipe fix above addressed). Verified the wave/decay math
+> in isolation (a standalone Python simulation): confirmed a smooth Gaussian rise and fall
+> through all three rings with the pause phase, and confirmed the fix eliminates the
+> discontinuity (residual brightness at the travel/pause boundary is ~0.3%, imperceptible).
+> Colours (`base`/`peak` in the lambda) are a first pass — a dim, cool "resting cloud" floor
+> brightening to a pale near-white crest as the ripple passes; not yet tested on real
+> hardware. Added to `SPEED_FX`, `FX_SWATCH` and every `FX_NAMES` language map in
+> `web/app.html`, and to `tools/mock-device.py`'s `EFFECTS` list, per the "renaming an
+> effect" note above. Inserted between Candlelight and Spectrum Fade in both files' effect
+> order, which — per the same note — shifts the persisted `last_effect_index` for every
+> effect after it (Spectrum Fade onward) by one; harmless one-time cosmetic jump on a
+> lamp's first update past this release. Verified with `esphome compile` (clean build).
+> **Power-loss "Restore Last State" investigated — found a real limitation, decision
+> pending (no code change yet):** checked, at the user's request, whether `saved_on` /
+> `last_effect_index` / `custom_color_active` / `custom_color_rgb` / `brightness_pct` and
+> the `power_behavior` select itself actually survive a genuine power cut, not just a
+> reboot. **They don't, reliably** — verified by reading the installed ESPHome package's
+> own C++ source, not assumed. Every `restore_value: yes` global and every
+> `restore_value: true`/`restore_mode: …` entity in this whole config (globals, the
+> `power_behavior` select, the MQTT enable switch and broker text/number fields — all of
+> them, not just the power-related ones) calls `global_preferences->make_preference(...)`
+> with no explicit "in flash" argument, which on ESP8266 defaults to `in_flash = false`
+> unless the `esp8266:` block sets `restore_from_flash: true`
+> (`esphome/components/esp8266/preferences.h`) — neither `cloud-lamp.yaml` nor
+> `cloud-lamp-dev.yaml` sets it, so every one of these values lives in the chip's **RTC
+> memory**, not flash (`esphome/components/esp8266/preferences.cpp`'s
+> `save_to_rtc()`/`load_from_rtc()`; the switch component's own field for this is even
+> literally named `rtc_`). ESP8266 RTC memory is well-documented (Espressif/Arduino-core;
+> cross-checked against multiple independent sources) to survive a **software reset,
+> watchdog reset, or deep sleep**, but **not an actual loss of VCC power** — exactly the
+> "unplug the lamp" scenario "Restore Last State" exists for, per its own code comment
+> ("restore the lamp after a power cut"). Practical effect: after a genuine power
+> outage/unplug, `saved_on` *and* the user's own `power_behavior` choice both silently
+> revert to their compiled-in defaults (`false` / `"Start Off"`) — the lamp reliably boots
+> off after a real power cut no matter what was selected or showing beforehand. (Wi-Fi
+> credentials are unaffected — those go through the Arduino core's own, always-flash-backed
+> Wi-Fi config storage, a completely separate mechanism from ESPHome's
+> `global_preferences`.) The fix is a one-line `esp8266: restore_from_flash: true` (moves
+> every `restore_value` entity in the config — this and the MQTT settings — from RTC memory
+> to a dedicated flash sector; ESPHome has no per-entity flash-vs-RTC override, checked in
+> both the `globals` and `template`/`select` component schemas, so it's an all-or-nothing
+> device-level setting), at the cost of a small, real amount of flash wear from periodic
+> preference-sync writes (deduped to at most once/second per changed value, or once per
+> deliberate reboot's `on_shutdown()` flush) — likely inconsequential for how rarely
+> brightness/effect/on-off change on a decorative lamp over its lifetime, but a genuine
+> hardware-lifespan tradeoff, not purely code, so it was put to the user rather than decided
+> silently. **Resolved: `esp8266: restore_from_flash: true` added to `cloud-lamp.yaml`**
+> (inherited automatically by `cloud-lamp-dev.yaml`, which packages the public build as its
+> base) — accepting the small flash-wear tradeoff so "Restore Last State" genuinely survives
+> a real power cut. Verified with `esphome compile` (clean build; flash usage unchanged at
+> 82.0%, RAM +256 B); not yet tested on real hardware.
+> **Boot logic now distinguishes a deliberate reboot from a real power cut (`cloud-lamp.yaml`,
+> v2.5.0):** separately checked, per the user's request, whether a lamp that's ON
+> right before a software-triggered reboot (most importantly a successful OTA update) comes
+> back ON afterwards. Traced the full OTA/reboot flow in the installed ESPHome package's C++
+> source: none of the three `ota:` platforms in this config (`web_server`, `http_request`/
+> `ota_via_http`, `esphome`) ever touch the light, and a failed, aborted or canceled update
+> never reboots at all — `ota_http_request.cpp`'s `flash()` only calls `App.safe_reboot()`
+> on the `OTA_RESPONSE_OK` branch; every other outcome just clears retry state and returns,
+> leaving the running firmware (and the light, mid-effect) completely untouched. So those
+> three outcomes were already correct with no code change needed — there was never
+> anything to "return to", because nothing was ever changed. The one real gap: a
+> *successful* update calls `App.safe_reboot()` and reboots into the new firmware, where
+> `apply_boot_light_state` — the same script that runs after every boot, for every reason —
+> unconditionally applied the `power_behavior` select's *power-cut* policy, meaning a lamp
+> with the default "Start Off" behaviour would always come back off after a successful
+> update even if it had been on seconds before. Fixed by having `apply_boot_light_state`
+> check `ESP.getResetReason()` first: ESP8266 reports exactly `"Software/System restart"`
+> for a reboot triggered by `system_restart()` — what `App.safe_reboot()`'s `arch_restart()`
+> calls under the hood (`esphome/components/esp8266/hal.cpp`) — and something else
+> (`"Power On"`, `"External System"`, a watchdog/exception reason) for an actual power-on or
+> crash/reset. On a software-restart boot the lamp now always resumes `saved_on` exactly as
+> it was, ignoring `power_behavior` entirely; every other boot cause keeps the existing
+> `power_behavior` logic unchanged (subject to the RTC-memory caveat in the entry above).
+> This also correctly covers the Restart button and MQTT `Set/Reboot` (both go through the
+> same `App.safe_reboot()`) and safe_mode's own retry-reboot — every deliberate software
+> reboot, not just the OTA case originally asked about. `saved_on` is guaranteed current at
+> this point regardless of the usual 1 s polling delay: `App.safe_reboot()` runs every
+> component's `on_shutdown()` hook before actually resetting
+> (`esphome/core/application.cpp`), which flushes the globals' preference immediately.
+> Verified with `esphome compile` (clean build); not yet tested on real hardware.
+> **Power toggle knob vertically off-centre (no firmware change, v2.5.0):** the
+> big on/off toggle's circular knob sat 1 px lower than centre — 4 px gap above it, 2 px
+> below. Root cause: the knob used a fixed `top:4px`, but this page's global
+> `box-sizing:border-box` means the track's `height:52px` already includes its `1px`
+> border, so the track's actual inner height is `50px`, not `52px` — `top:4px` on a `44px`
+> knob left `50-4-44=2px` below instead of the `4px` a truly centred knob needs. (The
+> smaller MQTT toggle uses the same pattern but its numbers happen to divide evenly, so it
+> was already centred — only the main power toggle was affected.) Fixed by switching the
+> knob to `top:50%` + `transform:translateY(-50%)`, which centres it exactly regardless of
+> border width. `web/app.html` CSS only. Verified with a pixel-measurement check via CDP
+> (`getBoundingClientRect()`) against the mock device server: gap above/below the knob is
+> now exactly 4px/4px.
+> **Still open:** the iOS Safari 26 full-bleed edge-to-edge background issue described in
+> the six "Full-bleed background fix" entries above — a plain Safari tab doesn't stretch to
+> the top and the standalone home-screen app doesn't stretch to the bottom, and none of the
+> six independent fixes attempted (cache-busting the icon, `theme-color`, a
+> `background-color` fallback, GPU compositing, the `opacity:.999` workaround, removing the
+> fixed-position/`overflow:hidden` structure) resolved either symptom on a real device.
+> Deferred rather than actively worked on for now; worth revisiting if a future Safari
+> release changes this behaviour, or if a fundamentally different approach turns up (e.g.
+> giving up on `viewport-fit=cover` edge-to-edge entirely and living with a solid-colour
+> status-bar/home-indicator strip instead of chasing Safari 26's tinting quirks further).
+> Per-effect user presets (store brightness + speed per effect, applied on
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.4.0
+> **Firmware:** ESPHome 2026.6.0, project version 2.5.0
 
 ### GitHub Pages setup
 
@@ -296,11 +657,16 @@ redeploys the Pages site automatically, so `docs/user-manual.pdf` stays current.
    the web app, so nothing device- or person-specific is ever compiled in). The builder's
    bench lamp uses `cloud-lamp-dev.yaml`, which just layers compiled-in Wi-Fi networks on
    top. Published binaries come only from the public build (enforced by `tools/release.sh`).
-4. **Settings survive everything.** Persisted values (brightness, effect, power behaviour,
-   MQTT enabled/broker/port/username/password, captive-portal Wi-Fi credentials) live in
-   the ESP preferences area, outside the firmware image. They survive reboots, power cuts
-   and OTA updates. Global IDs
-   are kept stable across firmware versions so stored values stay attached.
+4. **Settings survive everything.** Persisted values (brightness, effect, custom colour,
+   power behaviour, MQTT enabled/broker/port/username/password) live in the ESP preferences
+   area, outside the firmware image. They survive reboots, power cuts and OTA updates —
+   `esp8266: restore_from_flash: true` (`cloud-lamp.yaml`) puts them in a dedicated flash
+   sector rather than ESP8266 RTC memory, which is lost on an actual power cut (see
+   [Power-loss "Restore Last State" investigated](#project-status) in the changelog for why
+   that distinction matters and the flash-wear tradeoff it was chosen over). Captive-portal
+   Wi-Fi credentials are handled entirely separately by the Arduino core's own Wi-Fi config
+   storage. Global IDs are kept stable across firmware versions so stored values stay
+   attached.
 
 ---
 
@@ -397,11 +763,21 @@ Two ways, both deliberate:
    digits of the chip MAC, uppercase) before Wi-Fi starts. This is the name printed on the
    product sticker.
 2. **Priority −100 (end of boot):** if the button is held → factory-reset countdown.
-   Otherwise the *Power Behavior* setting is applied: **Start switched off** (firmware
-   option `Start Off`, default) or **Restore Last State** (turns back on with the saved
-   effect and brightness if the lamp was on when power was cut). Then `boot_completed`
-   is set; only from this point are button presses, MQTT commands and state mirroring
-   active.
+   Otherwise, `apply_boot_light_state` checks *why* the device rebooted:
+   - **A deliberate software reboot** (a successful OTA update via any of the three `ota:`
+     platforms, the Restart button, MQTT `Set/Reboot`, or safe_mode's own retry) is not a
+     power cut — the lamp always resumes exactly how it was the instant before, on or off,
+     regardless of the *Power Behavior* setting. Detected via `ESP.getResetReason() ==
+     "Software/System restart"`, the reset reason the ESP8266 SDK reports only for this
+     case (a failed/aborted/canceled update never reaches this point at all — it never
+     reboots, so the light is simply never touched).
+   - **Any other boot cause** (actual power-on, external reset, watchdog/crash) applies the
+     *Power Behavior* setting: **Start switched off** (firmware option `Start Off`,
+     default) or **Restore Last State** (turns back on with the saved effect and
+     brightness if the lamp was on when power was cut).
+
+   Then `boot_completed` is set; only from this point are button presses, MQTT commands
+   and state mirroring active.
 
 `restore_mode: ALWAYS_OFF` on the light plus a hard pixel-buffer clear after every turn-off
 guarantee no LED can stay lit from an undefined boot state.
@@ -551,14 +927,15 @@ substitution at the top of the file.
 |---|---|---|
 | White / Sky Blue / Blue / Indigo / Purple / Magenta / Salmon / Red / Peach / Apricot / Orange / Amber / Honey / Gold / Vanilla / Yellow / Chartreuse / Green | solid | Static colours, 250 ms refresh. 18 colours, White first (default cycle start), then one continuous hue sweep blue → violet → pink → red → orange → yellow → green. Every hex value was tested on-device with the web app's colour picker before being locked in. Speed slider hidden. |
 | Aurora Drift | animated | Slow-moving vivid teal→violet gradient with per-ring depth (saturated endpoints since v2.1.5 — the pastel pair washed out). **First special effect** and the effect a brand-new lamp shows on its very first power-on (`last_effect_index` initial value, see [Behaviour reference](#behaviour-reference)). |
-| Sky Breathing | animated | Slow crossfade between a deep ocean blue and a pale sky blue — widened from the original narrow pair, which was too subtle to notice |
-| Candlelight | animated | Warm orange with a deep, responsive per-ring flicker that dims *and* reddens towards an ember tone — deepened from the original faint brightness-only wobble so it reads through the diffuser |
+| Sky Breathing | animated | Slow crossfade between a deep ocean blue and a pale sky blue — widened from the original narrow pair, which was too subtle to notice; deep-blue end later brightened too, see changelog |
+| Candlelight | animated | Warm orange with a gentle, smoothly-eased per-ring flicker that dims *and* reddens slightly towards an ember tone — a calm, nursery-safe glow with small soft dips here and there, not a fast/jumpy strobe (retuned from an earlier, much more "disco-like" version — see changelog) |
+| Ring Ripple | animated | A soft brightness wave that travels physically ring 1 → ring 2 → ring 3 (the data-wiring order, see [Hardware](#hardware)), fades past the last ring, pauses, then repeats — the one motion the lamp's 3-ring build supports that no other effect uses (everything else travels along the flattened LED strip instead) |
 | Spectrum Fade | animated | Whole lamp crossfades through the 18-colour palette above, all rings together |
 | Spectrum Flow | animated | Same 18-colour palette, but travelling — a colour gradient scrolls across the individual LEDs |
 | Twinkle | animated | Quiet starfield — sparse sparks with a smooth sin() rise-and-fall envelope (never pops in/out) over a real ambient floor; kid-friendly, no flashes — reworked from the original near-invisible version |
-| Blue Color Wipe | animated | Blue → violet cloud colours (Sky Blue/Blue/Indigo/Purple), very slow sweep — widened and renamed from "Color Wipe" to make clear it stays in the blue/violet family |
+| Blue Color Wipe | animated | Blue → violet cloud colours (Sky Blue/Blue/Indigo/Purple), very slow sweep with a smoothly-blended (not stepped) LED edge — widened and renamed from "Color Wipe" to make clear it stays in the blue/violet family |
 | Rainbow | animated | Full spectrum, slow hue drift |
-| Pulse | animated | Pixel-level breathing, raised to ~45–88 % so the low point never looks "off" (never overwrites saved brightness) |
+| Pulse | animated | Pixel-level breathing, raised to ~59–88 % so the low point never looks "off" (never overwrites saved brightness) |
 
 ### Effect Speed (`number.effect_speed`)
 
@@ -566,6 +943,17 @@ A persisted template number **1–100** (default **50** = substitution defaults 
 `effects.yaml`). The web app shows a Speed slider only while an animated effect that
 honours speed is active. Higher values shorten periods / increase spark rate; lower
 values calm the motion. Solids ignore it.
+
+**Unit:** every effect computes its period/interval as `base_value * 50 / spd` (see any
+lambda in `effects.yaml`), i.e. the *rate* (1/period) is directly proportional to `spd` —
+value `100` really is exactly double the animation rate of the default `50`, and `1` is
+1/50th of it (practically stopped). That linear proportionality is what makes displaying
+it as a plain **%** of maximum speed accurate rather than just a decorative unit, and it's
+why the web app's Speed value now reads e.g. "50 %" instead of a bare "50" — matching the
+Brightness slider's own "value %" display (`web/app.html`, `renderSpeed()` and the
+slider's `input` handler). It is **not** a duration (not milliseconds) and not tied to any
+single effect's specific timing — it's a relative multiplier every animated effect's own
+substitutions (`*_period_s`, `*_interval_ms`, etc.) are scaled by.
 
 Effect names are case-sensitive canonical identifiers used by MQTT (`Set/Effect` /
 `State/Effect`) and the REST API. When renaming an effect, update the display-name maps in

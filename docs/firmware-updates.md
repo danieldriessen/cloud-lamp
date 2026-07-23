@@ -81,6 +81,13 @@ if you hit this on a lamp still running an older firmware.
   behaviour, MQTT switch/broker/port/username/password) live in the preferences area,
   **outside** the firmware image, and survive every update. Global/entity IDs are kept
   stable across versions so stored values stay attached.
+- A successful update always resumes the lamp's exact on/off state from right before it —
+  a deliberate reboot is detected separately from a genuine power cut and never applies
+  the *Power Behavior* power-cut policy (which only governs an actual power cut). See the
+  "Boot logic now distinguishes a deliberate reboot from a real power cut" changelog entry
+  in [cloud-lamp-design.md](./cloud-lamp-design.md#project-status) for the full mechanism.
+  A failed, aborted or canceled update never reboots at all, so the running lamp — and its
+  on/off state — is simply untouched in those cases.
 
 ## Publishing a release (builder workflow)
 
@@ -146,7 +153,8 @@ cloud-lamp.ddproductions.de/        (custom domain → GitHub Pages → this rep
    reverted to their normal, secure defaults.)
 5. Wait for DNS propagation (can take anywhere from minutes to a few hours), then verify:
    `curl -v http://cloud-lamp.ddproductions.de/firmware-dist/cloud-lamp/manifest.json`
-   should return `200` with no redirect, over plain HTTP.
+   should return `200` with no redirect, over plain HTTP. **Done and confirmed** for this
+   project's domain — that exact command returns `200` over plain HTTP today.
 
 That same path must be reachable at the `update_manifest_url` configured in
 `cloud-lamp.yaml`'s substitutions (it already is — no config change needed once the domain

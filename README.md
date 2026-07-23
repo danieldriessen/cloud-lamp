@@ -17,18 +17,23 @@ through a built-in web app.
   next effect, press-and-hold dims up/down (alternating, Hue-style). Holding the button
   while plugging the lamp in performs a factory reset (with a red countdown animation as
   warning).
-- **27 light effects** — 18 solid colours in spectrum order (White first, then one
+- **28 light effects** — 18 solid colours in spectrum order (White first, then one
   continuous hue sweep from blue through violet, pink, red, orange, yellow and green; all
   tested on-device with the web app's colour picker) plus special effects (Aurora Drift —
-  the default on a lamp's first-ever power-on — Sky Breathing, Candlelight, Spectrum Fade,
-  Spectrum Flow, Twinkle, Blue Color Wipe, Rainbow, Pulse), all tunable via substitutions
-  in `effects.yaml`.
+  the default on a lamp's first-ever power-on — Sky Breathing, Candlelight, Ring Ripple,
+  Spectrum Fade, Spectrum Flow, Twinkle, Blue Color Wipe, Rainbow, Pulse), all tunable via
+  substitutions in `effects.yaml`.
 - **Effect speed** — live 1–100 slider in the web app for animated effects (persisted;
   50 = the calm defaults). Solids hide the control.
 - **Custom colour** — a *Custom color* button in its own section of the web app opens the
   device's native colour picker (the iOS system picker on iPhone/iPad); the picked colour
   is remembered like an effect and survives power cuts. A double press on the button
   returns to the effect presets.
+- **Configurable power-cut behaviour** — Settings → *Power Behavior* chooses whether the
+  lamp starts switched off after a power cut (default) or restores exactly the on/off
+  state it had before, with the same brightness and effect. A deliberate reboot (a
+  firmware update, or the web app's Restart button) always restores the pre-reboot on/off
+  state directly, regardless of this setting — only an actual power cut is affected by it.
 - **iOS-style web app** — served directly from the lamp, no cloud, no app store.
   Progressive Web App: open the lamp's address in Safari, "Add to Home Screen", and it
   behaves like a native app. Power, brightness, speed, effect selection, settings and

@@ -3,6 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <!-- Matches --bg1 / web/app.html's theme-color — see that file's comment
+       for why this needs to be explicit for Chrome/pre-26 Safari. Safari 26
+       ignores this meta entirely and tints its bars from html/body's
+       background-color instead (see below) — keep both in sync. -->
+  <meta name="theme-color" content="#0b0f18">
   <meta name="format-detection" content="telephone=no">
   <link rel="icon" type="image/png" href="/brand.png">
   <title>Cloud Lamp — Wi-Fi Setup</title>
@@ -33,17 +38,25 @@
     }
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     [hidden]{display:none !important}
-    /* Full-bleed canvas on iOS: html/body are locked to the viewport
-       (height:100%, overflow:hidden) instead of letting the document itself
-       scroll — see web/app.html for the full rationale. All real scrolling
-       happens inside .wrap. */
+    /* Full-bleed canvas: the gradient lives on the root element (painted
+       across the whole canvas, under all of Safari's bars) and html/body
+       are no longer overflow:hidden-locked — Safari 26's bar-tint sampling
+       breaks on a locked document, and its confirmed position:fixed
+       clipping bugs ruled out the old fixed .app-bg backdrop div. See
+       web/app.html's html/body comment for the full rationale; the document
+       still cannot actually scroll (.wrap is exactly one viewport tall). */
     html{
-      margin:0;padding:0;height:100%;overflow:hidden;
-      background-color:var(--bg0);
+      margin:0;padding:0;height:100%;
+      /* The flat colour Safari 26 samples for its bar tint — keep in sync
+         with the theme-color meta above. */
+      background-color:var(--bg1);
       background-image:
-        radial-gradient(1100px 650px at 15% 0%, rgba(108,178,255,.20), transparent 55%),
+        radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),
+        radial-gradient(850px 550px at 95% 18%, rgba(124,240,201,.08), transparent 60%),
         linear-gradient(180deg,var(--bg0),var(--bg1));
+      background-repeat:no-repeat;
       -webkit-text-size-adjust:none;text-size-adjust:none;
+      overscroll-behavior:none;
       /* iOS Safari (10+) ignores the viewport meta's user-scalable=no for
          pinch-zoom on purpose (accessibility). touch-action is a separate
          mechanism it does respect: allowing pan-x/pan-y but omitting
@@ -52,22 +65,26 @@
       touch-action:pan-x pan-y;
     }
     body{
-      margin:0;padding:0;height:100%;overflow:hidden;
+      margin:0;padding:0;height:100%;
+      /* Deliberately no background: body must stay transparent so the root
+         gradient above shows through, and so Safari 26's tint fallback
+         reads html's background-color. */
       font-family:var(--font);color:var(--text);
       overscroll-behavior:none;
     }
-    .app-bg{
-      position:fixed;z-index:0;pointer-events:none;inset:0;
-      background:
-        radial-gradient(1100px 650px at 15% 8%, rgba(108,178,255,.20), transparent 55%),
-        radial-gradient(850px 550px at 95% 18%, rgba(124,240,201,.08), transparent 60%),
-        linear-gradient(180deg,var(--bg0),var(--bg1));
-    }
     .wrap{
-      position:relative;z-index:1;max-width:520px;margin:0 auto;
+      position:relative;z-index:1;
       height:100%;height:100svh;height:100dvh;height:-webkit-fill-available;
       overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
       -webkit-overflow-scrolling:touch;
+    }
+    /* Centred content column, kept separate from .wrap itself so .wrap can
+       span the full viewport width. Otherwise, on wide desktop windows, the
+       mouse wheel does nothing while the cursor sits in the empty margin
+       beside the centred column — that margin belongs to <body>, which
+       never has scrollable overflow (see the html comment above). */
+    .inner{
+      max-width:520px;margin:0 auto;
       padding:calc(env(safe-area-inset-top, 0px) + 14px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
     }
 
@@ -188,64 +205,87 @@
   </style>
 </head>
 <body>
-  <div class="app-bg"></div>
   <div class="wrap">
-    <header>
-      <div class="brand">
-        <div class="cloud"><img src="/brand.png" alt="" onerror="this.remove()"></div>
-      </div>
-      <span class="pill" id="serial">…</span>
-    </header>
-
-    <div class="hero">
-      <h1 id="tTitle">Wi-Fi setup</h1>
-      <p id="tIntro">Choose your home Wi-Fi network and enter its password. The lamp saves it and connects automatically from then on.</p>
-    </div>
-
-    <div id="viewSetup">
-      <div class="card">
-        <div class="sec-label"><span id="tNetworks">Networks nearby</span>
-          <button class="rescan" id="btnRescan" type="button">Scan again</button></div>
-        <div class="netlist" id="netlist"><div class="empty"><div class="spinner"></div></div></div>
-      </div>
-
-      <div class="card" id="formCard" hidden>
-        <div class="sec-label" id="tCreds">Password</div>
-        <div class="field" id="ssidField" hidden>
-          <input id="ssid" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="Network name (SSID)">
+    <div class="inner">
+      <header>
+        <div class="brand">
+          <div class="cloud"><img id="brandLogoImg" src="/brand.png" alt=""></div>
         </div>
-        <div class="field">
-          <input id="psk" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="Password">
-          <button class="eye" id="btnEye" type="button" aria-label="Show password">
-            <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
-          </button>
+        <span class="pill" id="serial">…</span>
+      </header>
+
+      <div class="hero">
+        <h1 id="tTitle">Wi-Fi setup</h1>
+        <p id="tIntro">Choose your home Wi-Fi network and enter its password. The lamp saves it and connects automatically from then on.</p>
+      </div>
+
+      <div id="viewSetup">
+        <div class="card">
+          <div class="sec-label"><span id="tNetworks">Networks nearby</span>
+            <button class="rescan" id="btnRescan" type="button">Scan again</button></div>
+          <div class="netlist" id="netlist"><div class="empty"><div class="spinner"></div></div></div>
         </div>
-        <p class="hint" id="tHint">Leave the password empty for open networks.</p>
-        <button class="btn" id="btnConnect" type="button">Connect lamp</button>
-        <p class="err" id="err" hidden></p>
-      </div>
-    </div>
 
-    <div id="viewDone" hidden>
-      <div class="card">
-        <div class="okmark"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5L19.5 7"/></svg></div>
-        <p class="done-t" id="tDoneT">Network saved</p>
-        <p class="done-s" id="tDoneS"></p>
-        <ol class="steps">
-          <li id="tStep1">Reconnect your phone to your home Wi-Fi — this setup hotspot disappears once the lamp is connected.</li>
-          <li id="tStep2">Then open the lamp’s remote control in your browser:<span class="url" id="lampUrl">http://cloud-lamp-xxxxxx.local/</span></li>
-          <li id="tStep3">Wrong password? The lamp opens this setup hotspot again after about a minute — simply start over.</li>
-        </ol>
+        <div class="card" id="formCard" hidden>
+          <div class="sec-label" id="tCreds">Password</div>
+          <div class="field" id="ssidField" hidden>
+            <input id="ssid" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="Network name (SSID)">
+          </div>
+          <div class="field">
+            <input id="psk" type="password" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="Password">
+            <button class="eye" id="btnEye" type="button" aria-label="Show password">
+              <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+            </button>
+          </div>
+          <p class="hint" id="tHint">Leave the password empty for open networks.</p>
+          <button class="btn" id="btnConnect" type="button">Connect lamp</button>
+          <p class="err" id="err" hidden></p>
+        </div>
       </div>
-    </div>
 
-    <p class="foot">Cloud-Lamp · DD Productions</p>
+      <div id="viewDone" hidden>
+        <div class="card">
+          <div class="okmark"><svg viewBox="0 0 24 24"><path d="M4.5 12.5l5 5L19.5 7"/></svg></div>
+          <p class="done-t" id="tDoneT">Network saved</p>
+          <p class="done-s" id="tDoneS"></p>
+          <ol class="steps">
+            <li id="tStep1">Reconnect your phone to your home Wi-Fi — this setup hotspot disappears once the lamp is connected.</li>
+            <li id="tStep2">Then open the lamp’s remote control in your browser:<span class="url" id="lampUrl">http://cloud-lamp-xxxxxx.local/</span></li>
+            <li id="tStep3">Wrong password? The lamp opens this setup hotspot again after about a minute — simply start over.</li>
+          </ol>
+        </div>
+      </div>
+
+      <p class="foot">Cloud-Lamp · DD Productions</p>
+    </div>
   </div>
 
 <script>
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
+
+  /* ---------------- Robust logo image loading ----------------
+     Same fix as web/app.html: /brand.png can occasionally lose the race
+     against other near-simultaneous requests for one of the ESP8266 web
+     server's few concurrent TCP connection slots and get reset before it
+     loads. Retry a few times with a growing delay before giving up (the
+     img then removes itself, same as before). */
+  function retryImgOnError(img, maxAttempts, delayMs) {
+    if (!img) return;
+    const src = img.getAttribute("src");
+    let attempt = 0;
+    img.onerror = () => {
+      attempt++;
+      if (attempt > maxAttempts) {
+        img.onerror = null;
+        img.remove();
+        return;
+      }
+      setTimeout(() => { img.src = src + "?r=" + Date.now(); }, delayMs * attempt);
+    };
+  }
+  retryImgOnError($("brandLogoImg"), 3, 500);
 
   /* ---------------- i18n (same languages as the app; auto-detected) ---------------- */
   const I18N = {
