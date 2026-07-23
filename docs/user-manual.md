@@ -155,6 +155,12 @@ was right before the update, regardless of the Power Behavior setting mentioned 
 answering the web app (that is normal — it is writing the new firmware and then
 restarting).
 
+> **Seeing "Update failed" right after a slow-feeling update?** If the lamp took a while
+> to reconnect, the app can give up waiting and show "Update failed" even though the
+> update actually completed. Check **Settings → Firmware → Installed version** first — if
+> it already shows the version you just installed, nothing is wrong and you can ignore
+> the failed message.
+
 ---
 
 ## 8. Moving, Wi-Fi change, troubleshooting

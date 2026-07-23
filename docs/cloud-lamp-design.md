@@ -40,6 +40,25 @@ Related documents:
 > [Behaviour reference](#behaviour-reference) and [Effects](#effects-effectsyaml) for the
 > resulting current-state reference; the entries below are the as-built record.
 >
+> **Phase:** v2.6.1 — real-hardware report right after publishing v2.6.0: the
+> update *did* succeed (the lamp reconnected to the home Wi-Fi normally, no AP-fallback,
+> and correctly reports `2.6.0` afterwards) but the web app's install coach (`web/app.html`)
+> showed **"Update failed"** anyway and offered "Try again". Root cause: `FW_TIMEOUT_MS`
+> (180000, 3 min) is a single hard deadline covering the *entire* install+reboot+Wi-Fi-
+> reassociation journey from the moment Install is tapped; `tickFwCoach()` checks it first
+> on every 1 s tick and declares failure unconditionally once it elapses, with no final
+> reachability check first. This is a **different** bug from the v2.4.0 → v2.5.1
+> AP-fallback failure documented below — here the lamp reconnects to the *correct* network
+> the whole time, it just occasionally takes longer than 3 minutes end-to-end on real
+> hardware, and the coach had already given up (and stopped polling) by the time it came
+> back. Fix: raised `FW_TIMEOUT_MS` to 300000 (5 min) — cheap and safe, since a genuinely
+> stuck lamp still times out, just later. Also reworded `fw_hint_fail` (all 10 languages)
+> to stop asserting "the previous firmware is still running" (which this incident showed
+> can be flat wrong) and instead point at Settings → Firmware's "Installed version" first,
+> since that's now a known way for this exact failure mode to resolve itself. JS syntax-
+> checked; not yet re-tested against an update slow enough to exercise the new 5 min
+> ceiling on real hardware.
+>
 > **Phase:** v2.6.0 — found and fixed the real cause of a report that the
 > captive-portal Wi-Fi onboarding page "looks basic" when opened via the setup hotspot.
 > Ruled out CSS/CNA-sandbox theories first (the page renders fully styled in
@@ -838,7 +857,7 @@ Related documents:
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.6.0
+> **Firmware:** ESPHome 2026.6.0, project version 2.6.1
 
 ### GitHub Pages setup
 

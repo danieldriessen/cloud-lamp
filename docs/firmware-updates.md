@@ -237,8 +237,8 @@ protected against this contention (see `packages/updates.yaml`) and this should 
 
 Reproduced on real hardware (not yet fully root-caused — see the v2.6.0 entry in
 [cloud-lamp-design.md](./cloud-lamp-design.md#project-status)): the web app
-shows **"Update failed — the previous firmware is still running"**, but the download,
-verification, and flash write actually completed successfully. What happens is the
+shows **"Update failed"**, but the download, verification, and flash write actually
+completed successfully. What happens is the
 *freshly-flashed* firmware fails to reconnect to the home Wi-Fi network and falls back to
 its own setup hotspot (`Cloud-Lamp-XXXXXX`) instead — invisible to the web app, since it's
 no longer on the same network, so its 3-minute wait just times out and shows the generic
@@ -256,6 +256,26 @@ after coming from an older one — reconfigure those in Settings afterwards.
 
 So far this has only been confirmed on a v2.4.0 → v2.5.1 jump. It's not yet known whether
 it also affects smaller version jumps (e.g. any update once already running v2.5.0+).
+
+## Update shows "Update failed" but actually succeeded (no AP-fallback)
+
+A **different** failure mode from the one above — reported right after publishing v2.6.0
+(see the "not yet released" entry right above the v2.6.0 one in
+[cloud-lamp-design.md](./cloud-lamp-design.md#project-status)). Here the lamp reconnects to
+the *correct* home Wi-Fi the whole time (no setup hotspot reappears), but the web app's
+install coach still shows **"Update failed"** and offers "Try again" — checking
+Settings → Firmware afterwards shows the new version is already installed and running.
+
+Root cause: the coach's total budget for install + reboot + Wi-Fi reassociation
+(`FW_TIMEOUT_MS` in `web/app.html`) was 3 minutes, and real-hardware reconnection has now
+been observed occasionally taking a bit longer than that even on a completely normal
+update — the coach had already given up and stopped polling by the time the lamp came
+back online with the new version. Fixed by raising the budget to 5 minutes; a genuinely
+stuck lamp (the AP-fallback case above) still times out, just a couple of minutes later.
+
+If you see "Update failed" after an update that felt slower than usual: check
+**Settings → Firmware → Installed version** before assuming anything is wrong or trying
+again — it may already show the version you just installed.
 
 ## Plain HTTP + Ed25519 signing
 
