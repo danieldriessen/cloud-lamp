@@ -125,9 +125,9 @@ home screen like a normal app.
 > **For smart-home users:** under Settings → MQTT you can connect the lamp to your own
 > MQTT broker (e.g. Home Assistant, ioBroker) — off by default, no account or cloud
 > service required. Turn it on and enter your broker's address, port, and (if needed)
-> username/password directly in the app; nothing needs to be reflashed, and your entries
-> are kept even if you switch it off again. If you don't recognise these terms, you can
-> safely ignore this feature.
+> username/password directly in the app, then tap **Save** to apply them — nothing needs
+> to be reflashed, and your entries are kept even if you switch it off again. If you don't
+> recognise these terms, you can safely ignore this feature.
 
 > **Power Behavior:** under Settings you can choose what the lamp does after a power cut
 > — **Start switched off** (the default) or **Restore Last State** (turns itself back on,

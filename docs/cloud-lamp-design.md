@@ -17,6 +17,21 @@ Related documents:
 
 ## Project status
 
+> **Phase:** v2.5.1 — MQTT settings save behaviour changed from silent auto-commit
+> (on blur/change) to an explicit **Save** button: the four broker fields (Broker/Port/
+> Username/Password) now only stage edits locally — nothing is sent to the device, and no
+> broker reconnect is triggered, until Save is clicked (Enter in any field triggers the
+> same save). Fixes user-reported confusion that changes might not be taking effect
+> (there was previously no positive confirmation on a successful auto-save, only a toast
+> on failure). `web/app.html`: added `mqttDirty` state gating both the Save button and the
+> SSE `ingest()` handlers (so an incoming state update never clobbers an unsaved edit),
+> and `mqtt_save`/`mqtt_saving`/`mqtt_saved` i18n keys across all 10 languages. Also this
+> release: git-tagged and backfilled GitHub Releases for all versions back to v2.1.2 (see
+> [Firmware updates → GitHub Releases](./firmware-updates.md#github-releases-human-facing-downloads));
+> `tools/release.sh` now creates one automatically for every future release too — purely a
+> human-facing download page, unrelated to the OTA mechanism below. JS syntax-checked and
+> browser-verified against `tools/mock-device.py`; not yet tested on real hardware.
+>
 > **Phase:** v2.5.0 — a batch of correctness fixes and web-app/effects polish, no
 > architecture changes. Highlights (each has its own detailed entry further down this
 > section): **(1)** a real power-loss bug fix — every persisted setting (on/off,
@@ -622,7 +637,7 @@ Related documents:
 > selection — feasible, deferred; see Web app section); intensity slider (per-effect
 > mapping); test button gestures / captive portal end-to-end; print + apply the finalised
 > product sticker (docs/Label.lbx); 3D print files.
-> **Firmware:** ESPHome 2026.6.0, project version 2.5.0
+> **Firmware:** ESPHome 2026.6.0, project version 2.5.1
 
 ### GitHub Pages setup
 

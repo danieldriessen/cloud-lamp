@@ -113,6 +113,26 @@ on both builds and configured from the web app, not compiled in).
 > Note: publishing the same version string twice is not offered to devices — always bump
 > `project_version` first.
 
+## GitHub Releases (human-facing downloads)
+
+Separate from everything above, `tools/release.sh` also tags the release (`vX.Y.Z`) and
+creates a **GitHub Release** with the `.bin` attached, via the `gh` CLI. This exists purely
+for **humans** who want a specific version's firmware to flash manually (e.g. to their own
+fork's device, or to roll back) — the lamp itself never looks at GitHub's Releases feature;
+it only ever polls the signed manifest described above. The two mechanisms are unrelated
+and can't drift out of sync with each other in a way that matters: the Release is just a
+nicer, discoverable wrapper around a `.bin` that's already sitting in
+`docs/firmware-dist/cloud-lamp/` regardless.
+
+This step is skipped (with a warning, not a build failure) if `gh` isn't installed or
+authenticated on the release machine — one-time setup: `brew install gh` (or see
+[cli.github.com](https://cli.github.com)), then `gh auth login`. It never blocks the actual
+OTA publish, which is the part devices depend on.
+
+All versions through v2.5.1 were tagged, and are backfilled as Releases in one batch when
+this feature was added; every release from then on gets one automatically as part of
+`tools/release.sh`.
+
 ### HTTP host setup (one-time): GitHub Pages custom domain
 
 The plain-HTTP host is this repo's own **GitHub Pages** site — no separate server, upload

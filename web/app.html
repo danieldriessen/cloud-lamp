@@ -615,6 +615,9 @@
               <input class="ctl" id="mqttUser" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="(optional)"></div>
             <div class="row"><div class="k" data-i18n="mqtt_password">Password</div>
               <input class="ctl" id="mqttPass" type="password" autocomplete="off" placeholder="(optional)"></div>
+            <div class="stack">
+              <button class="btn primary" type="button" id="mqttSaveBtn" disabled data-i18n="mqtt_save">Save</button>
+            </div>
           </div>
         </div>
       </div>
@@ -780,6 +783,7 @@
       beh_off:"Start switched off",beh_restore:"Restore last state",network:"Network",wifi_network:"Wi-Fi network",
       signal:"Signal",ip_address:"IP address",uptime:"Uptime",mqtt_enabled:"MQTT enabled",
       mqtt_d:"Smart-home integration (optional)",mqtt_broker:"Broker address",mqtt_port:"Port",mqtt_username:"Username",mqtt_password:"Password",
+      mqtt_save:"Save",mqtt_saving:"Saving…",mqtt_saved:"Saved",
       firmware:"Firmware",installed_version:"Installed version",
       latest_version:"Latest version",check_updates:"Check for updates now",checking_updates:"Checking for updates…",
       install_update:"Install update",maintenance:"Maintenance",
@@ -806,6 +810,7 @@
       beh_off:"Ausgeschaltet starten",beh_restore:"Letzten Zustand wiederherstellen",network:"Netzwerk",wifi_network:"WLAN-Netzwerk",
       signal:"Signal",ip_address:"IP-Adresse",uptime:"Laufzeit",mqtt_enabled:"MQTT aktiviert",
       mqtt_d:"Smart-Home-Anbindung (optional)",mqtt_broker:"Broker-Adresse",mqtt_port:"Port",mqtt_username:"Benutzername",mqtt_password:"Passwort",
+      mqtt_save:"Speichern",mqtt_saving:"Speichert…",mqtt_saved:"Gespeichert",
       firmware:"Firmware",installed_version:"Installierte Version",
       latest_version:"Neueste Version",check_updates:"Jetzt nach Updates suchen",checking_updates:"Suche nach Updates…",
       install_update:"Update installieren",maintenance:"Wartung",
@@ -832,6 +837,7 @@
       beh_off:"Arrancar apagada",beh_restore:"Restaurar el último estado",network:"Red",wifi_network:"Red Wi-Fi",
       signal:"Señal",ip_address:"Dirección IP",uptime:"Tiempo encendida",mqtt_enabled:"MQTT activado",
       mqtt_d:"Integración domótica (opcional)",mqtt_broker:"Dirección del broker",mqtt_port:"Puerto",mqtt_username:"Usuario",mqtt_password:"Contraseña",
+      mqtt_save:"Guardar",mqtt_saving:"Guardando…",mqtt_saved:"Guardado",
       firmware:"Firmware",installed_version:"Versión instalada",
       latest_version:"Última versión",check_updates:"Buscar actualizaciones ahora",checking_updates:"Buscando actualizaciones…",
       install_update:"Instalar actualización",maintenance:"Mantenimiento",
@@ -858,6 +864,7 @@
       beh_off:"Démarrer éteinte",beh_restore:"Restaurer le dernier état",network:"Réseau",wifi_network:"Réseau Wi-Fi",
       signal:"Signal",ip_address:"Adresse IP",uptime:"En marche depuis",mqtt_enabled:"MQTT activé",
       mqtt_d:"Intégration domotique (optionnel)",mqtt_broker:"Adresse du broker",mqtt_port:"Port",mqtt_username:"Nom d'utilisateur",mqtt_password:"Mot de passe",
+      mqtt_save:"Enregistrer",mqtt_saving:"Enregistrement…",mqtt_saved:"Enregistré",
       firmware:"Micrologiciel",installed_version:"Version installée",
       latest_version:"Dernière version",check_updates:"Vérifier les mises à jour maintenant",checking_updates:"Recherche de mises à jour…",
       install_update:"Installer la mise à jour",maintenance:"Maintenance",
@@ -884,6 +891,7 @@
       beh_off:"Avvia spenta",beh_restore:"Ripristina l'ultimo stato",network:"Rete",wifi_network:"Rete Wi-Fi",
       signal:"Segnale",ip_address:"Indirizzo IP",uptime:"In funzione da",mqtt_enabled:"MQTT attivo",
       mqtt_d:"Integrazione smart-home (opzionale)",mqtt_broker:"Indirizzo del broker",mqtt_port:"Porta",mqtt_username:"Nome utente",mqtt_password:"Password",
+      mqtt_save:"Salva",mqtt_saving:"Salvataggio…",mqtt_saved:"Salvato",
       firmware:"Firmware",installed_version:"Versione installata",
       latest_version:"Ultima versione",check_updates:"Cerca aggiornamenti ora",checking_updates:"Ricerca aggiornamenti…",
       install_update:"Installa aggiornamento",maintenance:"Manutenzione",
@@ -910,6 +918,7 @@
       beh_off:"Uitgeschakeld starten",beh_restore:"Laatste stand herstellen",network:"Netwerk",wifi_network:"Wifi-netwerk",
       signal:"Signaal",ip_address:"IP-adres",uptime:"Looptijd",mqtt_enabled:"MQTT ingeschakeld",
       mqtt_d:"Smarthome-koppeling (optioneel)",mqtt_broker:"Broker-adres",mqtt_port:"Poort",mqtt_username:"Gebruikersnaam",mqtt_password:"Wachtwoord",
+      mqtt_save:"Opslaan",mqtt_saving:"Opslaan…",mqtt_saved:"Opgeslagen",
       firmware:"Firmware",installed_version:"Geïnstalleerde versie",
       latest_version:"Nieuwste versie",check_updates:"Nu op updates controleren",checking_updates:"Zoeken naar updates…",
       install_update:"Update installeren",maintenance:"Onderhoud",
@@ -936,6 +945,7 @@
       beh_off:"Uruchom wyłączoną",beh_restore:"Przywróć ostatni stan",network:"Sieć",wifi_network:"Sieć Wi-Fi",
       signal:"Sygnał",ip_address:"Adres IP",uptime:"Czas pracy",mqtt_enabled:"MQTT włączone",
       mqtt_d:"Integracja smart home (opcjonalna)",mqtt_broker:"Adres brokera",mqtt_port:"Port",mqtt_username:"Nazwa użytkownika",mqtt_password:"Hasło",
+      mqtt_save:"Zapisz",mqtt_saving:"Zapisywanie…",mqtt_saved:"Zapisano",
       firmware:"Oprogramowanie",installed_version:"Zainstalowana wersja",
       latest_version:"Najnowsza wersja",check_updates:"Sprawdź aktualizacje teraz",checking_updates:"Sprawdzanie aktualizacji…",
       install_update:"Zainstaluj aktualizację",maintenance:"Konserwacja",
@@ -962,6 +972,7 @@
       beh_off:"Iniciar desligada",beh_restore:"Restaurar o último estado",network:"Rede",wifi_network:"Rede Wi-Fi",
       signal:"Sinal",ip_address:"Endereço IP",uptime:"Tempo ligada",mqtt_enabled:"MQTT ativado",
       mqtt_d:"Integração smart home (opcional)",mqtt_broker:"Endereço do broker",mqtt_port:"Porta",mqtt_username:"Nome de utilizador",mqtt_password:"Palavra-passe",
+      mqtt_save:"Guardar",mqtt_saving:"A guardar…",mqtt_saved:"Guardado",
       firmware:"Firmware",installed_version:"Versão instalada",
       latest_version:"Última versão",check_updates:"Procurar atualizações agora",checking_updates:"A procurar atualizações…",
       install_update:"Instalar atualização",maintenance:"Manutenção",
@@ -988,6 +999,7 @@
       beh_off:"Kapalı başlat",beh_restore:"Son durumu geri yükle",network:"Ağ",wifi_network:"Wi-Fi ağı",
       signal:"Sinyal",ip_address:"IP adresi",uptime:"Çalışma süresi",mqtt_enabled:"MQTT etkin",
       mqtt_d:"Akıllı ev entegrasyonu (isteğe bağlı)",mqtt_broker:"Broker adresi",mqtt_port:"Bağlantı noktası",mqtt_username:"Kullanıcı adı",mqtt_password:"Şifre",
+      mqtt_save:"Kaydet",mqtt_saving:"Kaydediliyor…",mqtt_saved:"Kaydedildi",
       firmware:"Donanım yazılımı",installed_version:"Yüklü sürüm",
       latest_version:"En son sürüm",check_updates:"Şimdi güncelleme ara",checking_updates:"Güncellemeler aranıyor…",
       install_update:"Güncellemeyi yükle",maintenance:"Bakım",
@@ -1014,6 +1026,7 @@
       beh_off:"Запускаться выключенной",beh_restore:"Восстановить последнее состояние",network:"Сеть",wifi_network:"Сеть Wi-Fi",
       signal:"Сигнал",ip_address:"IP-адрес",uptime:"Время работы",mqtt_enabled:"MQTT включён",
       mqtt_d:"Интеграция с умным домом (опционально)",mqtt_broker:"Адрес брокера",mqtt_port:"Порт",mqtt_username:"Имя пользователя",mqtt_password:"Пароль",
+      mqtt_save:"Сохранить",mqtt_saving:"Сохранение…",mqtt_saved:"Сохранено",
       firmware:"Прошивка",installed_version:"Установленная версия",
       latest_version:"Последняя версия",check_updates:"Проверить обновления сейчас",checking_updates:"Поиск обновлений…",
       install_update:"Установить обновление",maintenance:"Обслуживание",
@@ -1190,7 +1203,7 @@
     ssid:"—", rssi:null, ip:"—", uptime:null,
     hostname:"", serial:"",
     fwCur:"—", fwLatest:null, fwInstalling:false, fwChecking:false, fwProgress:null,
-    mqttPresent:false, mqttOn:false,
+    mqttPresent:false, mqttOn:false, mqttDirty:false,
   };
   let briDragging = false;
   let spdDragging = false;
@@ -1483,17 +1496,20 @@
         st.mqttOn = data.state === "ON";
         renderMqtt();
         break;
+      // While the user has unsaved edits (st.mqttDirty), never let an incoming
+      // state update (another tab, a periodic refresh) overwrite what they've
+      // typed but not yet committed with the Save button.
       case "text-mqtt_broker_host":
-        if (document.activeElement !== $("mqttBroker")) $("mqttBroker").value = data.value || "";
+        if (!st.mqttDirty && document.activeElement !== $("mqttBroker")) $("mqttBroker").value = data.value || "";
         break;
       case "number-mqtt_broker_port":
-        if (document.activeElement !== $("mqttPort") && typeof data.value === "number") $("mqttPort").value = data.value;
+        if (!st.mqttDirty && document.activeElement !== $("mqttPort") && typeof data.value === "number") $("mqttPort").value = data.value;
         break;
       case "text-mqtt_broker_username":
-        if (document.activeElement !== $("mqttUser")) $("mqttUser").value = data.value || "";
+        if (!st.mqttDirty && document.activeElement !== $("mqttUser")) $("mqttUser").value = data.value || "";
         break;
       case "text-mqtt_broker_password":
-        if (document.activeElement !== $("mqttPass")) $("mqttPass").value = data.value || "";
+        if (!st.mqttDirty && document.activeElement !== $("mqttPass")) $("mqttPass").value = data.value || "";
         break;
       case "sensor-wifi_signal":
         st.rssi = Math.round(data.value); renderNet(); break;
@@ -1727,20 +1743,46 @@
     act(() => post(`${P_MQTT_ENABLED}/${target ? "turn_on" : "turn_off"}`));
   });
 
-  // MQTT broker fields — commit on blur/change/Enter, not on every keystroke.
-  function wireMqttField(id, kind, path){
-    const el = $(id);
-    const commit = () => {
-      const v = kind === "number" ? el.value : encodeURIComponent(el.value);
-      act(() => post(`${path}?value=${v}`)).catch(() => {});
-    };
-    el.addEventListener("change", commit);
-    el.addEventListener("keydown", e => { if (e.key === "Enter") el.blur(); });
+  // MQTT broker fields — staged, not applied while typing. Editing any field
+  // just marks the section dirty (enables Save); the device is only ever
+  // told about the new values when Save is actually clicked, so a broker
+  // reconnect never happens mid-edit on a half-typed value.
+  const mqttSaveBtn = $("mqttSaveBtn");
+  function setMqttDirty(dirty){
+    st.mqttDirty = dirty;
+    mqttSaveBtn.disabled = !dirty;
   }
-  wireMqttField("mqttBroker", "text", `${P_MQTT_HOST}/set`);
-  wireMqttField("mqttPort", "number", `${P_MQTT_PORT}/set`);
-  wireMqttField("mqttUser", "text", `${P_MQTT_USER}/set`);
-  wireMqttField("mqttPass", "text", `${P_MQTT_PASS}/set`);
+  function wireMqttField(id){
+    $(id).addEventListener("input", () => setMqttDirty(true));
+    $(id).addEventListener("keydown", e => { if (e.key === "Enter") saveMqttFields(); });
+  }
+  wireMqttField("mqttBroker");
+  wireMqttField("mqttPort");
+  wireMqttField("mqttUser");
+  wireMqttField("mqttPass");
+
+  async function saveMqttFields(){
+    if (!st.mqttDirty || mqttSaveBtn.disabled) return;
+    mqttSaveBtn.disabled = true;
+    const savedLabel = mqttSaveBtn.textContent;
+    mqttSaveBtn.textContent = t("mqtt_saving");
+    try {
+      await Promise.all([
+        post(`${P_MQTT_HOST}/set?value=${encodeURIComponent($("mqttBroker").value)}`),
+        post(`${P_MQTT_PORT}/set?value=${$("mqttPort").value}`),
+        post(`${P_MQTT_USER}/set?value=${encodeURIComponent($("mqttUser").value)}`),
+        post(`${P_MQTT_PASS}/set?value=${encodeURIComponent($("mqttPass").value)}`),
+      ]);
+      setMqttDirty(false);
+      toast(t("mqtt_saved"));
+    } catch (e) {
+      toast(t("failed"));
+      mqttSaveBtn.disabled = false;  // let the user retry without retyping
+    } finally {
+      mqttSaveBtn.textContent = savedLabel;
+    }
+  }
+  mqttSaveBtn.addEventListener("click", saveMqttFields);
 
   // Confirm dialog helper
   function confirmDlg(q, s, onYes){

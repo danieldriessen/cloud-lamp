@@ -15,6 +15,10 @@
 #      channel — GitHub Pages serves docs/ directly at the custom domain the
 #      lamp actually checks (${update_manifest_url} in cloud-lamp.yaml), so
 #      there is no separate upload step to keep in sync.
+#   5. Tags the release (vX.Y.Z) and creates a GitHub Release with the .bin
+#      attached, via the `gh` CLI — a human-facing download/browse page,
+#      unrelated to how the lamp itself updates. Skipped (with a warning,
+#      not a failure) if `gh` isn't installed/authenticated.
 #
 # Why signed + plain HTTP instead of HTTPS (see docs/firmware-updates.md for
 # the full writeup): the ESP8266 can't reliably complete a BearSSL TLS
@@ -164,3 +168,27 @@ git push
 echo
 echo "==> Release v$VERSION published."
 echo "    GitHub Pages will pick it up shortly at \${update_manifest_url}."
+
+# --- GitHub Release (human-facing download/browse page) --------------------
+# Purely additive to the online-update mechanism above: a tag + a GitHub
+# Release with the .bin attached, so someone who wants a specific version's
+# firmware to flash manually has an obvious, discoverable place to get it —
+# the lamp itself never looks at this. Skipped gracefully (not a hard
+# failure) if the `gh` CLI isn't installed/authenticated on this machine;
+# see docs/firmware-updates.md#github-releases-human-facing-downloads.
+echo
+if ! command -v gh >/dev/null 2>&1; then
+  echo "==> Skipping GitHub Release (gh CLI not installed) — tag/release not created."
+elif ! gh auth status >/dev/null 2>&1; then
+  echo "==> Skipping GitHub Release (gh CLI not authenticated — run 'gh auth login') — tag/release not created."
+else
+  echo "==> Creating GitHub Release v$VERSION"
+  git tag -a "v$VERSION" -m "Cloud-Lamp firmware v$VERSION"
+  git push origin "v$VERSION"
+  gh release create "v$VERSION" \
+    "$OUT_DIR/$OUT_BIN" \
+    --title "Cloud-Lamp v$VERSION" \
+    --notes "See docs/cloud-lamp-design.md#project-status (the \"v$VERSION\" changelog entry) for full release notes. Generic firmware — works on any lamp built from this repo. Install via the web app's online updater, or manually via \`http://<lamp-ip>/update\` using the attached \`.bin\`." \
+    --verify-tag
+  echo "    Released: https://github.com/danieldriessen/cloud-lamp/releases/tag/v$VERSION"
+fi
