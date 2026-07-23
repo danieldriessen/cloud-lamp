@@ -38,6 +38,18 @@ releases work this way: `docs/cloud-lamp-design.md#project-status`.
    effect count, language list, permanent manual URL — **never change that URL**). The
    cover page's version/date come from `cloud-lamp.yaml` automatically — never hardcode a
    version in the markdown source.
+   - **Ordering matters:** this rebuild must happen *after* step 2's version bump, using
+     whatever `docs/user-manual.md` content is final for this release. If the PDF was
+     already rebuilt earlier in the same conversation — e.g. while drafting/testing a
+     manual-text edit before formally starting this checklist — that earlier build is now
+     stale and must **not** be reused: rebuild it again here regardless, right after the
+     version bump, never before.
+   - **Don't just trust the script exited 0 — read the result.** Open
+     `docs/user-manual.pdf` (the `Read` tool renders it as text) and confirm the cover
+     page's "Describes firmware vX.Y.Z" line shows the *exact* version just bumped in step
+     2. This has actually broken once (a v2.6.1 release shipped a PDF cover still reading
+     "2.6.0" because the rebuild had happened before the version bump) — verify it, don't
+     assume it.
 5. **Think beyond README/PDF** — for *this specific* batch of changes, what else could now
    be stale? At minimum check: `docs/cloud-lamp-design.md` (add/close out a changelog entry
    for this version), `docs/firmware-updates.md`, `docs/device-credentials.md` (if sticker

@@ -30,6 +30,13 @@ The cover page's "Describes firmware vX.Y.Z" line is read automatically from
 `cloud-lamp.yaml`'s `project_version` by `tools/build-manual.py` — never hardcode a
 version number in the markdown source or the build script.
 
+**If this edit is happening as part of a version-bump release** (see
+`.cursor/rules/publish-release.mdc`), a rebuild done *before* that release's version bump
+is stale the moment the bump happens, even though it was correct when you ran it — always
+do one final `python3 tools/build-manual.py` *after* `project_version` changes, and read
+the resulting PDF's cover line to confirm it, before committing. This has broken a release
+before (v2.6.1 shipped a PDF cover still reading "2.6.0").
+
 If a code change (button behaviour, Wi-Fi flow, update UI, effect list, supported
 languages, sticker layout) could make any manual section stale, treat updating
 `user-manual.md` as part of that change, not a follow-up task.
