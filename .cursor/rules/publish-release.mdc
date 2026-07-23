@@ -1,35 +1,72 @@
 ---
-description: How to publish a new Cloud-Lamp firmware release / OTA update. Use whenever asked to publish, release, ship, cut, or push out a new firmware version, bump project_version, or run tools/release.sh.
-alwaysApply: false
+description: How to publish a new Cloud-Lamp firmware release / OTA update. Fires on any request to publish, release, ship, cut, or push out a new firmware version, bump project_version, or run tools/release.sh.
+alwaysApply: true
 ---
 
-# Publishing a Cloud-Lamp firmware release
+# Publishing a Cloud-Lamp firmware release — mandatory full checklist
 
-Canonical, full-detail doc: `docs/firmware-updates.md#publishing-a-release-builder-workflow`
-(read it before publishing — this rule is only a quick-reference checklist). Background on
-*why* releases work this way: `docs/cloud-lamp-design.md#project-status`, the v2.4.0 entry.
+This rule is `alwaysApply: true` **specifically so it can never be missed** — whenever the
+user asks to publish/release/ship/cut an OTA update (in any wording), run this *entire*
+checklist, in order. Never jump straight to bumping the version or running
+`tools/release.sh` in isolation — a "release" in this project always means the checklist
+below, not just the binary. Canonical, full-detail doc for the mechanics:
+`docs/firmware-updates.md#publishing-a-release-builder-workflow`; background on *why*
+releases work this way: `docs/cloud-lamp-design.md#project-status`.
 
-1. **Bump `project_version`** in `cloud-lamp.yaml`'s `substitutions` block. Never re-publish
-   the same version string — the online updater won't offer a version it's already seen.
-2. **Re-verify the manual/sticker docs** — see `.cursor/rules/manual-release-check.mdc`
-   (`docs/user-manual.md`, `docs/device-credentials.md`) — before publishing, since any
-   button/Wi-Fi/update-flow change could make them stale.
-3. **Run `tools/release.sh`** from the repo root. In order it: compiles the **public**
+1. **Figure out the version bump.** Compare against the last released `project_version`
+   (git history / the last `docs/firmware-dist/cloud-lamp/manifest.json`). Use this
+   project's existing convention (see the `Phase: vX.Y.Z` changelog entries in
+   `docs/cloud-lamp-design.md#project-status` for precedent):
+   - **Patch (Z)** — bug fixes, effect/behaviour tuning, UI polish, docs-only changes, no
+     new user-facing capability.
+   - **Minor (Y)** — a new effect, setting, feature, or a real behavioural fix a user would
+     notice (e.g. the v2.5.0 power-loss/OTA-state fixes).
+   - **Major (X)** — not used yet on this project; reserve for breaking changes.
+   If the right bump isn't obvious, **stop and ask the user**, stating your recommendation
+   and reasoning rather than silently picking one.
+2. **Bump `project_version`** in `cloud-lamp.yaml`'s `substitutions` block. Never
+   re-publish an already-seen version string — the online updater won't offer it.
+3. **Audit and fix `README.md`** end-to-end against the *current* firmware/web app/docs —
+   not just the parts related to the latest change. Check the feature list, effect
+   count/list, hardware table, getting-started steps, documentation table, and repository
+   layout still match reality (grep the actual source: `cloud-lamp.yaml` substitutions,
+   `effects.yaml` effect names, `web/app.html` language list, file existence for every
+   path mentioned). Fix anything stale, wrong, or missing.
+4. **Audit and fix `docs/user-manual.md`**, then rebuild the PDF:
+   `python3 tools/build-manual.py`. Follow `.cursor/rules/manual-release-check.mdc` for the
+   specific sections to re-verify (button gestures, Wi-Fi flow, update flow, sticker table,
+   effect count, language list, permanent manual URL — **never change that URL**). The
+   cover page's version/date come from `cloud-lamp.yaml` automatically — never hardcode a
+   version in the markdown source.
+5. **Think beyond README/PDF** — for *this specific* batch of changes, what else could now
+   be stale? At minimum check: `docs/cloud-lamp-design.md` (add/close out a changelog entry
+   for this version), `docs/firmware-updates.md`, `docs/device-credentials.md` (if sticker
+   fields/naming changed), `tools/mock-device.py` (if effects/entities changed), and any
+   other doc that names a version number, effect, or entity that changed. Don't limit
+   yourself to this list — reason about what this specific change actually touched.
+6. **Commit the source + doc changes** (version bump, README, manual, PDF, code, and any
+   other files from steps 1–5) as one clean commit *before* running `tools/release.sh` —
+   keep the release commit that script makes limited to the binary + manifest.
+7. **Run `tools/release.sh`** from the repo root. In order it: compiles the **public**
    build (`cloud-lamp.yaml` — never `cloud-lamp-dev.yaml`, which has compiled-in Wi-Fi
    credentials) and scans the binary for secrets; writes `docs/firmware-dist/cloud-lamp/`
    (the `.bin` + `manifest.json`); **signs** the manifest with the Ed25519 private key kept
    **outside this repo** (default `~/.cloud-lamp-release-secrets/ota-ed25519-private.key`,
    override via `$RELEASE_SIGNING_KEY` — see `docs/firmware-updates.md#key-custody`); then
-   **publishes** by committing + pushing `docs/firmware-dist/cloud-lamp/` to GitHub.
-4. **That single `git push` is the entire publish step.** `docs/` is this repo's GitHub
+   **publishes** by committing + pushing `docs/firmware-dist/cloud-lamp/` (and, via that
+   same `git push`, the commit from step 6) to GitHub.
+8. **That single `git push` is the entire publish step.** `docs/` is this repo's GitHub
    Pages source, served at the custom domain `cloud-lamp.ddproductions.de` over **plain
    HTTP** (not HTTPS — "Enforce HTTPS" is deliberately off; see
    `docs/firmware-updates.md#plain-http--ed25519-signing`), which is exactly the URL every
    lamp polls (`update_manifest_url` in `cloud-lamp.yaml`). There is no separate upload
-   target, FTP step, or CDN to keep in sync — the git push to `main` *is* the release.
-5. Devices pick it up automatically (checked every 6 h and shortly after boot), or
-   immediately if the owner presses "Check for updates now" in the web app. Nothing else
-   to do after the push.
+   target, FTP step, or CDN to keep in sync.
+9. **Verify the live manifest**, e.g. `curl http://cloud-lamp.ddproductions.de/firmware-dist/cloud-lamp/manifest.json`
+   and confirm it reports the new version. GitHub Pages can take a minute or two to
+   redeploy after the push — if it still shows the old version, wait and re-check rather
+   than assuming something failed.
+10. Devices pick it up automatically (checked every 6 h and shortly after boot), or
+    immediately if the owner presses "Check for updates now" in the web app.
 
 Re-running `tools/release.sh` after a failed/partial push is safe — it produces the exact
 same version/MD5/signature every time.
